@@ -1,17 +1,9 @@
 [phases.setup]
-nixPkgs = ["nodejs_18", "python313", "postgresql"]
-
-[phases.install]
-cmds = [
-  "pip install --upgrade pip",
-  "pip install -r requriements.txt",
-  "cd frontend && npm ci"
-]
+nixPkgs = ["python313", "postgresql"]
 
 [phases.build]
-cmds = [
-  "cd frontend && npm run build"
-]
+cmds = ["py -m pip install --upgrade pip", "pip install -r requirements.txt"]
+
 
 [start]
 cmd = "gunicorn backend.minNow.minNow.wsgi:application --bind 0.0.0.0:$PORT"

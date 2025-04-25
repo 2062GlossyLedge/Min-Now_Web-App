@@ -3,4 +3,4 @@ builder = "nixpacks"
 buildCommand = "pip install -r requirements.txt"
 
 [deploy]
-startCommand = "gunicorn backend.minNow.wsgi:application --bind 0.0.0.0:$PORT"
+startCommand = "gunicorn backend.minNow.minNow.wsgi:application --bind 0.0.0.0:$PORT"

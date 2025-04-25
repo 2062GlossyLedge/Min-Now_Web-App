@@ -4,4 +4,5 @@ builder = "nixpacks"
 [deploy]
 startCommand = "gunicorn minNow.minNow.wsgi:application --bind 0.0.0.0:$PORT"
 
-web: gunicorn minNow.minNow.wsgi:application --log-file -
+[web]
+command = "gunicorn minNow.minNow.wsgi:application --log-file -"

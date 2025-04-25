@@ -23,7 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-ra^c6k6+88kj$-vbh!j5a_)*kv9&@*wpc8rq%o-^1d-(un(n^4"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ["min-nowweb-app-production.up.railway.app", "localhost"]
 
@@ -52,7 +52,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "minNow.urls"
+ROOT_URLCONF = "minNow.minNow.urls"
 
 TEMPLATES = [
     {

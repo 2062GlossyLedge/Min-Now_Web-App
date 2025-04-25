@@ -18,6 +18,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from ninja import NinjaAPI
+from django.http import HttpResponse
 
 api = NinjaAPI()
 
@@ -27,7 +28,12 @@ def add(request, a: int, b: int):
     return {"result": a + b}
 
 
+def home(request):
+    return HttpResponse("Welcome to MinNow API! Visit /api/docs for API documentation.")
+
+
 urlpatterns = [
+    path("", home, name="home"),
     path("admin/", admin.site.urls),
     path("api/", api.urls),
 ]

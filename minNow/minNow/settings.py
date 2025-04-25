@@ -29,9 +29,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv("django_secret_key")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = ["min-nowweb-app-production.up.railway.app", "localhost", "127.0.0.1"]
 
 
 # Application definition
@@ -58,7 +58,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "minNow.urls"
+ROOT_URLCONF = "minNow.minNow.urls"
 
 TEMPLATES = [
     {
@@ -83,20 +83,12 @@ WSGI_APPLICATION = "minNow.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
-}
-
-
-DATABASES = {
-    "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("database"),
-        "USER": os.getenv("user"),
-        "PASSWORD": os.getenv("password"),
-        "HOST": "localhost",
-        "PORT": os.getenv("port"),
+        "NAME": os.getenv("PGDATABASE"),
+        "USER": os.getenv("PGUSER"),
+        "PASSWORD": os.getenv("PGPASSWORD"),
+        "HOST": os.getenv("PGHOST"),
+        "PORT": os.getenv("PGPORT"),
     }
 }
 
@@ -147,10 +139,16 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Vite's default port
+    "https://min-nowweb-app-production.up.railway.app",
+    "http://localhost:5173",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
 
 # Add this line to ensure WhiteNoise works in production
 MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+
+# Update CSRF settings
+CSRF_TRUSTED_ORIGINS = [
+    "https://min-nowweb-app-production.up.railway.app",
+]

@@ -20,11 +20,14 @@ from django.urls import path
 from ninja import NinjaAPI
 from django.http import HttpResponse
 from .auth import auth
+from items.api import router as items_router
 
 api = NinjaAPI(csrf=True)
 
 # Add the auth router to the main API
 api.add_router("auth", auth)
+# Add the items router to the main API
+api.add_router("", items_router)
 
 
 @api.get("/add")

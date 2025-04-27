@@ -6,6 +6,8 @@ from django.core.mail import send_mail
 from django.conf import settings
 from typing import Optional
 from ninja.errors import HttpError
+from items.models import CheckupType
+from items.services import CheckupService
 
 User = get_user_model()
 
@@ -63,6 +65,9 @@ def register(request, payload: UserSchema):
         last_name=payload.last_name,
         username=payload.username,
     )
+
+    CheckupService.create_checkup(user, CheckupType.KEEP)
+    CheckupService.create_checkup(user, CheckupType.GIVE)
 
     return 201, {"access_token": "supersecret", "token_type": "bearer"}
 

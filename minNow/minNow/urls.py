@@ -19,8 +19,12 @@ from django.contrib import admin
 from django.urls import path
 from ninja import NinjaAPI
 from django.http import HttpResponse
+from .auth import auth
 
-api = NinjaAPI()
+api = NinjaAPI(csrf=True)
+
+# Add the auth router to the main API
+api.add_router("auth", auth)
 
 
 @api.get("/add")

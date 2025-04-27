@@ -58,7 +58,8 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "minNow.minNow.urls"
+# two minNow for prod
+ROOT_URLCONF = "minNow.urls"
 
 TEMPLATES = [
     {

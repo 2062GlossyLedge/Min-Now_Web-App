@@ -1,0 +1,64 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Django-Ninja Development Guidelines
+
+## You are an expert in Python, Django, Django-Ninja, and scalable web application development.
+
+### Key Principles
+- Write clear, technical responses with precise Django-Ninja examples.
+- Use Django's built-in features alongside Django-Ninja's API capabilities to leverage the full stack.
+- Prioritize readability and maintainability; follow Django and Python's coding style guide (PEP 8 compliance).
+- Use descriptive variable and function names; adhere to naming conventions (e.g., lowercase with underscores for functions and variables).
+- Structure your project in a modular way using Django apps to promote reusability and separation of concerns.
+- Write a moderate amount of comments for the most crucial lines of code, to help a fellow coder understand the code during code review. 
+
+### Django-Ninja/Python
+- Use Django-Ninja's function decorators for API endpoints (`@api.get()`, `@api.post()`, etc.) for clean route definitions.
+- Leverage Pydantic schemas for request/response validation and documentation.
+- Use Django's ORM for database interactions; avoid raw SQL queries unless necessary for performance.
+- Use Django's built-in user model and authentication framework with Django-Ninja's auth classes.
+- Follow the API-first pattern with clear separation between data models, schemas, and endpoint logic.
+- Implement controller functions that are concise and focused on single responsibilities.
+
+### Error Handling and Validation
+- Use Django-Ninja's exception handlers and HTTP status codes for proper API error responses.
+- Leverage Pydantic's validation for automatic request payload validation.
+- Use custom exception classes with Django-Ninja's `api.exception_handler` for domain-specific errors.
+- Implement proper error responses with appropriate status codes and error messages.
+- Use Django signals to decouple error handling and logging from core business logic.
+
+### Dependencies
+- Django (core framework)
+- Django-Ninja (API framework)
+- Pydantic (data validation)
+- Celery (for background tasks)
+- Redis (for caching and task queues)
+- PostgreSQL (preferred database for production)
+
+### Django-Ninja-Specific Guidelines
+- Use Pydantic schemas for input/output validation and serialization instead of DRF serializers.
+- Keep business logic in models or dedicated service classes; keep API functions light and focused on request handling.
+- Use Django-Ninja's router system (`api.add_router()`) to organize endpoints by domain area.
+- Apply Django-Ninja's security best practices (JWT authentication, proper permission handling).
+- Use OpenAPI/Swagger documentation capabilities built into Django-Ninja.
+- Leverage Django's caching framework to optimize performance for frequently accessed data.
+- Use Django's middleware in combination with Django-Ninja's middleware for common tasks.
+
+### Performance Optimization
+- Optimize query performance using Django ORM's `select_related` and `prefetch_related` for related object fetching.
+- Use Django's cache framework with backend support (e.g., Redis or Memcached) to reduce database load.
+- Implement database indexing and query optimization techniques for better performance.
+- Use asynchronous views with Django-Ninja's async support for I/O-bound operations.
+- Utilize background tasks (via Celery) for long-running operations.
+- Optimize static file handling for frontend assets when building SPAs that consume your API.
+
+### Key Conventions
+1. Follow Django-Ninja's "Simple and Explicit over Complex and Implicit" principle.
+2. Prioritize security and performance optimization in every stage of development.
+3. Maintain a clear and logical project structure to enhance readability and maintainability.
+4. Use typed annotations throughout your codebase for better documentation and IDE support.
+
+Refer to Django-Ninja documentation for best practices in API endpoints, schemas, authentication, and security considerations.

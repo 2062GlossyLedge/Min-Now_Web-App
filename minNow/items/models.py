@@ -47,14 +47,12 @@ class CheckupType(models.TextChoices):
 
 
 class Checkup(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     checkup_type = models.CharField(max_length=10, choices=CheckupType.choices)
     last_checkup_date = models.DateTimeField(default=timezone.now)
     checkup_interval_months = models.IntegerField(default=1)
 
-    # unique together for user and checkup type
     class Meta:
-        unique_together = ("user", "checkup_type")
+        unique_together = ("checkup_type",)
 
     @property
     def is_checkup_due(self):
@@ -75,7 +73,6 @@ class Checkup(models.Model):
 
 class OwnedItem(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
     picture_url = models.CharField(max_length=255)  # Storing emoji as string
     item_received_date = models.DateTimeField(default=timezone.now)

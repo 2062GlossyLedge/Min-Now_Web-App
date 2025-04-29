@@ -85,7 +85,6 @@ class CheckupUpdateSchema(Schema):
 @router.post("/items", response={201: OwnedItemSchema})
 def create_item(request, payload: OwnedItemCreateSchema):
     item = ItemService.create_item(
-        user=request.user,
         name=payload.name,
         picture_url=payload.picture_url,
         item_type=payload.item_type,
@@ -123,12 +122,13 @@ def delete_item(request, item_id: UUID):
 def list_items(
     request, status: Optional[ItemStatus] = None, item_type: Optional[ItemType] = None
 ):
-    qs = ItemService.get_items_for_user(request.user)
     if status:
-        qs = qs.filter(status=status)
-    if item_type:
-        qs = qs.filter(item_type=item_type)
-    return [OwnedItemSchema.from_orm(item) for item in qs]
+        items = ItemService.get_items_by_status(status)
+    elif item_type:
+        items = ItemService.get_items_by_type(item_type)
+    else:
+        items = ItemService.get_items_by_status(ItemStatus.KEEP)
+    return [OwnedItemSchema.from_orm(item) for item in items]
 
 
 @router.post("/checkups", response={201: CheckupSchema})
@@ -147,7 +147,7 @@ def get_checkup(request, checkup_id: int):
 
 @router.get("/checkups", response=List[CheckupSchema])
 def list_checkups(request):
-    checkups = CheckupService.get_all_checkups(user=request.user)
+    checkups = CheckupService.get_all_checkups()
     return checkups
 
 

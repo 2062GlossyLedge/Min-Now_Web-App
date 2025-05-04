@@ -139,4 +139,6 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
+# Swift
+
 My App.swiftpm/*

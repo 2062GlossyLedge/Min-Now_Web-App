@@ -84,6 +84,8 @@ class CheckupUpdateSchema(Schema):
 
 @router.post("/items", response={201: OwnedItemSchema})
 def create_item(request, payload: OwnedItemCreateSchema):
+    print("Request Headers:", request.headers)
+    print("Request Body:", payload.dict())
     item = ItemService.create_item(
         name=payload.name,
         picture_url=payload.picture_url,

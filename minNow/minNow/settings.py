@@ -140,15 +140,15 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
     "https://min-nowweb-app-production.up.railway.app",
-    "http://localhost:5173",
+    "http://localhost:3000",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
 
-# Add this line to ensure WhiteNoise works in production
-MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
-
 # Update CSRF settings
 CSRF_TRUSTED_ORIGINS = [
     "https://min-nowweb-app-production.up.railway.app",
+    "http://localhost:3000",
 ]
+# Add this line to ensure WhiteNoise works in production
+MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")

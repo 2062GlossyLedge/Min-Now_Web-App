@@ -5,9 +5,21 @@ from datetime import timedelta
 
 class ItemService:
     @staticmethod
-    def create_item(name, picture_url, item_type, status=ItemStatus.KEEP):
+    def create_item(
+        name,
+        picture_url,
+        item_type,
+        status=ItemStatus.KEEP,
+        item_received_date=None,
+        last_used=None,
+    ):
         return OwnedItem.objects.create(
-            name=name, picture_url=picture_url, item_type=item_type, status=status
+            name=name,
+            picture_url=picture_url,
+            item_type=item_type,
+            status=status,
+            item_received_date=item_received_date,
+            last_used=last_used,
         )
 
     @staticmethod

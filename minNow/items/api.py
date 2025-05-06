@@ -65,6 +65,8 @@ class OwnedItemCreateSchema(Schema):
     picture_url: str
     item_type: ItemType
     status: ItemStatus = ItemStatus.KEEP
+    item_received_date: datetime
+    last_used: datetime
 
 
 class OwnedItemUpdateSchema(Schema):
@@ -91,6 +93,8 @@ def create_item(request, payload: OwnedItemCreateSchema):
         picture_url=payload.picture_url,
         item_type=payload.item_type,
         status=payload.status,
+        item_received_date=payload.item_received_date,
+        last_used=payload.last_used,
     )
     return 201, OwnedItemSchema.from_orm(item)
 

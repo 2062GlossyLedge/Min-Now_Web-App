@@ -94,3 +94,21 @@ class OwnedItem(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.get_status_display()})"
+
+    @staticmethod
+    def create_item(
+        name,
+        picture_url,
+        item_type,
+        status=ItemStatus.KEEP,
+        item_received_date=None,
+        last_used=None,
+    ):
+        return OwnedItem.objects.create(
+            name=name,
+            picture_url=picture_url,
+            item_type=item_type,
+            status=status,
+            item_received_date=item_received_date or timezone.now(),
+            last_used=last_used or timezone.now(),
+        )

@@ -51,6 +51,7 @@ class Checkup(models.Model):
     last_checkup_date = models.DateTimeField(default=timezone.now)
     checkup_interval_months = models.IntegerField(default=1)
 
+    # only one checkup per type
     class Meta:
         unique_together = ("checkup_type",)
 

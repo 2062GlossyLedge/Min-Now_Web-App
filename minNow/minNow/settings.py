@@ -160,7 +160,12 @@ MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
 # Add security settings. Disable during development
 # https://adamj.eu/tech/2019/04/10/how-to-score-a+-for-security-headers-on-your-django-website/
 # https://docs.djangoproject.com/en/4.2/topics/security/
-SECURE_SSL_REDIRECT = True
+SECURE_SSL_REDIRECT = False  # Handled by railway
+SECURE_PROXY_SSL_HEADER = (
+    "HTTP_X_FORWARDED_PROTO",
+    "https",
+)  # Tell Django about the proxy
+
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_BROWSER_XSS_FILTER = True

@@ -32,9 +32,9 @@ sys.path.append(str(BASE_DIR))
 SECRET_KEY = os.getenv("django_secret_key")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ["min-nowweb-app-production.up.railway.app", "localhost", "127.0.0.1"]
+ALLOWED_HOSTS = ["min-nowweb-app-production.up.railway.app"]
 
 
 # Application definition
@@ -63,7 +63,7 @@ MIDDLEWARE = [
 ]
 
 # two minNow for prod
-ROOT_URLCONF = "minNow.urls"
+ROOT_URLCONF = "minNow.minNow.urls"
 
 TEMPLATES = [
     {
@@ -143,7 +143,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
     "https://min-nowweb-app-production.up.railway.app",
-    "http://localhost:3000",
+    "https://min-now-frontend-git-main-2062glossyledges-projects.vercel.app/",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -151,7 +151,29 @@ CORS_ALLOW_CREDENTIALS = True
 # Update CSRF settings
 CSRF_TRUSTED_ORIGINS = [
     "https://min-nowweb-app-production.up.railway.app",
-    "http://localhost:3000",
+    "https://min-now-frontend-git-main-2062glossyledges-projects.vercel.app/",
 ]
 # Add this line to ensure WhiteNoise works in production
 MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+
+
+# Add security settings. Disable during development
+# https://adamj.eu/tech/2019/04/10/how-to-score-a+-for-security-headers-on-your-django-website/
+# https://docs.djangoproject.com/en/4.2/topics/security/
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"
+
+SECURE_HSTS_SECONDS = 31536000  # 1 year
+# If I have subdomains
+# SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+# SECURE_HSTS_PRELOAD = True
+
+# Couple more listed in link that reqs packages downloading from A+
+# refer policy
+
+# django docs
+# securing user file uploads. Uploadthing suffice?

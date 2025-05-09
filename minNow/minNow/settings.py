@@ -14,12 +14,15 @@ from pathlib import Path
 
 import os
 from dotenv import load_dotenv
+import sys
 
 load_dotenv()
 
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Add the project root directory to Python path
+sys.path.append(str(BASE_DIR))
 
 
 # Quick-start development settings - unsuitable for production

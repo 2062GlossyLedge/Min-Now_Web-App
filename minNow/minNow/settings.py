@@ -32,7 +32,7 @@ sys.path.append(str(BASE_DIR))
 SECRET_KEY = os.getenv("django_secret_key")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = os.getenv("DEBUG")
 
 ALLOWED_HOSTS = ["min-nowweb-app-production.up.railway.app"]
 

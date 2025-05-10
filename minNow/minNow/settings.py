@@ -143,7 +143,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
     "https://min-nowweb-app-production.up.railway.app",
-    "https://min-now-frontend-git-main-2062glossyledges-projects.vercel.app",
+    "https://min-now-frontend.vercel.app",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -151,7 +151,7 @@ CORS_ALLOW_CREDENTIALS = True
 # Update CSRF settings
 CSRF_TRUSTED_ORIGINS = [
     "https://min-nowweb-app-production.up.railway.app",
-    "https://min-now-frontend-git-main-2062glossyledges-projects.vercel.app",
+    "https://min-now-frontend.vercel.app",
 ]
 # Add this line to ensure WhiteNoise works in production
 MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")

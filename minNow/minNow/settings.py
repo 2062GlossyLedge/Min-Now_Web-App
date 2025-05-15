@@ -63,7 +63,7 @@ MIDDLEWARE = [
 ]
 
 # two minNow for prod
-ROOT_URLCONF = "minNow.urls"
+ROOT_URLCONF = "minNow.minNow.urls"
 
 TEMPLATES = [
     {

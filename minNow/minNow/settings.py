@@ -34,7 +34,7 @@ SECRET_KEY = os.getenv("django_secret_key")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG")
 
-ALLOWED_HOSTS = ["min-nowweb-app-production.up.railway.app"]
+ALLOWED_HOSTS = ["min-nowweb-app-production.up.railway.app", "localhost", "127.0.0.1"]
 
 
 # Application definition
@@ -63,7 +63,7 @@ MIDDLEWARE = [
 ]
 
 # two minNow for prod
-ROOT_URLCONF = "minNow.minNow.urls"
+ROOT_URLCONF = "minNow.urls"
 
 TEMPLATES = [
     {
@@ -144,6 +144,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CORS_ALLOWED_ORIGINS = [
     "https://min-nowweb-app-production.up.railway.app",
     "https://min-now-frontend.vercel.app",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -152,6 +154,8 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = [
     "https://min-nowweb-app-production.up.railway.app",
     "https://min-now-frontend.vercel.app",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
 # Add this line to ensure WhiteNoise works in production
 MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
@@ -166,8 +170,13 @@ SECURE_PROXY_SSL_HEADER = (
     "https",
 )  # Tell Django about the proxy
 
+# cookie only sent over https
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+
+CSRF_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_SAMESITE = "None"
+
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"

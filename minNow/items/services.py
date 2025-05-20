@@ -55,18 +55,31 @@ class ItemService:
 
 class CheckupService:
     @staticmethod
-    def create_checkup(interval_months=1, checkup_type="keep"):
-        # Delete any existing checkup of the same type
-        Checkup.objects.filter(checkup_type=checkup_type).delete()
+    def create_checkup(user, interval_months=1, checkup_type="keep"):
+        # Delete any existing checkup of the same type for this user
+        Checkup.objects.filter(user=user, checkup_type=checkup_type).delete()
 
         # Create new checkup
         return Checkup.objects.create(
-            checkup_interval_months=interval_months, checkup_type=checkup_type
+            user=user,
+            checkup_interval_months=interval_months,
+            checkup_type=checkup_type,
         )
 
     @staticmethod
-    def get_checkups_by_type(checkup_type):
-        return Checkup.objects.filter(checkup_type=checkup_type)
+    def get_checkups_by_type(user, checkup_type):
+        return Checkup.objects.filter(user=user, checkup_type=checkup_type)
+
+    @staticmethod
+    def get_all_checkups(user):
+        return Checkup.objects.filter(user=user)
+
+    @staticmethod
+    def get_checkup(checkup_id):
+        try:
+            return Checkup.objects.get(id=checkup_id)
+        except Checkup.DoesNotExist:
+            return None
 
     @staticmethod
     def complete_checkup(checkup_id):

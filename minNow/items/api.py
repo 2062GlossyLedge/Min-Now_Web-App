@@ -145,10 +145,14 @@ def list_items(
     return [OwnedItemSchema.from_orm(item) for item in items]
 
 
-# @router.post("/checkups", response={201: CheckupSchema})
-# def create_checkup(request, payload: CheckupCreateSchema):
-#     checkup = CheckupService.create_checkup(interval_months=payload.interval_months)
-#     return 201, checkup
+@router.post("/checkups", response={201: CheckupSchema}, auth=ClerkAuth())
+def create_checkup(request, payload: CheckupCreateSchema):
+    checkup = CheckupService.create_checkup(
+        user=request.user,
+        interval_months=payload.interval_months,
+        checkup_type=payload.checkup_type,
+    )
+    return 201, checkup
 
 
 @router.get(
@@ -158,15 +162,9 @@ def list_items(
 )
 def get_checkup(request, checkup_id: int):
     checkup = CheckupService.get_checkup(checkup_id)
-    if not checkup:
+    if not checkup or checkup.user != request.user:
         return 404, {"detail": "Checkup not found"}
     return 200, checkup
-
-
-# @router.get("/checkups", response=List[CheckupSchema])
-# def list_checkups(request):
-#     checkups = CheckupService.get_all_checkups()
-#     return checkups
 
 
 @router.put(
@@ -175,11 +173,12 @@ def get_checkup(request, checkup_id: int):
     auth=ClerkAuth(),
 )
 def update_checkup_interval(request, checkup_id: int, payload: CheckupUpdateSchema):
+    checkup = CheckupService.get_checkup(checkup_id)
+    if not checkup or checkup.user != request.user:
+        return 404, {"detail": "Checkup not found"}
     checkup = CheckupService.update_checkup_interval(
         checkup_id, payload.interval_months
     )
-    if not checkup:
-        return 404, {"detail": "Checkup not found"}
     return 200, checkup
 
 
@@ -189,9 +188,10 @@ def update_checkup_interval(request, checkup_id: int, payload: CheckupUpdateSche
     auth=ClerkAuth(),
 )
 def complete_checkup(request, checkup_id: int):
-    checkup = CheckupService.complete_checkup(checkup_id)
-    if not checkup:
+    checkup = CheckupService.get_checkup(checkup_id)
+    if not checkup or checkup.user != request.user:
         return 404, {"detail": "Checkup not found"}
+    checkup = CheckupService.complete_checkup(checkup_id)
     return 200, checkup
 
 
@@ -208,9 +208,11 @@ class CheckupTypeSchema(Schema):
 @router.get("/checkups", response=List[CheckupSchema], auth=ClerkAuth())
 def list_checkups(request, type: Optional[str] = None):
     if type:
-        checkups = CheckupService.get_checkups_by_type(type)
+        checkups = CheckupService.get_checkups_by_type(
+            user=request.user, checkup_type=type
+        )
     else:
-        checkups = CheckupService.get_all_checkups()
+        checkups = CheckupService.get_all_checkups(user=request.user)
     return checkups
 
 

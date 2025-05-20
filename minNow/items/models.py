@@ -47,13 +47,20 @@ class CheckupType(models.TextChoices):
 
 
 class Checkup(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="checkups",
+        null=False,
+        blank=False,
+    )
     checkup_type = models.CharField(max_length=10, choices=CheckupType.choices)
     last_checkup_date = models.DateTimeField(default=timezone.now)
     checkup_interval_months = models.IntegerField(default=1)
 
-    # only one checkup per type
+    # only one checkup per type per user
     class Meta:
-        unique_together = ("checkup_type",)
+        unique_together = ("user", "checkup_type")
 
     @property
     def is_checkup_due(self):

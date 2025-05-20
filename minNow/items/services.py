@@ -5,22 +5,8 @@ from datetime import timedelta
 
 class ItemService:
     @staticmethod
-    def create_item(
-        name,
-        picture_url,
-        item_type,
-        status=ItemStatus.KEEP,
-        item_received_date=None,
-        last_used=None,
-    ):
-        return OwnedItem.objects.create(
-            name=name,
-            picture_url=picture_url,
-            item_type=item_type,
-            status=status,
-            item_received_date=item_received_date,
-            last_used=last_used,
-        )
+    def create_item(user, **kwargs):
+        return OwnedItem.objects.create(user=user, **kwargs)
 
     @staticmethod
     def get_item(item_id):
@@ -56,6 +42,15 @@ class ItemService:
     @staticmethod
     def get_items_by_type(item_type):
         return OwnedItem.objects.filter(item_type=item_type)
+
+    @staticmethod
+    def get_items_for_user(user, status=None, item_type=None):
+        qs = OwnedItem.objects.filter(user=user)
+        if status:
+            qs = qs.filter(status=status)
+        if item_type:
+            qs = qs.filter(item_type=item_type)
+        return qs
 
 
 class CheckupService:

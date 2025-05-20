@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "corsheaders",
     "items",
+    "users",
 ]
 
 MIDDLEWARE = [
@@ -95,9 +96,9 @@ DATABASES = {
         "PASSWORD": os.getenv("PGPASSWORD"),
         "HOST": os.getenv("PGHOST", "localhost"),
         "PORT": os.getenv("PGPORT", "5432"),
-        "OPTIONS": {
-            "sslmode": "require",
-        },
+        # "OPTIONS": {
+        #     "sslmode": "require",
+        # },
     }
 }
 
@@ -188,3 +189,5 @@ MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
 
 # django docs
 # securing user file uploads. Uploadthing suffice?
+
+AUTH_USER_MODEL = "users.User"

@@ -23,7 +23,6 @@ from items.api import router as items_router
 
 api = NinjaAPI(csrf=True)
 
-
 # Add the items router to the main API
 api.add_router("", items_router)
 

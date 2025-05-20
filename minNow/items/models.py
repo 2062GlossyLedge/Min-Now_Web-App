@@ -74,6 +74,13 @@ class Checkup(models.Model):
 
 class OwnedItem(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="owned_items",
+        null=False,
+        blank=False,
+    )
     name = models.CharField(max_length=255)
     picture_url = models.CharField(max_length=255)  # Storing emoji as string
     item_received_date = models.DateTimeField(default=timezone.now)
@@ -98,6 +105,7 @@ class OwnedItem(models.Model):
 
     @staticmethod
     def create_item(
+        user,
         name,
         picture_url,
         item_type,
@@ -106,6 +114,7 @@ class OwnedItem(models.Model):
         last_used=None,
     ):
         return OwnedItem.objects.create(
+            user=user,
             name=name,
             picture_url=picture_url,
             item_type=item_type,

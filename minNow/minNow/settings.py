@@ -31,10 +31,66 @@ sys.path.append(str(BASE_DIR))
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv("django_secret_key")
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG")
+prod = os.getenv("PROD")
 
-ALLOWED_HOSTS = ["min-nowweb-app-production.up.railway.app", "localhost", "127.0.0.1"]
+if prod == True:
+    DEBUG = False
+    ALLOWED_HOSTS = ["min-nowweb-app-production.up.railway.app"]
+    ROOT_URLCONF = "minNow.minNow.urls"
+
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("PGDATABASE"),
+            "USER": os.getenv("PGUSER"),
+            "PASSWORD": os.getenv("PGPASSWORD"),
+            "HOST": os.getenv("PGHOST", "localhost"),
+            "PORT": os.getenv("PGPORT", "5432"),
+            "OPTIONS": {
+                "sslmode": "require",
+            },
+        }
+    }
+    # Add security settings.
+    # https://adamj.eu/tech/2019/04/10/how-to-score-a+-for-security-headers-on-your-django-website/
+    # https://docs.djangoproject.com/en/4.2/topics/security/
+    SECURE_SSL_REDIRECT = False  # Handled by railway
+    SECURE_PROXY_SSL_HEADER = (
+        "HTTP_X_FORWARDED_PROTO",
+        "https",
+    )  # Tell Django about the proxy
+
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = "DENY"
+
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    # If I have subdomains
+    # SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    # SECURE_HSTS_PRELOAD = True
+
+    # Couple more listed in link that reqs packages downloading from A+
+    # refer policy
+
+    # django docs
+    # securing user file uploads. Uploadthing suffice?
+else:
+    DEBUG = True
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+    ROOT_URLCONF = "minNow.urls"
+
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("PPGDATABASE"),
+            "USER": os.getenv("PPGUSER"),
+            "PASSWORD": os.getenv("PPGPASSWORD"),
+            "HOST": os.getenv("PPGHOST"),
+            "PORT": os.getenv("PPGPORT"),
+        }
+    }
 
 
 # Application definition
@@ -63,8 +119,6 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-# two minNow for prod
-ROOT_URLCONF = "minNow.urls"
 
 TEMPLATES = [
     {
@@ -86,21 +140,6 @@ WSGI_APPLICATION = "minNow.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
-
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("PGDATABASE"),
-        "USER": os.getenv("PGUSER"),
-        "PASSWORD": os.getenv("PGPASSWORD"),
-        "HOST": os.getenv("PGHOST", "localhost"),
-        "PORT": os.getenv("PGPORT", "5432"),
-        # "OPTIONS": {
-        #     "sslmode": "require",
-        # },
-    }
-}
 
 
 # Password validation
@@ -163,31 +202,5 @@ CSRF_TRUSTED_ORIGINS = [
 # Add this line to ensure WhiteNoise works in production
 MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
 
-
-# Add security settings. Disable during development
-# https://adamj.eu/tech/2019/04/10/how-to-score-a+-for-security-headers-on-your-django-website/
-# https://docs.djangoproject.com/en/4.2/topics/security/
-# SECURE_SSL_REDIRECT = False  # Handled by railway
-# SECURE_PROXY_SSL_HEADER = (
-#     "HTTP_X_FORWARDED_PROTO",
-#     "https",
-# )  # Tell Django about the proxy
-
-# SESSION_COOKIE_SECURE = True
-# CSRF_COOKIE_SECURE = True
-# SECURE_BROWSER_XSS_FILTER = True
-# SECURE_CONTENT_TYPE_NOSNIFF = True
-# X_FRAME_OPTIONS = "DENY"
-
-# SECURE_HSTS_SECONDS = 31536000  # 1 year
-# If I have subdomains
-# SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-# SECURE_HSTS_PRELOAD = True
-
-# Couple more listed in link that reqs packages downloading from A+
-# refer policy
-
-# django docs
-# securing user file uploads. Uploadthing suffice?
 
 AUTH_USER_MODEL = "users.User"

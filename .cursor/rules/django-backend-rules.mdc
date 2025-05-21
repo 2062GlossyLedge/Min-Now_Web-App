@@ -10,7 +10,6 @@ alwaysApply: true
 - The settings.py file is located in "minNow/minNow" directory. Don't create another settings.py file. Do not create a settings file in the room Min-Now_Backend directory
 - Do not delete or overwrite any comments. 
 - You are writing a web app backend that will connect with a react frontend in another repo. 
-- If running terminal commands, run the command for windows powershell
 
 ### Key Principles
 - Write clear, technical responses with precise Django-Ninja examples.

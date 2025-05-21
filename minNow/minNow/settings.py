@@ -33,8 +33,10 @@ SECRET_KEY = os.getenv("django_secret_key")
 
 prod = os.getenv("PROD")
 
+# how to debug an error only occuring on prod?
+DEBUG = os.getenv("DEBUG")
+
 if prod == True:
-    DEBUG = False
     ALLOWED_HOSTS = ["min-nowweb-app-production.up.railway.app"]
     ROOT_URLCONF = "minNow.minNow.urls"
 
@@ -77,7 +79,6 @@ if prod == True:
     # django docs
     # securing user file uploads. Uploadthing suffice?
 else:
-    DEBUG = True
     ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
     ROOT_URLCONF = "minNow.urls"
 

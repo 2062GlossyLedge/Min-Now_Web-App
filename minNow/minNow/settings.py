@@ -35,10 +35,11 @@ prod = os.getenv("PROD")
 
 # how to debug an error only occuring on prod?
 DEBUG = os.getenv("DEBUG")
+ROOT_URLCONF = os.getenv("ROOT_URLCONF")
+
 
 if prod == True:
     ALLOWED_HOSTS = ["min-nowweb-app-production.up.railway.app"]
-    ROOT_URLCONF = "minNow.urls"
 
     DATABASES = {
         "default": {
@@ -80,7 +81,6 @@ if prod == True:
     # securing user file uploads. Uploadthing suffice?
 else:
     ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
-    ROOT_URLCONF = "minNow.urls"
 
     DATABASES = {
         "default": {

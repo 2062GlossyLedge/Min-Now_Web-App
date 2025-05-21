@@ -142,3 +142,7 @@ dist
 # Swift
 
 My App.swiftpm/*
+
+#admin files
+
+minNow/staticfiles/*

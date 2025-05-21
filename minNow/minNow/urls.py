@@ -19,20 +19,12 @@ from django.contrib import admin
 from django.urls import path
 from ninja import NinjaAPI
 from django.http import HttpResponse
-from .auth import auth
 from items.api import router as items_router
 
 api = NinjaAPI(csrf=True)
 
-# Add the auth router to the main API
-api.add_router("auth", auth)
 # Add the items router to the main API
 api.add_router("", items_router)
-
-
-@api.get("/add")
-def add(request, a: int, b: int):
-    return {"result": a + b}
 
 
 def home(request):
@@ -45,7 +37,7 @@ from django.middleware.csrf import get_token
 @api.get("/csrf-token")
 def get_csrf_token(request):
     token = get_token(request)
-    print("CSRF Token:", token)
+    # print("CSRF Token:", token)
     return {"token": token}
 
 

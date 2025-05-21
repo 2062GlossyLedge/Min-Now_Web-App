@@ -5,10 +5,11 @@ alwaysApply: true
 ---
 # Django-Ninja Development Guidelines
 
-## You are an expert in Python, Django, Django-Ninja, and scalable web application development.
+## You are an expert in Python, Django, Django-Ninja, PostgreSQL and scalable web application development.
 
 - The settings.py file is located in "minNow/minNow" directory. Don't create another settings.py file. Do not create a settings file in the room Min-Now_Backend directory
 - Do not delete or overwrite any comments. 
+- You are writing a web app backend that will connect with a react frontend in another repo. 
 
 ### Key Principles
 - Write clear, technical responses with precise Django-Ninja examples.

@@ -4,6 +4,7 @@ from .models import ItemType, ItemStatus, TimeSpan
 from .services import ItemService, CheckupService
 from datetime import datetime
 from uuid import UUID
+from minNow.auth import ClerkAuth
 
 router = Router()
 
@@ -85,11 +86,11 @@ class CheckupUpdateSchema(Schema):
     interval_months: int
 
 
-@router.post("/items", response={201: OwnedItemSchema})
+@router.post("/items", response={201: OwnedItemSchema}, auth=ClerkAuth())
 def create_item(request, payload: OwnedItemCreateSchema):
-    print("Request Headers:", request.headers)
-    print("Request Body:", payload.dict())
+    user = request.user
     item = ItemService.create_item(
+        user=user,
         name=payload.name,
         picture_url=payload.picture_url,
         item_type=payload.item_type,
@@ -100,7 +101,11 @@ def create_item(request, payload: OwnedItemCreateSchema):
     return 201, OwnedItemSchema.from_orm(item)
 
 
-@router.get("/items/{item_id}", response={200: OwnedItemSchema, 404: dict})
+@router.get(
+    "/items/{item_id}",
+    response={200: OwnedItemSchema, 404: dict},
+    auth=ClerkAuth(),
+)
 def get_item(request, item_id: UUID):
     item = ItemService.get_item(item_id)
     if not item:
@@ -108,7 +113,11 @@ def get_item(request, item_id: UUID):
     return 200, OwnedItemSchema.from_orm(item)
 
 
-@router.put("/items/{item_id}", response={200: OwnedItemSchema, 404: dict})
+@router.put(
+    "/items/{item_id}",
+    response={200: OwnedItemSchema, 404: dict},
+    auth=ClerkAuth(),
+)
 def update_item(request, item_id: UUID, payload: OwnedItemUpdateSchema):
     update_data = payload.dict(exclude_unset=True)
     item = ItemService.update_item(item_id, **update_data)
@@ -117,7 +126,7 @@ def update_item(request, item_id: UUID, payload: OwnedItemUpdateSchema):
     return 200, OwnedItemSchema.from_orm(item)
 
 
-@router.delete("/items/{item_id}", response={200: dict, 404: dict})
+@router.delete("/items/{item_id}", response={200: dict, 404: dict}, auth=ClerkAuth())
 def delete_item(request, item_id: UUID):
     success = ItemService.delete_item(item_id)
     if not success:
@@ -125,56 +134,64 @@ def delete_item(request, item_id: UUID):
     return 200, {"detail": "Item deleted successfully"}
 
 
-@router.get("/items", response=List[OwnedItemSchema])
+@router.get("/items", response=List[OwnedItemSchema], auth=ClerkAuth())
 def list_items(
     request, status: Optional[ItemStatus] = None, item_type: Optional[ItemType] = None
 ):
-    if status:
-        items = ItemService.get_items_by_status(status)
-    elif item_type:
-        items = ItemService.get_items_by_type(item_type)
-    else:
-        items = ItemService.get_items_by_status(ItemStatus.KEEP)
+    user = request.user  # This should be set by ClerkAuth
+
+    # Filter items by the authenticated user
+    items = ItemService.get_items_for_user(user, status=status, item_type=item_type)
     return [OwnedItemSchema.from_orm(item) for item in items]
 
 
-# @router.post("/checkups", response={201: CheckupSchema})
-# def create_checkup(request, payload: CheckupCreateSchema):
-#     checkup = CheckupService.create_checkup(interval_months=payload.interval_months)
-#     return 201, checkup
+@router.post("/checkups", response={201: CheckupSchema}, auth=ClerkAuth())
+def create_checkup(request, payload: CheckupCreateSchema):
+    checkup = CheckupService.create_checkup(
+        user=request.user,
+        interval_months=payload.interval_months,
+        checkup_type=payload.checkup_type,
+    )
+    return 201, checkup
 
 
-@router.get("/checkups/{checkup_id}", response={200: CheckupSchema, 404: dict})
+@router.get(
+    "/checkups/{checkup_id}",
+    response={200: CheckupSchema, 404: dict},
+    auth=ClerkAuth(),
+)
 def get_checkup(request, checkup_id: int):
     checkup = CheckupService.get_checkup(checkup_id)
-    if not checkup:
+    if not checkup or checkup.user != request.user:
         return 404, {"detail": "Checkup not found"}
     return 200, checkup
 
 
-# @router.get("/checkups", response=List[CheckupSchema])
-# def list_checkups(request):
-#     checkups = CheckupService.get_all_checkups()
-#     return checkups
-
-
-@router.put("/checkups/{checkup_id}/interval", response={200: CheckupSchema, 404: dict})
+@router.put(
+    "/checkups/{checkup_id}/interval",
+    response={200: CheckupSchema, 404: dict},
+    auth=ClerkAuth(),
+)
 def update_checkup_interval(request, checkup_id: int, payload: CheckupUpdateSchema):
+    checkup = CheckupService.get_checkup(checkup_id)
+    if not checkup or checkup.user != request.user:
+        return 404, {"detail": "Checkup not found"}
     checkup = CheckupService.update_checkup_interval(
         checkup_id, payload.interval_months
     )
-    if not checkup:
-        return 404, {"detail": "Checkup not found"}
     return 200, checkup
 
 
 @router.post(
-    "/checkups/{checkup_id}/complete", response={200: CheckupSchema, 404: dict}
+    "/checkups/{checkup_id}/complete",
+    response={200: CheckupSchema, 404: dict},
+    auth=ClerkAuth(),
 )
 def complete_checkup(request, checkup_id: int):
-    checkup = CheckupService.complete_checkup(checkup_id)
-    if not checkup:
+    checkup = CheckupService.get_checkup(checkup_id)
+    if not checkup or checkup.user != request.user:
         return 404, {"detail": "Checkup not found"}
+    checkup = CheckupService.complete_checkup(checkup_id)
     return 200, checkup
 
 
@@ -188,17 +205,19 @@ class CheckupTypeSchema(Schema):
 
 
 # Modify the list_checkups endpoint to filter by type
-@router.get("/checkups", response=List[CheckupSchema])
+@router.get("/checkups", response=List[CheckupSchema], auth=ClerkAuth())
 def list_checkups(request, type: Optional[str] = None):
     if type:
-        checkups = CheckupService.get_checkups_by_type(type)
+        checkups = CheckupService.get_checkups_by_type(
+            user=request.user, checkup_type=type
+        )
     else:
-        checkups = CheckupService.get_all_checkups()
+        checkups = CheckupService.get_all_checkups(user=request.user)
     return checkups
 
 
 # Modify the create_checkup endpoint to include type
-@router.post("/checkups", response={201: CheckupSchema})
+@router.post("/checkups", response={201: CheckupSchema}, auth=ClerkAuth())
 def create_checkup(request, payload: CheckupCreateSchema):
     checkup = CheckupService.create_checkup(
         interval_months=payload.interval_months, checkup_type=payload.checkup_type

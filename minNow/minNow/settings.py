@@ -38,7 +38,7 @@ DEBUG = os.getenv("DEBUG")
 
 if prod == True:
     ALLOWED_HOSTS = ["min-nowweb-app-production.up.railway.app"]
-    ROOT_URLCONF = "minNow.minNow.urls"
+    ROOT_URLCONF = "minNow.urls"
 
     DATABASES = {
         "default": {

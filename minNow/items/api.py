@@ -4,7 +4,7 @@ from .models import ItemType, ItemStatus, TimeSpan
 from .services import ItemService, CheckupService
 from datetime import datetime
 from uuid import UUID
-from minNow.auth import ClerkAuth
+from core.auth import ClerkAuth
 
 router = Router()
 

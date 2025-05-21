@@ -22,7 +22,7 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Add the project root directory to Python path
-sys.path.append(str(BASE_DIR))
+sys.path.insert(0, str(BASE_DIR.parent))  # Add the parent directory of minNow
 
 
 # Quick-start development settings - unsuitable for production
@@ -104,6 +104,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "corsheaders",
+    "core",
     "items",
     "users",
 ]

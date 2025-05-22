@@ -15,7 +15,9 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 import sys
+import logging
 
+log = logging.getLogger(__name__)
 load_dotenv()
 
 # Quick-start development settings - unsuitable for production
@@ -37,7 +39,7 @@ if prod == True:
 
     # Add the project root directory to Python path
     sys.path.append(str(BASE_DIR))
-    print(sys.path)
+    log.debug(sys.path)
     ALLOWED_HOSTS = ["min-nowweb-app-production.up.railway.app"]
 
     DATABASES = {

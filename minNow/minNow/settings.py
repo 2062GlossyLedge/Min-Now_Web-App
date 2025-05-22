@@ -20,34 +20,6 @@ import logging
 log = logging.getLogger(__name__)
 load_dotenv()
 
-# Configure logging
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "verbose": {
-            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
-            "style": "{",
-        },
-    },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "verbose",
-        },
-    },
-    "root": {
-        "handlers": ["console"],
-        "level": "DEBUG",
-    },
-    "loggers": {
-        "django": {
-            "handlers": ["console"],
-            "level": "DEBUG",
-            "propagate": True,
-        },
-    },
-}
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -110,6 +82,34 @@ if prod == True:
 
     # django docs
     # securing user file uploads. Uploadthing suffice?
+    # Configure logging
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "verbose": {
+                "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+                "style": "{",
+            },
+        },
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "formatter": "verbose",
+            },
+        },
+        "root": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+        },
+        "loggers": {
+            "django": {
+                "handlers": ["console"],
+                "level": "DEBUG",
+                "propagate": True,
+            },
+        },
+    }
 else:
     # Build paths inside the project like this: BASE_DIR / 'subdir'.
     BASE_DIR = Path(__file__).resolve().parent.parent

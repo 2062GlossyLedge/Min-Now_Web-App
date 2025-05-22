@@ -4,7 +4,16 @@ from .models import ItemType, ItemStatus, TimeSpan
 from .services import ItemService, CheckupService
 from datetime import datetime
 from uuid import UUID
-from minNow.auth import ClerkAuth
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+prod = os.getenv("PROD")
+print(prod)
+if prod == True:
+    from minNow.minNow.auth import ClerkAuth
+else:
+    from minNow.auth import ClerkAuth
 
 router = Router()
 

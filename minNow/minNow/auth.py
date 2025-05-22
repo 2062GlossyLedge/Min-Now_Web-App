@@ -22,6 +22,8 @@ class ClerkAuth(HttpBearer):
                     authorized_parties=[
                         "https://min-now-frontend.vercel.app",
                         "http://localhost:3000",
+                        "https://min-now.store",
+                        "https://www.min-now.store",
                     ]
                 ),
             )

@@ -1,9 +1,6 @@
 import os
 from clerk_backend_api import Clerk
-from clerk_backend_api.jwks_helpers import (
-    authenticate_request,
-    AuthenticateRequestOptions,
-)
+from clerk_backend_api.jwks_helpers import verify_token
 from ninja.security import HttpBearer
 from ninja import Router
 from django.contrib.auth import get_user_model
@@ -11,28 +8,16 @@ from django.contrib.auth import get_user_model
 
 class ClerkAuth(HttpBearer):
     def authenticate(self, request, token):
-        # print("Token:", token)
-
         # Verify the token with Clerk
         sdk = Clerk(bearer_auth=os.getenv("CLERK_SECRET_KEY"))
         try:
-            request_state = sdk.authenticate_request(
-                request,
-                AuthenticateRequestOptions(
-                    authorized_parties=[
-                        "https://min-now-frontend.vercel.app",
-                        "http://localhost:3000",
-                        "https://min-now.store",
-                        "https://www.min-now.store",
-                    ]
-                ),
-            )
-            # print("Request state payload:", request_state.payload)
+            # Verify the token instead of using authenticate_request
+            payload = verify_token(token, sdk.jwks_client)
 
             # If we get here, the token is valid
-            if request_state.is_signed_in:
+            if payload:
                 # Get the Clerk user ID from the token payload
-                clerk_user_id = request_state.payload.get("sub")
+                clerk_user_id = payload.get("sub")
                 if not clerk_user_id:
                     return None
 
@@ -47,7 +32,7 @@ class ClerkAuth(HttpBearer):
                     user = User.objects.create_user(
                         username=clerk_user_id,
                         clerk_id=clerk_user_id,
-                        email=request_state.payload.get("email", ""),
+                        email=payload.get("email", ""),
                     )
 
                 # Set the user on the request

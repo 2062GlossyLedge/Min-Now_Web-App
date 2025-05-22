@@ -73,7 +73,7 @@ ROOT_URLCONF = os.getenv("ROOT_URLCONF")
 
 if prod:
     # Build paths inside the project like this: BASE_DIR / 'subdir'.
-    BASE_DIR = Path(__file__).resolve().parent
+    BASE_DIR = Path(__file__).resolve().parent.parent
 
     # Add the project root directory to Python path
     sys.path.append(str(BASE_DIR))
@@ -128,6 +128,9 @@ else:
 
     # Add the project root directory to Python path
     sys.path.append(str(BASE_DIR))
+
+    log.info(f"Dev BASE_DIR: {BASE_DIR}")
+
     ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
     DATABASES = {

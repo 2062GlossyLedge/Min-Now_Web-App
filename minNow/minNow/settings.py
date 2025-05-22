@@ -18,13 +18,6 @@ import sys
 
 load_dotenv()
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-# Add the project root directory to Python path
-sys.path.append(str(BASE_DIR))
-
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -39,6 +32,12 @@ ROOT_URLCONF = os.getenv("ROOT_URLCONF")
 
 
 if prod == True:
+    # Build paths inside the project like this: BASE_DIR / 'subdir'.
+    BASE_DIR = Path(__file__).resolve().parent
+
+    # Add the project root directory to Python path
+    sys.path.append(str(BASE_DIR))
+    print(sys.path)
     ALLOWED_HOSTS = ["min-nowweb-app-production.up.railway.app"]
 
     DATABASES = {
@@ -80,6 +79,11 @@ if prod == True:
     # django docs
     # securing user file uploads. Uploadthing suffice?
 else:
+    # Build paths inside the project like this: BASE_DIR / 'subdir'.
+    BASE_DIR = Path(__file__).resolve().parent.parent
+
+    # Add the project root directory to Python path
+    sys.path.append(str(BASE_DIR))
     ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
     DATABASES = {

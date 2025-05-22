@@ -20,6 +20,35 @@ import logging
 log = logging.getLogger(__name__)
 load_dotenv()
 
+# Configure logging
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "DEBUG",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": True,
+        },
+    },
+}
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -32,6 +61,7 @@ prod = os.getenv("PROD")
 DEBUG = os.getenv("DEBUG")
 ROOT_URLCONF = os.getenv("ROOT_URLCONF")
 
+log.debug("test blue logger")
 
 if prod == True:
     # Build paths inside the project like this: BASE_DIR / 'subdir'.

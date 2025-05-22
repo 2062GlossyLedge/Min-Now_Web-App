@@ -1,5 +1,4 @@
 import os
-import httpx
 from clerk_backend_api import Clerk
 from clerk_backend_api.jwks_helpers import (
     authenticate_request,

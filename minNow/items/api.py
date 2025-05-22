@@ -6,11 +6,14 @@ from datetime import datetime
 from uuid import UUID
 from dotenv import load_dotenv
 import os
+import logging
 
+log = logging.getLogger(__name__)
 load_dotenv()
-prod = os.getenv("PROD")
-print(prod)
-if prod == True:
+prod = os.getenv("PROD") == "True"
+log.info(f"API Environment: {'Production' if prod else 'Development'}")
+
+if prod:
     from minNow.minNow.auth import ClerkAuth
 else:
     from minNow.auth import ClerkAuth

@@ -16,10 +16,44 @@ import os
 from dotenv import load_dotenv
 import sys
 import logging
+import logging.config
 
-log = logging.getLogger(__name__)
+# Configure logging first, before creating the logger
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "simple": {
+            "format": "[{levelname}] {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+            "stream": "ext://sys.stdout",
+        },
+    },
+    "loggers": {
+        "minNow": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
+
+# Initialize logging configuration
+logging.config.dictConfig(LOGGING)
+
+# Create logger after configuration
+log = logging.getLogger("minNow")
 load_dotenv()
 
+# Debug environment variables
+print(f"PROD env var: {os.getenv('PROD')}")  # Temporary print to verify env var
+print(f"DEBUG env var: {os.getenv('DEBUG')}")  # Temporary print to verify env var
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -27,21 +61,27 @@ load_dotenv()
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv("django_secret_key")
 
-prod = os.getenv("PROD")
+prod = os.getenv("PROD") == "True"
+log.info(f"Environment: {'Production' if prod else 'Development'}")
+log.debug("test blue logger")
+log.debug("This is another test debug message")
+log.info("This is a test info message")
 
 # how to debug an error only occuring on prod?
 DEBUG = os.getenv("DEBUG")
 ROOT_URLCONF = os.getenv("ROOT_URLCONF")
 
-log.debug("test blue logger")
-
-if prod == True:
+if prod:
     # Build paths inside the project like this: BASE_DIR / 'subdir'.
     BASE_DIR = Path(__file__).resolve().parent
 
     # Add the project root directory to Python path
     sys.path.append(str(BASE_DIR))
-    log.debug(sys.path)
+    log.info(f"Production BASE_DIR: {BASE_DIR}")
+    log.info(f"Python sys.path: {sys.path}")
+    log.info(
+        f"Database settings - Host: {os.getenv('PGHOST')}, Database: {os.getenv('PGDATABASE')}"
+    )
     ALLOWED_HOSTS = ["min-nowweb-app-production.up.railway.app"]
 
     DATABASES = {
@@ -82,34 +122,6 @@ if prod == True:
 
     # django docs
     # securing user file uploads. Uploadthing suffice?
-    # Configure logging
-    LOGGING = {
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {
-            "verbose": {
-                "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
-                "style": "{",
-            },
-        },
-        "handlers": {
-            "console": {
-                "class": "logging.StreamHandler",
-                "formatter": "verbose",
-            },
-        },
-        "root": {
-            "handlers": ["console"],
-            "level": "DEBUG",
-        },
-        "loggers": {
-            "django": {
-                "handlers": ["console"],
-                "level": "DEBUG",
-                "propagate": True,
-            },
-        },
-    }
 else:
     # Build paths inside the project like this: BASE_DIR / 'subdir'.
     BASE_DIR = Path(__file__).resolve().parent.parent

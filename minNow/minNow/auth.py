@@ -33,8 +33,8 @@ class ClerkAuth(HttpBearer):
                 ),
             )
             # print("Request state payload:", request_state.payload)
-            logger.info(f"Request state payload: {request_state.payload}")
-            logger.info(f"Request state reason: {request_state.reason}")
+            logger.debug(f"Request state payload: {request_state.payload}")
+            logger.debug(f"Request state reason: {request_state.reason}")
 
             # If we get here, the token is valid
             if request_state.is_signed_in:
@@ -62,8 +62,8 @@ class ClerkAuth(HttpBearer):
                 return token
 
         except Exception as e:
-            logger.info(f"Authentication error: {str(e)}", exc_info=True)
-            logger.info(f"token verification failed:  {request_state.reason}")
+            logger.debug(f"Authentication error: {str(e)}", exc_info=True)
+            logger.debug(f"token verification failed:  {request_state.reason}")
 
             return None
 

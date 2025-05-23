@@ -77,11 +77,11 @@ if prod:
 
     # Add the project root directory to Python path
     sys.path.append(str(BASE_DIR))
-    log.info(f"Production BASE_DIR: {BASE_DIR}")
-    log.info(f"Python sys.path: {sys.path}")
-    log.info(
-        f"Database settings - Host: {os.getenv('PGHOST')}, Database: {os.getenv('PGDATABASE')}"
-    )
+    # log.info(f"Production BASE_DIR: {BASE_DIR}")
+    # log.info(f"Python sys.path: {sys.path}")
+    # log.info(
+    #     f"Database settings - Host: {os.getenv('PGHOST')}, Database: {os.getenv('PGDATABASE')}"
+    # )
     ALLOWED_HOSTS = ["min-nowweb-app-production.up.railway.app"]
 
     DATABASES = {

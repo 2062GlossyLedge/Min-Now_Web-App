@@ -34,6 +34,7 @@ class ClerkAuth(HttpBearer):
             )
             # print("Request state payload:", request_state.payload)
             logger.info(f"Request state payload: {request_state.payload}")
+            logger.info(f"Request state reason: {request_state.reason}")
 
             # If we get here, the token is valid
             if request_state.is_signed_in:

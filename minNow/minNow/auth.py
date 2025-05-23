@@ -8,6 +8,9 @@ from ninja.security import HttpBearer
 from ninja import Router
 from django.contrib.auth import get_user_model
 import httpx
+import logging
+
+logger = logging.getLogger("minNow")
 
 
 class ClerkAuth(HttpBearer):
@@ -30,6 +33,7 @@ class ClerkAuth(HttpBearer):
                 ),
             )
             # print("Request state payload:", request_state.payload)
+            logger.info(f"Request state payload: {request_state.payload}")
 
             # If we get here, the token is valid
             if request_state.is_signed_in:
@@ -57,7 +61,9 @@ class ClerkAuth(HttpBearer):
                 return token
 
         except Exception as e:
-            print(f"Authentication error: {e}")
+            logger.info(f"Authentication error: {str(e)}", exc_info=True)
+            logger.info(f"token verification failed:  {request_state.reason}")
+
             return None
 
         return None

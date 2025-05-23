@@ -87,11 +87,11 @@ if prod:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv("PPGDATABASE"),
-            "USER": os.getenv("PPGUSER"),
-            "PASSWORD": os.getenv("PPGPASSWORD"),
-            "HOST": os.getenv("PPGHOST", "localhost"),
-            "PORT": os.getenv("PPGPORT", "5432"),
+            "NAME": os.getenv("PGDATABASE"),
+            "USER": os.getenv("PGUSER"),
+            "PASSWORD": os.getenv("PGPASSWORD"),
+            "HOST": os.getenv("PGHOST", "localhost"),
+            "PORT": os.getenv("PGPORT", "5432"),
             "OPTIONS": {
                 "sslmode": "require",
             },

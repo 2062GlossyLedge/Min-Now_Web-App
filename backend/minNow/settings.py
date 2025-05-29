@@ -82,7 +82,10 @@ if prod:
     # log.info(
     #     f"Database settings - Host: {os.getenv('PGHOST')}, Database: {os.getenv('PGDATABASE')}"
     # )
-    ALLOWED_HOSTS = ["min-nowweb-app-production.up.railway.app"]
+    ALLOWED_HOSTS = [
+        "min-nowweb-app-production.up.railway.app",
+        "magnificent-optimism-production.up.railway.app",
+    ]
 
     DATABASES = {
         "default": {

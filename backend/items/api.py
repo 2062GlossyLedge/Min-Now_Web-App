@@ -14,7 +14,7 @@ prod = os.getenv("PROD") == "True"
 log.info(f"API Environment: {'Production' if prod else 'Development'}")
 
 if prod:
-    from minNow.minNow.auth import ClerkAuth
+    from backend.minNow.auth import ClerkAuth
 else:
     from minNow.auth import ClerkAuth
 

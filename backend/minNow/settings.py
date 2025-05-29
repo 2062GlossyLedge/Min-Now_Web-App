@@ -68,7 +68,7 @@ log.debug("This is another test debug message")
 log.info("This is a test info message")
 
 # how to debug an error only occuring on prod?
-DEBUG = os.getenv("DEBUG")
+DEBUG = os.getenv("DEBUG") == "True"
 ROOT_URLCONF = os.getenv("ROOT_URLCONF")
 
 if prod:
@@ -247,6 +247,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "https://min-now.store",
     "https://www.min-now.store",
+    "https://magnificent-optimism-production.up.railway.app",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -258,6 +259,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "https://min-now.store",
     "https://www.min-now.store",
+    "https://magnificent-optimism-production.up.railway.app",
 ]
 # Add this line to ensure WhiteNoise works in production
 MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")

@@ -145,6 +145,6 @@ My App.swiftpm/*
 
 #admin files
 
-minNow/staticfiles/*
+backend/staticfiles/*
 
 .cursor/*

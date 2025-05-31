@@ -135,7 +135,7 @@ else:
     log.info(f"Dev BASE_DIR: {BASE_DIR}")
     log.info(f"Python sys.path: {sys.path}")
 
-    ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1", "*"]
 
     DATABASES = {
         "default": {

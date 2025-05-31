@@ -30,14 +30,30 @@ interface ItemCreate {
 export const fetchWithCsrf = async (url: string, options: RequestInit = {}) => {
     // First, ensure we have a CSRF token
     try {
-        const csrfResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/csrf-token`, {
+        const csrfUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/csrf-token`;
+        console.log('Fetching CSRF token from:', csrfUrl);
+        console.log('Current cookies:', document.cookie);
+
+        const csrfResponse = await fetch(csrfUrl, {
             credentials: 'include',
-        })
+            headers: {
+                'Accept': 'application/json',
+            }
+        });
+
+        console.log('CSRF Response Status:', csrfResponse.status);
+        console.log('CSRF Response Headers:', {
+            setCookie: csrfResponse.headers.get('set-cookie'),
+            cookies: document.cookie,
+            allHeaders: Object.fromEntries(csrfResponse.headers.entries())
+        });
+
         if (!csrfResponse.ok) {
-            throw new Error('Failed to get CSRF token')
+            throw new Error(`Failed to get CSRF token: ${csrfResponse.status} ${csrfResponse.statusText}`);
         }
-        const csrf_token = await csrfResponse.json()
-        console.log('CSRF Token:', csrf_token.token)
+
+        const csrf_token = await csrfResponse.json();
+        console.log('CSRF Token Response Body:', csrf_token);
 
         const defaultOptions: RequestInit = {
             headers: {
@@ -84,6 +100,21 @@ export const fetchWithCsrf = async (url: string, options: RequestInit = {}) => {
         throw error
     }
 }
+
+export const createItem = async (itemData: ItemCreate, fetchFn: typeof fetchWithCsrf): Promise<ApiResponse<Item>> => {
+    try {
+        const response = await fetchFn('/api/items', {
+            method: 'POST',
+            body: JSON.stringify(itemData),
+        })
+        const data = await response.json()
+        return { data }
+    } catch (error) {
+        console.error('Error creating item:', error)
+        return { error: 'Failed to create item' }
+    }
+}
+
 
 export const updateItem = async (id: string, updates: {
     name?: string,
@@ -185,16 +216,3 @@ export const completeCheckup = async (checkupId: number, fetchFn: typeof fetchWi
     }
 }
 
-export const createItem = async (itemData: ItemCreate, fetchFn: typeof fetchWithCsrf): Promise<ApiResponse<Item>> => {
-    try {
-        const response = await fetchFn('/api/items', {
-            method: 'POST',
-            body: JSON.stringify(itemData),
-        })
-        const data = await response.json()
-        return { data }
-    } catch (error) {
-        console.error('Error creating item:', error)
-        return { error: 'Failed to create item' }
-    }
-}

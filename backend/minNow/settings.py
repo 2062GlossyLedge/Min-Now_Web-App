@@ -248,6 +248,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://min-now.store",
     "https://www.min-now.store",
     "https://magnificent-optimism-production.up.railway.app",
+    "https://min-now-web-app.vercel.app",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -260,6 +261,7 @@ CSRF_TRUSTED_ORIGINS = [
     "https://min-now.store",
     "https://www.min-now.store",
     "https://magnificent-optimism-production.up.railway.app",
+    "https://min-now-web-app.vercel.app",
 ]
 # Add this line to ensure WhiteNoise works in production
 MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")

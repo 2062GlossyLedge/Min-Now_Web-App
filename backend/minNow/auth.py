@@ -29,6 +29,8 @@ class ClerkAuth(HttpBearer):
                         "http://localhost:3000",
                         "https://min-now.store",
                         "https://www.min-now.store",
+                        "https://min-now-web-app.vercel.app",
+                        "https://magnificent-optimism-production.up.railway.app",
                     ]
                 ),
             )

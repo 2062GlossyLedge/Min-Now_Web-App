@@ -9,6 +9,7 @@
 
 /** @type {import("next").NextConfig} */
 const config = {
+    distDir: './dist',
     images: {
         remotePatterns: [{ hostname: "utfs.io" }],
     },

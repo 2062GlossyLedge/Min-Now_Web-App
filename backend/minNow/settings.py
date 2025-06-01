@@ -85,6 +85,8 @@ if prod:
     ALLOWED_HOSTS = [
         "min-nowweb-app-production.up.railway.app",
         "magnificent-optimism-production.up.railway.app",
+        "min-now.store",
+        "www.min-now.store",
     ]
 
     DATABASES = {

@@ -105,17 +105,18 @@ if prod:
     # Add security settings.
     # https://adamj.eu/tech/2019/04/10/how-to-score-a+-for-security-headers-on-your-django-website/
     # https://docs.djangoproject.com/en/4.2/topics/security/
-    SECURE_SSL_REDIRECT = False  # Handled by railway
-    SECURE_PROXY_SSL_HEADER = (
-        "HTTP_X_FORWARDED_PROTO",
-        "https",
-    )  # Tell Django about the proxy
+    # SECURE_SSL_REDIRECT = False  # Handled by railway
+    # SECURE_PROXY_SSL_HEADER = (
+    #     "HTTP_X_FORWARDED_PROTO",
+    #     "https",
+    # )  # Tell Django about the proxy
 
+    # session and csrf only sent over https
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-    X_FRAME_OPTIONS = "DENY"
+    # SECURE_BROWSER_XSS_FILTER = True
+    # SECURE_CONTENT_TYPE_NOSNIFF = True
+    # X_FRAME_OPTIONS = "DENY"
 
     SECURE_HSTS_SECONDS = 31536000  # 1 year
     # If I have subdomains

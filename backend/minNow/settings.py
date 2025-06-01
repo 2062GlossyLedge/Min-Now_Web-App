@@ -118,10 +118,13 @@ if prod:
     # SECURE_CONTENT_TYPE_NOSNIFF = True
     # X_FRAME_OPTIONS = "DENY"
 
-    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    # SECURE_HSTS_SECONDS = 31536000  # 1 year
     # If I have subdomains
     # SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    # SECURE_HSTS_PRELOAD = True
+    # SECURE_HSTS_PRELOAD =
+
+    SESSION_COOKIE_SAMESITE = "None"
+    CSRF_COOKIE_SAMESITE = "None"
 
     # Couple more listed in link that reqs packages downloading from A+
     # refer policy

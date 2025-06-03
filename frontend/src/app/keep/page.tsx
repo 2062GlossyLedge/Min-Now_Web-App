@@ -28,7 +28,7 @@ export default function KeepView() {
     useEffect(() => {
         const fetchCsrfToken = async () => {
             try {
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/csrf-token`, {
+                const response = await fetch(`${process.env.BACKEND_API_URL}/api/csrf-token`, {
                     credentials: 'include',
                 })
                 if (response.ok) {

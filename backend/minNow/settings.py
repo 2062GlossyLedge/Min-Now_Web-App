@@ -111,9 +111,6 @@ if prod:
     #     "https",
     # )  # Tell Django about the proxy
 
-    # session and csrf only sent over https
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
     # SECURE_BROWSER_XSS_FILTER = True
     # SECURE_CONTENT_TYPE_NOSNIFF = True
     # X_FRAME_OPTIONS = "DENY"
@@ -123,8 +120,14 @@ if prod:
     # SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     # SECURE_HSTS_PRELOAD =
 
+    # session and csrf only sent over https
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    # No restriction on what type of methods can be sent cross site when "none".
+    # Not safe for prod - look into reverse proxy allowing fe&be be same domain
     SESSION_COOKIE_SAMESITE = "None"
     CSRF_COOKIE_SAMESITE = "None"
+    #
 
     # Couple more listed in link that reqs packages downloading from A+
     # refer policy

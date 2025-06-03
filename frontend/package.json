@@ -7,7 +7,9 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.19.3",
@@ -53,8 +55,10 @@
     "zod": "^3.24.3"
   },
   "devDependencies": {
+    "@clerk/testing": "^1.7.5",
     "@eslint/js": "^9.9.0",
-    "@types/node": "22.15.2",
+    "@playwright/test": "^1.42.1",
+    "@types/node": "^22.15.29",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "eslint": "^9.9.0",

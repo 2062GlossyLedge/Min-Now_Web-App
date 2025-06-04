@@ -114,6 +114,17 @@ export default function KeepView() {
         }
     }
 
+    const handleAddItem = async (newItem: Item) => {
+        // Map backend fields to frontend interface
+        const mappedItem = {
+            ...newItem,
+            itemType: newItem.item_type || newItem.itemType,
+            pictureUrl: newItem.picture_url || newItem.pictureUrl,
+            ownershipDuration: newItem.ownership_duration?.description || 'Not specified'
+        }
+        setItems(prevItems => [...prevItems, mappedItem])
+    }
+
     // Filter items based on selected type
     const filteredItems = selectedType
         ? items.filter((item) => item.itemType === selectedType)
@@ -211,7 +222,19 @@ export default function KeepView() {
             <AuthMessage />
 
             <SignedIn>
-                <FilterBar onFilterChange={handleFilterChange} showFilters={showFilters} />
+                {showFilters && (
+                    <FilterBar
+                        selectedType={selectedType}
+                        onTypeChange={handleFilterChange}
+                    />
+                )}
+
+                {showAddForm && (
+                    <AddItemForm
+                        onClose={() => setShowAddForm(false)}
+                        onItemAdded={handleAddItem}
+                    />
+                )}
 
                 {filteredItems.length === 0 ? (
                     <p className="text-gray-500">No items to keep at the moment.</p>
@@ -233,10 +256,6 @@ export default function KeepView() {
                             />
                         ))}
                     </div>
-                )}
-
-                {showAddForm && (
-                    <AddItemForm onClose={() => setShowAddForm(false)} />
                 )}
 
                 {showCheckupManager && (

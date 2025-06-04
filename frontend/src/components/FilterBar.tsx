@@ -3,13 +3,11 @@
 import { useState } from 'react'
 
 interface FilterBarProps {
-    onFilterChange: (type: string | null) => void
-    showFilters: boolean
+    selectedType: string | null
+    onTypeChange: (type: string | null) => void
 }
 
-export default function FilterBar({ onFilterChange, showFilters }: FilterBarProps) {
-    const [selectedType, setSelectedType] = useState<string | null>(null)
-
+export default function FilterBar({ selectedType, onTypeChange }: FilterBarProps) {
     // Match exactly with backend ItemType choices
     const itemTypes = [
         'Clothing',
@@ -22,15 +20,11 @@ export default function FilterBar({ onFilterChange, showFilters }: FilterBarProp
     const handleFilterClick = (type: string) => {
         // If the selected type is the same as the clicked type, clear the selection
         if (selectedType === type) {
-            setSelectedType(null)
-            onFilterChange(null)
+            onTypeChange(null)
         } else {
-            setSelectedType(type)
-            onFilterChange(type)
+            onTypeChange(type)
         }
     }
-
-    if (!showFilters) return null
 
     return (
         <div className="mb-8">

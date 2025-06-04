@@ -41,19 +41,19 @@ export const fetchWithCsrf = async (url: string, options: RequestInit = {}) => {
             }
         });
 
-        console.log('CSRF Response Status:', csrfResponse.status);
-        console.log('CSRF Response Headers:', {
-            setCookie: csrfResponse.headers.get('set-cookie'),
-            cookies: document.cookie,
-            allHeaders: Object.fromEntries(csrfResponse.headers.entries())
-        });
+        // console.log('CSRF Response Status:', csrfResponse.status);
+        // console.log('CSRF Response Headers:', {
+        //     setCookie: csrfResponse.headers.get('set-cookie'),
+        //     cookies: document.cookie,
+        //     allHeaders: Object.fromEntries(csrfResponse.headers.entries())
+        // });
 
         if (!csrfResponse.ok) {
             throw new Error(`Failed to get CSRF token: ${csrfResponse.status} ${csrfResponse.statusText}`);
         }
 
         const csrf_token = await csrfResponse.json();
-        console.log('CSRF Token Response Body:', csrf_token);
+        // console.log('CSRF Token Response Body:', csrf_token);
 
         const defaultOptions: RequestInit = {
             headers: {
@@ -163,6 +163,7 @@ export const fetchItemsByStatus = async (status: string, fetchFn: typeof fetchWi
         const itemsWithDuration = data.map((item: any) => ({
             ...item,
             itemType: item.item_type, // Map item_type to itemType
+            pictureUrl: item.picture_url, // Map picture_url to pictureUrl
             ownershipDuration: item.ownership_duration?.description || 'Not specified'
         }))
 

@@ -9,12 +9,14 @@ import { format } from 'date-fns'
 import { CalendarIcon } from 'lucide-react'
 import { createItem } from '@/utils/api'
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
+import { Item } from '@/types/item'
 
 interface AddItemFormProps {
     onClose: () => void
+    onItemAdded: (newItem: Item) => void
 }
 
-export default function AddItemForm({ onClose }: AddItemFormProps) {
+export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) {
     const router = useRouter()
     const [name, setName] = useState('')
     const [pictureEmoji, setPictureEmoji] = useState('')
@@ -46,11 +48,6 @@ export default function AddItemForm({ onClose }: AddItemFormProps) {
             const localDate = new Date(receivedDate)
             localDate.setHours(0, 0, 0, 0)
 
-            console.log('Original selected date:', receivedDate)
-            console.log('Local timezone offset (minutes):', receivedDate.getTimezoneOffset())
-            console.log('Adjusted local date:', localDate)
-            console.log('ISO string being sent:', localDate.toISOString())
-
             const { data, error } = await createItem({
                 name,
                 picture_url: pictureEmoji,
@@ -64,9 +61,12 @@ export default function AddItemForm({ onClose }: AddItemFormProps) {
                 throw new Error(error)
             }
 
-            console.log('Backend response:', data)
-            router.refresh()
-            onClose()
+            if (data) {
+                // Add the new item to the list
+                onItemAdded(data)
+                // Close the form
+                onClose()
+            }
         } catch (error) {
             console.error('Error adding item:', error)
         } finally {
@@ -95,10 +95,24 @@ export default function AddItemForm({ onClose }: AddItemFormProps) {
                         <input
                             type="text"
                             value={pictureEmoji}
-                            onChange={(e) => setPictureEmoji(e.target.value.slice(0, 1))}
+                            onChange={(e) => {
+                                const input = e.target.value;
+                                // Get the last character if it's an emoji
+                                const lastChar = input.slice(-1);
+                                // Check if it's an emoji (has length > 1 due to surrogate pairs)
+                                if (lastChar.length > 1) {
+                                    setPictureEmoji(lastChar);
+                                } else {
+                                    setPictureEmoji(input);
+                                }
+                            }}
                             className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                             required
+                            placeholder="Enter an emoji"
                         />
+                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            Tip: You can use Windows key + . (period) to open the emoji picker
+                        </p>
                     </div>
 
                     <div>

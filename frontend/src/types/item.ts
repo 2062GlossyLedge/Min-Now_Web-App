@@ -2,7 +2,9 @@ export interface Item {
     id: string
     name: string
     pictureUrl: string
+    picture_url?: string
     itemType: string
+    item_type?: string
     status: string
     ownershipDuration: string
     lastUsedDuration: string

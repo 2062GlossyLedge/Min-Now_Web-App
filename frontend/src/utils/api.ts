@@ -30,9 +30,9 @@ interface ItemCreate {
 export const fetchWithCsrf = async (url: string, options: RequestInit = {}) => {
     // First, ensure we have a CSRF token
     try {
-        const csrfUrl = `${process.env.BACKEND_API_URL}/api/csrf-token`;
+        const csrfUrl = `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/csrf-token`;
         console.log('Fetching CSRF token from:', csrfUrl);
-        console.log('Current cookies:', document.cookie);
+        //console.log('Current cookies:', document.cookie);
 
         const csrfResponse = await fetch(csrfUrl, {
             credentials: 'include',
@@ -64,10 +64,10 @@ export const fetchWithCsrf = async (url: string, options: RequestInit = {}) => {
             credentials: 'include',
         }
 
-        console.log('Making request to:', `${process.env.BACKEND_API_URL}${url}`)
+        console.log('Making request to:', `${process.env.NEXT_PUBLIC_BACKEND_API_URL}${url}`)
         console.log('With headers:', defaultOptions.headers)
 
-        const response = await fetch(`${process.env.BACKEND_API_URL}${url}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}${url}`, {
             ...defaultOptions,
             ...options,
             headers: {
@@ -91,7 +91,7 @@ export const fetchWithCsrf = async (url: string, options: RequestInit = {}) => {
     } catch (error) {
         console.error('Fetch error:', {
             error,
-            url: `${process.env.BACKEND_API_URL}${url}`,
+            url: `${process.env.NEXT_PUBLIC_BACKEND_API_URL}${url}`,
             options: {
                 ...options,
                 headers: options.headers,

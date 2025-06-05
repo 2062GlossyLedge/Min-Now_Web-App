@@ -11,7 +11,16 @@
 const config = {
 
     images: {
-        remotePatterns: [{ hostname: "utfs.io" }],
+        remotePatterns: [
+            {
+                protocol: 'https',
+                hostname: '**.ufs.sh',
+            },
+            {
+                protocol: 'https',
+                hostname: 'utfs.io',
+            },
+        ],
     },
     typescript: {
         ignoreBuildErrors: true,

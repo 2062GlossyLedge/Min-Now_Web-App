@@ -6,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
 import { CalendarIcon, Edit2, Save, X, Trash2 } from 'lucide-react'
+import Image from 'next/image'
 
 interface ItemCardProps {
     id: string
@@ -35,7 +36,22 @@ export default function ItemCard({
     const [isExpanded, setIsExpanded] = useState(false)
     const [isEditing, setIsEditing] = useState(false)
     const [editedName, setEditedName] = useState(name)
-    const [receivedDate, setReceivedDate] = useState<Date | undefined>(new Date())
+    const [receivedDate, setReceivedDate] = useState<Date | undefined>(undefined)
+
+    // Function to check if the pictureUrl is an emoji
+    const isEmoji = (str: string) => {
+        return str.length > 1 && str.length <= 2;
+    }
+
+    // Function to check if the pictureUrl is a base64 image
+    const isBase64Image = (str: string) => {
+        return str.startsWith('data:image');
+    }
+
+    // Function to check if the pictureUrl is a valid image URL (http or /)
+    const isImageUrl = (str: string) => {
+        return typeof str === 'string' && (str.startsWith('http') || str.startsWith('/'));
+    }
 
     const handleStatusChange = (newStatus: string) => {
         if (onStatusChange) {
@@ -44,7 +60,7 @@ export default function ItemCard({
     }
 
     const handleSave = () => {
-        if (onEdit) {
+        if (onEdit && receivedDate) {
             onEdit(id, {
                 name: editedName,
                 receivedDate
@@ -55,6 +71,7 @@ export default function ItemCard({
 
     const handleCancel = () => {
         setEditedName(name)
+        setReceivedDate(undefined)
         setIsEditing(false)
     }
 
@@ -72,7 +89,26 @@ export default function ItemCard({
         >
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                    <span className="text-2xl group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">{pictureUrl}</span>
+                    <div className="w-12 h-12 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-md overflow-hidden">
+                        {isEmoji(pictureUrl) ? (
+                            <span className="text-2xl group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">
+                                {pictureUrl}
+                            </span>
+                        ) : isImageUrl(pictureUrl) ? (
+                            <div className="relative w-full h-full">
+                                <Image
+                                    src={pictureUrl}
+                                    alt={name}
+                                    fill
+                                    className="object-cover"
+                                />
+                            </div>
+                        ) : (
+                            <span className="text-2xl group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">
+                                {pictureUrl}
+                            </span>
+                        )}
+                    </div>
                     <div>
                         {isEditing ? (
                             <input
@@ -131,6 +167,15 @@ export default function ItemCard({
 
             {(isExpanded || isEditing) && (
                 <div className="mt-4 space-y-2">
+                    {isEmoji(pictureUrl) ? (
+                        <span className="text-2xl ...">{pictureUrl}</span>
+                    ) : isImageUrl(pictureUrl) ? (
+                        <div className="relative w-full h-full">
+                            <Image src={pictureUrl} alt={name} fill className="object-cover" />
+                        </div>
+                    ) : (
+                        <span className="text-2xl ...">{pictureUrl}</span>
+                    )}
                     <div className="flex justify-between text-sm">
                         <span className="text-gray-500 dark:text-gray-400 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">Ownership Duration:</span>
                         {isEditing ? (

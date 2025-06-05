@@ -140,8 +140,8 @@ else:
     # Add the project root directory to Python path
     sys.path.append(str(BASE_DIR))
 
-    log.info(f"Dev BASE_DIR: {BASE_DIR}")
-    log.info(f"Python sys.path: {sys.path}")
+    # log.info(f"Dev BASE_DIR: {BASE_DIR}")
+    # log.info(f"Python sys.path: {sys.path}")
 
     ALLOWED_HOSTS = ["localhost", "127.0.0.1", "*"]
 

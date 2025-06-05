@@ -9,6 +9,7 @@ alwaysApply: false
 
 - Don't create another settings.py file. 
 - Do not delete or overwrite any comments. 
+- When writing terminal commands, use syntax for windoows powershell
 
 ### Key Principles
 - Write clear, technical responses with precise Django-Ninja examples.

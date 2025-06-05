@@ -6,10 +6,13 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
-import { CalendarIcon } from 'lucide-react'
+import { CalendarIcon, ImageIcon, SmileIcon } from 'lucide-react'
 import { createItem } from '@/utils/api'
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
 import { Item } from '@/types/item'
+import Image from 'next/image'
+import { UploadButton } from '@uploadthing/react'
+import type { OurFileRouter } from '@/app/api/uploadthing/core'
 
 interface AddItemFormProps {
     onClose: () => void
@@ -23,6 +26,9 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const [itemType, setItemType] = useState('Clothing')
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [receivedDate, setReceivedDate] = useState<Date | undefined>(undefined)
+    const [useEmoji, setUseEmoji] = useState(true)
+    const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null)
+    const [isUploading, setIsUploading] = useState(false)
     const { authenticatedFetch } = useAuthenticatedFetch()
 
     const itemTypes = [
@@ -42,19 +48,26 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
             setIsSubmitting(false)
             return
         }
-
+        if (!useEmoji && !uploadedImageUrl) {
+            setIsSubmitting(false)
+            return
+        }
         try {
-            // Create a new date object in local timezone and set time to start of day
             const localDate = new Date(receivedDate)
             localDate.setHours(0, 0, 0, 0)
 
+            let pictureUrl = pictureEmoji
+            if (!useEmoji && uploadedImageUrl) {
+                pictureUrl = uploadedImageUrl
+            }
+
             const { data, error } = await createItem({
                 name,
-                picture_url: pictureEmoji,
+                picture_url: pictureUrl,
                 item_type: itemType,
                 status: 'Keep',
                 item_received_date: localDate.toISOString(),
-                last_used: localDate.toISOString() // Set last_used to same date
+                last_used: localDate.toISOString()
             }, authenticatedFetch)
 
             if (error) {
@@ -62,9 +75,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
             }
 
             if (data) {
-                // Add the new item to the list
                 onItemAdded(data)
-                // Close the form
                 onClose()
             }
         } catch (error) {
@@ -83,7 +94,8 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Item Name</label>
                         <input
                             type="text"
-                            value={name}
+                            // Can't set input value to null or undefined as input element is uncontrollable. 
+                            value={name || ""}
                             onChange={(e) => setName(e.target.value)}
                             className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                             required
@@ -91,28 +103,90 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Item Emoji</label>
-                        <input
-                            type="text"
-                            value={pictureEmoji}
-                            onChange={(e) => {
-                                const input = e.target.value;
-                                // Get the last character if it's an emoji
-                                const lastChar = input.slice(-1);
-                                // Check if it's an emoji (has length > 1 due to surrogate pairs)
-                                if (lastChar.length > 1) {
-                                    setPictureEmoji(lastChar);
-                                } else {
-                                    setPictureEmoji(input);
-                                }
-                            }}
-                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                            required
-                            placeholder="Enter an emoji"
-                        />
-                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                            Tip: You can use Windows key + . (period) to open the emoji picker
-                        </p>
+                        <div className="flex items-center space-x-4 mb-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setUseEmoji(true)
+                                    setUploadedImageUrl(null)
+                                }}
+                                className={`flex items-center space-x-2 px-3 py-2 rounded-md ${useEmoji ? 'bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300' : 'bg-gray-100 dark:bg-gray-700'}`}
+                            >
+                                <SmileIcon className="h-5 w-5" />
+                                <span>Emoji</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setUseEmoji(false)
+                                    setPictureEmoji('')
+                                }}
+                                className={`flex items-center space-x-2 px-3 py-2 rounded-md ${!useEmoji ? 'bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300' : 'bg-gray-100 dark:bg-gray-700'}`}
+                            >
+                                <ImageIcon className="h-5 w-5" />
+                                <span>Image</span>
+                            </button>
+                        </div>
+                        {useEmoji ? (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Item Emoji</label>
+                                <input
+                                    type="text"
+                                    value={pictureEmoji || ""}
+                                    onChange={(e) => {
+                                        const input = e.target.value;
+                                        const lastChar = input.slice(-1);
+                                        if (lastChar.length > 1) {
+                                            setPictureEmoji(lastChar);
+                                        } else {
+                                            setPictureEmoji(input);
+                                        }
+                                    }}
+                                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                    required={useEmoji}
+                                    placeholder="Enter an emoji"
+                                />
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                    Tip: You can use Windows key + . (period) to open the emoji picker
+                                </p>
+                            </div>
+                        ) : (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Item Image</label>
+                                <UploadButton<OurFileRouter, "imageUploader">
+                                    endpoint="imageUploader"
+                                    onClientUploadComplete={(res: any) => {
+                                        console.log('UploadThing result:', res);
+                                        // Try to use a valid image URL from the result
+                                        setUploadedImageUrl(res?.[0]?.url ?? res?.[0]?.fileUrl ?? null)
+                                        setIsUploading(false)
+                                    }}
+                                    onUploadError={(error: Error) => {
+                                        setIsUploading(false)
+                                        alert('Upload failed: ' + error.message)
+                                    }}
+                                    onUploadBegin={() => {
+                                        setIsUploading(true)
+                                    }}
+                                    appearance={{
+                                        button: 'mt-1 block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-teal-50 file:text-teal-700 dark:file:bg-teal-900 dark:file:text-teal-300 hover:file:bg-teal-100 dark:hover:file:bg-teal-800',
+                                    }}
+                                />
+                                {uploadedImageUrl && (
+                                    <div className="mt-2 relative w-24 h-24">
+                                        <Image
+                                            src={uploadedImageUrl}
+                                            alt="Preview"
+                                            fill
+                                            className="object-cover rounded-md"
+                                        />
+                                    </div>
+                                )}
+                                {isUploading && (
+                                    <div className="mt-2 text-sm text-teal-600">Uploading...</div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div>
@@ -163,7 +237,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                         </button>
                         <button
                             type="submit"
-                            disabled={isSubmitting || !name || !pictureEmoji || !receivedDate}
+                            disabled={isSubmitting || !name || (useEmoji ? !pictureEmoji : !uploadedImageUrl) || !receivedDate}
                             className="px-4 py-2 text-sm font-medium text-white bg-teal-600 border border-transparent rounded-md hover:bg-teal-700 disabled:opacity-50"
                         >
                             {isSubmitting ? 'Adding...' : 'Add Item'}

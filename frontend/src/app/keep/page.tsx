@@ -177,7 +177,8 @@ export default function KeepView() {
                                     try {
                                         const testItem = {
                                             name: "Test Item",
-                                            picture_url: "🧪",
+                                            // Use static image from public directory
+                                            picture_url: "/Min-NowDarkLogoCropped.jpg",
                                             item_type: "Technology",
                                             status: "Keep",
                                             item_received_date: new Date().toISOString(),

@@ -79,6 +79,53 @@ class Checkup(models.Model):
         self.save()
 
 
+# --- BADGE TIERS (should match frontend logic) ---
+KEEP_BADGE_TIERS = [
+    {
+        "tier": "bronze",
+        "name": "Bronze {type} Keeper",
+        "description": "Owned for 1 month",
+        "min": 1,
+        "unit": "month",
+    },
+    {
+        "tier": "silver",
+        "name": "Silver {type} Keeper",
+        "description": "Owned for 6 months",
+        "min": 6,
+        "unit": "months",
+    },
+    {
+        "tier": "gold",
+        "name": "Gold {type} Keeper",
+        "description": "Owned for 1 year",
+        "min": 12,
+        "unit": "months",
+    },
+]
+
+DONATED_BADGE_TIERS = [
+    {
+        "tier": "bronze",
+        "name": "Bronze {type} Donor",
+        "description": "Donated 1 {type}",
+        "min": 1,
+    },
+    {
+        "tier": "silver",
+        "name": "Silver {type} Donor",
+        "description": "Donated 5 {type}s",
+        "min": 5,
+    },
+    {
+        "tier": "gold",
+        "name": "Gold {type} Donor",
+        "description": "Donated 10 {type}s",
+        "min": 10,
+    },
+]
+
+
 class OwnedItem(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
@@ -129,3 +176,62 @@ class OwnedItem(models.Model):
             item_received_date=item_received_date or timezone.now(),
             last_used=last_used or timezone.now(),
         )
+
+    @property
+    def keep_badge_progress(self):
+        """
+        Returns a list of badge progress dicts for this item (keep badges based on duration owned).
+        """
+        months_owned = (timezone.now().year - self.item_received_date.year) * 12 + (
+            timezone.now().month - self.item_received_date.month
+        )
+        result = []
+        for badge in KEEP_BADGE_TIERS:
+            min_months = badge["min"] if badge["unit"] == "month" else badge["min"]
+            progress = min(months_owned / min_months, 1.0) if min_months > 0 else 1.0
+            achieved = months_owned >= min_months
+            result.append(
+                {
+                    "tier": badge["tier"],
+                    "name": badge["name"].format(type=self.item_type),
+                    "description": badge["description"],
+                    "min": badge["min"],
+                    "unit": badge.get("unit", None),
+                    "progress": round(progress, 2),
+                    "achieved": achieved,
+                }
+            )
+        return result
+
+    @staticmethod
+    def donated_badge_progress(user):
+        """
+        Returns a dict of item_type -> list of badge progress dicts for donated badges (number donated by type for this user).
+        """
+        from collections import Counter
+
+        # Get all donated items for this user
+        donated_items = OwnedItem.objects.filter(user=user, status=ItemStatus.DONATE)
+        type_counts = Counter(donated_items.values_list("item_type", flat=True))
+        result = {}
+        for item_type in ItemType.values:
+            count = type_counts.get(item_type, 0)
+            badges = []
+            for badge in DONATED_BADGE_TIERS:
+                min_count = badge["min"]
+                progress = min(count / min_count, 1.0) if min_count > 0 else 1.0
+                achieved = count >= min_count
+                badges.append(
+                    {
+                        "tier": badge["tier"],
+                        "name": badge["name"].format(type=item_type),
+                        "description": badge["description"].replace(
+                            "{type}", item_type.lower()
+                        ),
+                        "min": badge["min"],
+                        "progress": round(progress, 2),
+                        "achieved": achieved,
+                    }
+                )
+            result[item_type] = badges
+        return result

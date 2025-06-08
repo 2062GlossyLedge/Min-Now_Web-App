@@ -1,6 +1,7 @@
 from ninja import Router, Schema
-from typing import List, Optional
-from .models import ItemType, ItemStatus, TimeSpan
+from typing import List, Optional, Dict
+from pydantic import RootModel
+from .models import ItemType, ItemStatus, TimeSpan, OwnedItem
 from .services import ItemService, CheckupService
 from datetime import datetime
 from uuid import UUID
@@ -47,6 +48,16 @@ class CheckupSchema(Schema):
     is_checkup_due: bool
 
 
+class BadgeProgressSchema(Schema):
+    tier: str
+    name: str
+    description: str
+    min: int
+    unit: Optional[str] = None
+    progress: float
+    achieved: bool
+
+
 class OwnedItemSchema(Schema):
     id: UUID
     name: str
@@ -57,6 +68,7 @@ class OwnedItemSchema(Schema):
     last_used: datetime
     ownership_duration: TimeSpanSchema
     last_used_duration: TimeSpanSchema
+    keep_badge_progress: List[BadgeProgressSchema]
 
     @staticmethod
     def from_orm(obj) -> "OwnedItemSchema":
@@ -70,6 +82,7 @@ class OwnedItemSchema(Schema):
             last_used=obj.last_used,
             ownership_duration=TimeSpanSchema.from_orm(obj.ownership_duration),
             last_used_duration=TimeSpanSchema.from_orm(obj.last_used_duration),
+            keep_badge_progress=obj.keep_badge_progress,
         )
 
 
@@ -96,6 +109,10 @@ class CheckupCreateSchema(Schema):
 
 class CheckupUpdateSchema(Schema):
     interval_months: int
+
+
+class DonatedBadgesResponseSchema(RootModel[Dict[str, List[BadgeProgressSchema]]]):
+    pass
 
 
 @router.post("/items", response={201: OwnedItemSchema}, auth=ClerkAuth())
@@ -157,6 +174,13 @@ def list_items(
     return [OwnedItemSchema.from_orm(item) for item in items]
 
 
+@router.get("/badges/donated", response=DonatedBadgesResponseSchema, auth=ClerkAuth())
+def get_donated_badges(request):
+    user = request.user
+    donated_badges = OwnedItem.donated_badge_progress(user)
+    return donated_badges
+
+
 @router.post("/checkups", response={201: CheckupSchema}, auth=ClerkAuth())
 def create_checkup(request, payload: CheckupCreateSchema):
     checkup = CheckupService.create_checkup(
@@ -205,10 +229,6 @@ def complete_checkup(request, checkup_id: int):
         return 404, {"detail": "Checkup not found"}
     checkup = CheckupService.complete_checkup(checkup_id)
     return 200, checkup
-
-
-# Add this to the existing imports
-from typing import Optional
 
 
 # Add this new schema

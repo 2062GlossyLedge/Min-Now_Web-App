@@ -26,6 +26,7 @@ export default function KeepView() {
     const router = useRouter()
 
     useEffect(() => {
+        // duplicate code - see api.ts
         const fetchCsrfToken = async () => {
             try {
                 const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/csrf-token`, {

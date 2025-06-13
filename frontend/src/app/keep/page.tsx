@@ -172,15 +172,17 @@ export default function KeepView() {
                                 <div className="absolute top-1.5 right-1.5 w-3 h-3 bg-red-500 rounded-full"></div>
                             )}
                         </button>
-                        <button
-                            onClick={handleSendTestEmail}
-                            className="p-2 text-gray-900 dark:text-white hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
-                            title="Send Test Checkup Email"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12l-4-4-4 4m8 0v6a2 2 0 01-2 2H6a2 2 0 01-2-2v-6m16-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v4" />
-                            </svg>
-                        </button>
+                        {process.env.NEXT_PUBLIC_PROD_FE !== 'true' && (
+                            <button
+                                onClick={handleSendTestEmail}
+                                className="p-2 text-gray-900 dark:text-white hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+                                title="Send Test Checkup Email"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12l-4-4-4 4m8 0v6a2 2 0 01-2 2H6a2 2 0 01-2-2v-6m16-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v4" />
+                                </svg>
+                            </button>
+                        )}
                         {emailStatus && (
                             <span className="ml-2 text-sm text-green-600 dark:text-green-400">{emailStatus}</span>
                         )}

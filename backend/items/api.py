@@ -181,8 +181,15 @@ def get_donated_badges(request):
     return donated_badges
 
 
-@router.post("/checkups", response={201: CheckupSchema}, auth=ClerkAuth())
+@router.post("/checkups", response={201: CheckupSchema, 400: dict}, auth=ClerkAuth())
 def create_checkup(request, payload: CheckupCreateSchema):
+    # Check if user already has a checkup of this type
+    existing_checkup = CheckupService.get_checkups_by_type(
+        request.user, payload.checkup_type
+    ).first()
+    if existing_checkup:
+        return 400, {"detail": f"User already has a {payload.checkup_type} checkup"}
+
     checkup = CheckupService.create_checkup(
         user=request.user,
         interval_months=payload.interval_months,
@@ -248,10 +255,22 @@ def list_checkups(request, type: Optional[str] = None):
     return checkups
 
 
-# Modify the create_checkup endpoint to include type
-@router.post("/checkups", response={201: CheckupSchema}, auth=ClerkAuth())
-def create_checkup(request, payload: CheckupCreateSchema):
-    checkup = CheckupService.create_checkup(
-        interval_months=payload.interval_months, checkup_type=payload.checkup_type
-    )
-    return 201, checkup
+class EmailResponseSchema(Schema):
+    checkup_type: str
+    status: str
+    recipient_email: str
+    recipient_username: str
+
+
+## can't add /checkups to url route bc of url matches for django url resolver stuff idk about
+# This endpoint uses AnyMail with MailerSend to send checkup reminder emails in both development and production.
+@router.post(
+    "/send-test-email",
+    response={200: List[EmailResponseSchema]},
+    auth=ClerkAuth(),
+)
+def send_test_checkup_email(request):
+    user = request.user
+
+    results = CheckupService.check_and_send_due_emails(user)
+    return [EmailResponseSchema(**result) for result in results]

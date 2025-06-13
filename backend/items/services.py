@@ -1,6 +1,11 @@
 from django.utils import timezone
 from .models import OwnedItem, Checkup, ItemStatus, ItemType
 from datetime import timedelta
+from django.core.mail import send_mail
+from django.conf import settings
+import logging
+from mailersend import emails as mailersend_emails
+import os
 
 
 class ItemService:
@@ -56,10 +61,14 @@ class ItemService:
 class CheckupService:
     @staticmethod
     def create_checkup(user, interval_months=1, checkup_type="keep"):
-        # Delete any existing checkup of the same type for this user
-        Checkup.objects.filter(user=user, checkup_type=checkup_type).delete()
+        # Check if user already has a checkup of this type
+        existing_checkup = Checkup.objects.filter(
+            user=user, checkup_type=checkup_type
+        ).first()
+        if existing_checkup:
+            return existing_checkup
 
-        # Create new checkup
+        # Create new checkup only if none exists
         return Checkup.objects.create(
             user=user,
             checkup_interval_months=interval_months,
@@ -98,3 +107,91 @@ class CheckupService:
             return checkup
         except Checkup.DoesNotExist:
             return None
+
+    @staticmethod
+    def send_checkup_due_email(user, checkup_type, due=True, time_left=None):
+        """
+        Sends a checkup reminder email using the MailerSend Python SDK directly.
+        Returns a tuple (status_code, message_id, error) for debugging.
+        """
+        api_key = os.getenv("MAILERSEND_API_TOKEN")
+        mailer = mailersend_emails.NewEmail(api_key)
+        mail_body = {}
+        print(mailer.send(mail_body))
+        print(user.email)
+        mail_from = {
+            "name": os.getenv("DEFAULT_FROM_NAME", "Min-Now"),
+            "email": os.getenv("DEFAULT_FROM_EMAIL", "noreply@min-now.store"),
+        }
+        recipients = [
+            {
+                "name": user.username,
+                "email": user.email,
+            }
+        ]
+        # reply_to = [
+        #     {
+        #         "name": os.getenv("DEFAULT_FROM_NAME", "MinNow"),
+        #         "email": os.getenv("DEFAULT_FROM_EMAIL", "noreply@min-now.store"),
+        #     }
+        # ]
+        subject = f"Your {checkup_type.capitalize()} Checkup Reminder"
+        if due:
+            text_content = f"Hi {user.username}, your {checkup_type} checkup is due! Please log in to your account to complete your checkup."
+        else:
+            text_content = f"Hi {user.username}, your {checkup_type} checkup is not due yet. Time left: {time_left} months."
+        html_content = f"<p>{text_content}</p>"
+        try:
+            mailer.set_mail_from(mail_from, mail_body)
+            mailer.set_mail_to(recipients, mail_body)
+            mailer.set_subject(subject, mail_body)
+            mailer.set_html_content(html_content, mail_body)
+            mailer.set_plaintext_content(text_content, mail_body)
+            # mailer.set_reply_to(reply_to, mail_body)
+            response = mailer.send(mail_body)
+            # response is a requests.Response object
+            # get x-message-id to track email meta data
+            print(response)
+        except Exception as e:
+            logging.error(
+                f"Failed to send {checkup_type} checkup email to {user.email}: {e}"
+            )
+            return None, None, str(e)
+
+    @staticmethod
+    def check_and_send_due_emails(user):
+        print("user.email", user.email)
+        results = []
+        for checkup_type in ["keep", "give"]:
+            checkups = Checkup.objects.filter(user=user, checkup_type=checkup_type)
+            if checkups.exists():
+                checkup = checkups.first()
+                if checkup.is_checkup_due:
+                    CheckupService.send_checkup_due_email(user, checkup_type, due=True)
+                    status = "due"
+                else:
+                    now = timezone.now()
+                    months_since_last = (
+                        now.year - checkup.last_checkup_date.year
+                    ) * 12 + (now.month - checkup.last_checkup_date.month)
+                    months_left = max(
+                        0, checkup.checkup_interval_months - months_since_last
+                    )
+
+                    CheckupService.send_checkup_due_email(
+                        user, checkup_type, due=False, time_left=months_left
+                    )
+
+                    status = f"not due, {months_left} months left"
+
+            else:
+                status = "no checkup set"
+            results.append(
+                {
+                    "checkup_type": checkup_type,
+                    "status": status,
+                    "recipient_email": user.email,
+                    "recipient_username": user.username,
+                }
+            )
+        return results

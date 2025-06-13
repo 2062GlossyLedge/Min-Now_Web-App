@@ -10,7 +10,7 @@ from django.db import models
 # Do I really need a users table when using clerk
 # Need to comment out admin app and admin url before migrating customer user model
 class User(AbstractUser):
-    clerk_id = models.CharField(max_length=255, unique=True, null=True)
+    clerk_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
 
     # Add related_name to avoid clashes with auth.User
     groups = models.ManyToManyField(

@@ -38,7 +38,7 @@ LOGGING = {
     "loggers": {
         "minNow": {
             "handlers": ["console"],
-            "level": "INFO",
+            "level": "DEBUG",
             "propagate": False,
         },
     },
@@ -133,6 +133,11 @@ if prod:
 
     # django docs
     # securing user file uploads. Uploadthing suffice?
+
+    # Email backend configuration
+
+    # To send error messages
+    # SERVER_EMAIL =
 else:
     # Build paths inside the project like this: BASE_DIR / 'subdir'.
     BASE_DIR = Path(__file__).resolve().parent.parent
@@ -156,7 +161,17 @@ else:
         }
     }
 
+    # Optionally, use console backend for local dev:
+    # EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
+# EMAIL_BACKEND = "anymail.backends.mailersend.EmailBackend"
+# ANYMAIL = {"MAILERSEND_API_TOKEN": os.getenv("MAILERSEND_API_TOKEN", "")}
+# DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+MAILERSEND_SMTP_PORT = 587
+MAILERSEND_SMTP_USERNAME = os.getenv("MAILERSEND_SMTP_USERNAME")
+MAILERSEND_SMTP_HOST = "smtp.mailersend.net"
 # Application definition
 
 INSTALLED_APPS = [
@@ -169,6 +184,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "items",
     "users",
+    "anymail",
 ]
 
 MIDDLEWARE = [

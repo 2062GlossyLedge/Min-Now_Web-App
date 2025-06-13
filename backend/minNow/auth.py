@@ -35,9 +35,9 @@ class ClerkAuth(HttpBearer):
                     ]
                 ),
             )
-            # print("Request state payload:", request_state.payload)
-            logger.debug(f"Request state payload: {request_state.payload}")
-            logger.debug(f"Request state reason: {request_state.reason}")
+
+            # logger.debug(f"Request state payload: {request_state.payload}")
+            # logger.debug(f"Request state reason: {request_state.reason}")
 
             # If we get here, the token is valid
             if request_state.is_signed_in:
@@ -46,6 +46,21 @@ class ClerkAuth(HttpBearer):
                 if not clerk_user_id:
                     return None
 
+                with Clerk(
+                    bearer_auth=os.getenv("CLERK_SECRET_KEY"),
+                ) as clerk:
+
+                    user_obj = clerk.users.get(user_id=clerk_user_id)
+                    if user_obj.email_addresses and len(user_obj.email_addresses) > 0:
+                        user_email = user_obj.email_addresses[0].email_address
+                    else:
+                        user_email = None  # or handle error
+
+                    assert user_email is not None
+
+                    # Handle response
+                    # print(f"user email: {user_email}")
+                    # print(f"user obj: {user_obj}")
                 # Get or create a Django user for this Clerk user
                 User = get_user_model()
 
@@ -57,7 +72,7 @@ class ClerkAuth(HttpBearer):
                     user = User.objects.create_user(
                         username=clerk_user_id,
                         clerk_id=clerk_user_id,
-                        email=request_state.payload.get("email", ""),
+                        email=user_obj.email_address,
                     )
 
                 # Set the user on the request

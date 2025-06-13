@@ -8,7 +8,7 @@ export const useAuthenticatedFetch = () => {
     const authenticatedFetch = useCallback(async (url: string, options: RequestInit = {}) => {
         const token = await getToken();
 
-        //console.log('Fetching with jwt token:', token)
+        console.log('Fetching with jwt token:', token)
 
         const response = await fetchWithCsrf(url, {
             ...options,

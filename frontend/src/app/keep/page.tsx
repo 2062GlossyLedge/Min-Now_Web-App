@@ -6,7 +6,7 @@ import AddItemForm from '../../components/AddItemForm'
 import FilterBar from '../../components/FilterBar'
 import CheckupManager from '../../components/CheckupManager'
 import AuthMessage from '../../components/AuthMessage'
-import { updateItem, deleteItem, fetchItemsByStatus, createItem } from '@/utils/api'
+import { updateItem, deleteItem, fetchItemsByStatus, createItem, sendTestCheckupEmail } from '@/utils/api'
 import { Item } from '@/types/item'
 import { useCheckupStatus } from '@/hooks/useCheckupStatus'
 import { SignedIn } from '@clerk/nextjs'
@@ -24,6 +24,7 @@ export default function KeepView() {
     const [showFilters, setShowFilters] = useState(false)
     const { authenticatedFetch } = useAuthenticatedFetch()
     const router = useRouter()
+    const [emailStatus, setEmailStatus] = useState<string | null>(null)
 
     useEffect(() => {
         // duplicate code - see api.ts
@@ -131,6 +132,21 @@ export default function KeepView() {
         ? items.filter((item) => item.itemType === selectedType)
         : items
 
+    // Handler for sending test checkup email
+    const handleSendTestEmail = async () => {
+        setEmailStatus(null)
+        try {
+            const result = await sendTestCheckupEmail(authenticatedFetch)
+            if (result.data) {
+                setEmailStatus('Test checkup email sent successfully!')
+            } else {
+                setEmailStatus(result.error || 'Failed to send test checkup email')
+            }
+        } catch (error) {
+            setEmailStatus('Failed to send test checkup email')
+        }
+    }
+
     if (loading) {
         return (
             <div className="flex justify-center items-center min-h-screen">
@@ -156,6 +172,18 @@ export default function KeepView() {
                                 <div className="absolute top-1.5 right-1.5 w-3 h-3 bg-red-500 rounded-full"></div>
                             )}
                         </button>
+                        <button
+                            onClick={handleSendTestEmail}
+                            className="p-2 text-gray-900 dark:text-white hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+                            title="Send Test Checkup Email"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12l-4-4-4 4m8 0v6a2 2 0 01-2 2H6a2 2 0 01-2-2v-6m16-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v4" />
+                            </svg>
+                        </button>
+                        {emailStatus && (
+                            <span className="ml-2 text-sm text-green-600 dark:text-green-400">{emailStatus}</span>
+                        )}
                         <button
                             onClick={() => setShowFilters(!showFilters)}
                             className="p-2 text-gray-900 dark:text-white hover:text-teal-500 dark:hover:text-teal-400 transition-colors"

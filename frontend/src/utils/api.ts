@@ -26,6 +26,12 @@ interface ItemCreate {
     last_used: string;
 }
 
+interface EmailResponse {
+    checkup_type: string;
+    recipient_email: string;
+    recipient_username: string;
+}
+
 // utility csrf fetching for put, post, delete reqs
 export const fetchWithCsrf = async (url: string, options: RequestInit = {}) => {
     // First, ensure we have a CSRF token
@@ -214,6 +220,19 @@ export const completeCheckup = async (checkupId: number, fetchFn: typeof fetchWi
     } catch (error) {
         console.error('Error completing checkup:', error)
         return { error: 'Failed to complete checkup' }
+    }
+}
+
+export const sendTestCheckupEmail = async (fetchFn: typeof fetchWithCsrf): Promise<ApiResponse<EmailResponse[]>> => {
+    try {
+        const response = await fetchFn('/api/send-test-email', {
+            method: 'POST',
+        })
+        const data = await response.json()
+        return { data }
+    } catch (error) {
+        console.error('Error sending test checkup email:', error)
+        return { error: 'Failed to send test checkup email' }
     }
 }
 

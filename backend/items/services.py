@@ -117,11 +117,11 @@ class CheckupService:
         api_key = os.getenv("MAILERSEND_API_TOKEN")
         mailer = mailersend_emails.NewEmail(api_key)
         mail_body = {}
-        print(mailer.send(mail_body))
-        print(user.email)
+        # print(mailer.send(mail_body))
+        # print(user.email)
         mail_from = {
-            "name": os.getenv("DEFAULT_FROM_NAME", "Min-Now"),
-            "email": os.getenv("DEFAULT_FROM_EMAIL", "noreply@min-now.store"),
+            "name": os.getenv("DEFAULT_FROM_NAME"),
+            "email": os.getenv("MAILERSEND_SMTP_USERNAME"),
         }
         recipients = [
             {
@@ -150,7 +150,8 @@ class CheckupService:
             # mailer.set_reply_to(reply_to, mail_body)
             response = mailer.send(mail_body)
             # response is a requests.Response object
-            # get x-message-id to track email meta data
+
+            # sent email meta data. See x-message-id if need more data
             print(response)
         except Exception as e:
             logging.error(

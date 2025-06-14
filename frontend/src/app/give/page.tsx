@@ -133,7 +133,12 @@ export default function GiveView() {
             <AuthMessage />
 
             <SignedIn>
-                <FilterBar onFilterChange={handleFilterChange} showFilters={showFilters} />
+                {showFilters && (
+                    <FilterBar
+                        selectedType={selectedType}
+                        onTypeChange={handleFilterChange}
+                    />
+                )}
 
                 {filteredItems.length === 0 ? (
                     <p className="text-gray-500">No items to give at the moment.</p>

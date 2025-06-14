@@ -195,6 +195,9 @@ export default function ItemCard({
                                         selected={receivedDate}
                                         onSelect={setReceivedDate}
                                         initialFocus
+                                        captionLayout="dropdown"
+                                        showOutsideDays={true}
+                                        className="rounded-md border"
                                     />
                                 </PopoverContent>
                             </Popover>

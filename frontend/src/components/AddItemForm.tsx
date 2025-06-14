@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
-import { format } from 'date-fns'
-import { CalendarIcon, ImageIcon, SmileIcon } from 'lucide-react'
+import { format, setDate } from 'date-fns'
+import { CalendarIcon, ChevronDownIcon, ImageIcon, SmileIcon } from 'lucide-react'
 import { createItem } from '@/utils/api'
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
 import { Item } from '@/types/item'
@@ -30,6 +30,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null)
     const [isUploading, setIsUploading] = useState(false)
     const { authenticatedFetch } = useAuthenticatedFetch()
+    const [open, setOpen] = useState(false)
 
     const itemTypes = [
         'Clothing',
@@ -205,26 +206,33 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Item Received Date</label>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    className="w-full justify-start text-left font-normal mt-1 focus:border-teal-500 focus:ring-teal-500"
-                                >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {receivedDate ? format(receivedDate, "PPP") : <span>Pick a date</span>}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-800" align="start">
-                                <Calendar
-                                    mode="single"
-                                    selected={receivedDate}
-                                    onSelect={setReceivedDate}
-                                    initialFocus
-                                />
-                            </PopoverContent>
-                        </Popover>
+
+                        <div className="flex flex-col gap-3">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Item Received Date</label>
+                            <Popover open={open} onOpenChange={setOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        id="date"
+                                        className="w-48 justify-between font-normal"
+                                    >
+                                        {receivedDate ? receivedDate.toLocaleDateString() : "Select date"}
+                                        <ChevronDownIcon />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={receivedDate}
+                                        captionLayout="dropdown"
+                                        onSelect={(date) => {
+                                            setReceivedDate(date)
+                                            setOpen(false)
+                                        }}
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
                     </div>
 
                     <div className="flex justify-end space-x-3">

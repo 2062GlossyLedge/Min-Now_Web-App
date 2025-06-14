@@ -26,3 +26,12 @@ body {
     color: rgb(var(--foreground-rgb));
     background: rgb(var(--background-start-rgb));
 }
+
+/* Hide calendar chevron and caption label */
+.rdp-chevron {
+    display: none !important;
+}
+
+.rdp-caption_label {
+    display: none !important;
+}

@@ -236,3 +236,24 @@ export const sendTestCheckupEmail = async (fetchFn: typeof fetchWithCsrf): Promi
     }
 }
 
+export const fetchItemById = async (id: string, fetchFn: typeof fetchWithCsrf): Promise<ApiResponse<Item>> => {
+    try {
+        const response = await fetchFn(`/api/items/${id}`)
+        const data = await response.json()
+        console.log('Received item data:', data)
+
+        // Map backend fields to frontend interface
+        const mappedItem = {
+            ...data,
+            itemType: data.item_type,
+            pictureUrl: data.picture_url,
+            ownershipDuration: data.ownership_duration?.description || 'Not specified'
+        }
+
+        return { data: mappedItem }
+    } catch (error) {
+        console.error('Error fetching item:', error)
+        return { error: 'Failed to fetch item' }
+    }
+}
+

@@ -6,8 +6,8 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { format, setDate } from 'date-fns'
-import { CalendarIcon, ChevronDownIcon, ImageIcon, SmileIcon } from 'lucide-react'
-import { createItem } from '@/utils/api'
+import { CalendarIcon, ChevronDownIcon, ImageIcon, SmileIcon, SearchIcon } from 'lucide-react'
+import { createItem, fetchItemById } from '@/utils/api'
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
 import { Item } from '@/types/item'
 import Image from 'next/image'
@@ -31,6 +31,8 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const [isUploading, setIsUploading] = useState(false)
     const { authenticatedFetch } = useAuthenticatedFetch()
     const [open, setOpen] = useState(false)
+    const [itemId, setItemId] = useState('')
+    const [isFetching, setIsFetching] = useState(false)
 
     const itemTypes = [
         'Clothing',
@@ -86,10 +88,61 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
         }
     }
 
+    const handleFetchItem = async () => {
+        if (!itemId) return
+
+        setIsFetching(true)
+        try {
+            const { data, error } = await fetchItemById(itemId, authenticatedFetch)
+            if (error) {
+                console.error('Error fetching item:', error)
+                return
+            }
+
+            if (data) {
+                setName(data.name)
+                setItemType(data.itemType)
+                setReceivedDate(new Date(data.item_received_date || data.last_used || new Date()))
+
+                // Handle picture/emoji
+                if (data.pictureUrl.startsWith('data:') || data.pictureUrl.startsWith('http')) {
+                    setUseEmoji(false)
+                    setUploadedImageUrl(data.pictureUrl)
+                } else {
+                    setUseEmoji(true)
+                    setPictureEmoji(data.pictureUrl)
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching item:', error)
+        } finally {
+            setIsFetching(false)
+        }
+    }
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
             <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Add New Item</h2>
+
+                {/* Add Item ID input and fetch button */}
+                <div className="mb-4 flex gap-2">
+                    <input
+                        type="text"
+                        value={itemId}
+                        onChange={(e) => setItemId(e.target.value)}
+                        placeholder="Enter item ID to fetch"
+                        className="flex-1 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    />
+                    <Button
+                        onClick={handleFetchItem}
+                        disabled={!itemId || isFetching}
+                        className="bg-teal-600 hover:bg-teal-700 text-white"
+                    >
+                        {isFetching ? 'Fetching...' : <SearchIcon className="h-4 w-4" />}
+                    </Button>
+                </div>
+
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Item Name</label>

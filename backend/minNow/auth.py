@@ -14,6 +14,10 @@ logger = logging.getLogger("minNow")
 
 
 class ClerkAuth(HttpBearer):
+    def __init__(self):
+        super().__init__()
+        self.clerk_user_id = None  # Store the authenticated Clerk user id
+
     def authenticate(self, request: httpx.Request, token):
         # print("Token:", token)
 
@@ -45,6 +49,8 @@ class ClerkAuth(HttpBearer):
                 clerk_user_id = request_state.payload.get("sub")
                 if not clerk_user_id:
                     return None
+
+                self.clerk_user_id = clerk_user_id  # Save user id as a field
 
                 with Clerk(
                     bearer_auth=os.getenv("CLERK_SECRET_KEY"),

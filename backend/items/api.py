@@ -8,6 +8,7 @@ from uuid import UUID
 from dotenv import load_dotenv
 import os
 import logging
+from .addItemAgent import run_agent
 
 log = logging.getLogger(__name__)
 load_dotenv()
@@ -274,3 +275,17 @@ def send_test_checkup_email(request):
 
     results = CheckupService.check_and_send_due_emails(user)
     return [EmailResponseSchema(**result) for result in results]
+
+
+class AgentPromptSchema(Schema):
+    prompt: str
+
+
+@router.post("/agent-add-item", auth=ClerkAuth())
+def agent_add_item(request, payload: AgentPromptSchema):
+    auth_header = request.headers.get("Authorization")
+    jwt_token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        jwt_token = auth_header.split(" ")[1]
+    result = run_agent(payload.prompt, jwt_token)
+    return result

@@ -257,3 +257,18 @@ export const fetchItemById = async (id: string, fetchFn: typeof fetchWithCsrf): 
     }
 }
 
+// Agent Add Item: POST user prompt to backend agent endpoint
+export const agentAddItem = async (prompt: string, fetchFn: typeof fetchWithCsrf): Promise<ApiResponse<any>> => {
+    try {
+        const response = await fetchFn('/api/agent-add-item', {
+            method: 'POST',
+            body: JSON.stringify({ prompt }),
+        })
+        const data = await response.json()
+        return { data }
+    } catch (error) {
+        console.error('Error adding item with agent:', error)
+        return { error: 'Failed to add item with agent' }
+    }
+}
+

@@ -6,7 +6,7 @@ import AddItemForm from '../../components/AddItemForm'
 import FilterBar from '../../components/FilterBar'
 import CheckupManager from '../../components/CheckupManager'
 import AuthMessage from '../../components/AuthMessage'
-import { updateItem, deleteItem, fetchItemsByStatus, createItem, sendTestCheckupEmail } from '@/utils/api'
+import { updateItem, deleteItem, fetchItemsByStatus, createItem, sendTestCheckupEmail, agentAddItem } from '@/utils/api'
 import { Item } from '@/types/item'
 import { useCheckupStatus } from '@/hooks/useCheckupStatus'
 import { SignedIn } from '@clerk/nextjs'
@@ -147,6 +147,24 @@ export default function KeepView() {
         }
     }
 
+    // Handler for agent add item
+    const handleAgentAddItem = async () => {
+        setEmailStatus(null)
+        try {
+            const prompt = "Add a new item to keep: name 'Jacket', received Dec 2020, last used Dec 2024"
+            const result = await agentAddItem(prompt, authenticatedFetch)
+            if (result.data) {
+                setEmailStatus('Item added successfully via AI agent!')
+                const { data, error } = await fetchItemsByStatus('Keep', authenticatedFetch)
+                if (!error && data) setItems(data)
+            } else {
+                setEmailStatus(result.error || 'Failed to add item via AI agent')
+            }
+        } catch (error) {
+            setEmailStatus('Failed to add item via AI agent')
+        }
+    }
+
     if (loading) {
         return (
             <div className="flex justify-center items-center min-h-screen">
@@ -196,6 +214,15 @@ export default function KeepView() {
                         </button>
 
                         <div className="flex items-center space-x-2">
+                            <button
+                                onClick={handleAgentAddItem}
+                                className="p-2 text-gray-900 dark:text-white hover:text-purple-500 dark:hover:text-purple-400 transition-colors"
+                                title="Add Item with AI Agent"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </button>
                             <button
                                 onClick={() => setShowAddForm(true)}
                                 className="p-2 text-gray-900 dark:text-white hover:text-teal-500 dark:hover:text-teal-400 transition-colors"

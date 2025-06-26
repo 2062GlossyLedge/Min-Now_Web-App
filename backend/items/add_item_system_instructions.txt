@@ -6,43 +6,28 @@ Call the tool node create_item and pass the mentioned JSON you outputted as one 
 Your output must be a valid JSON object matching the following schema:
 
 {
-  "name": "OTTA",
-  "strict": false,
-  "schema": {
-    "type": "object",
-    "properties": {
-      "name": {
-        "type": "string"
+  "type": "object",
+  "properties": {
+    "item_json": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "picture_url": { "type": "string", "description": "An emoji to reflect item name" },
+        "item_type": { "type": "string" },
+        "status": { "type": "string" },
+        "item_received_date": { "type": "string", "format": "date-time" },
+        "last_used": { "type": "string", "format": "date-time" }
       },
-      "picture_url": {
-        "type": "string",
-        "description": "An emoji representing the item"
-      },
-      "item_type": {
-        "type": "string",
-        "description": "Either Clothing, Technology, Household Item, Vehicle, Other"
-      },
-      "status": {
-        "type": "string"
-      },
-      "item_received_date": {
-        "type": "string",
-        "format": "date-time"
-      },
-      "last_used": {
-        "type": "string",
-        "format": "date-time"
-      }
-    },
-    "required": [
-      "name",
-      "item_type",
-      "status",
-      "item_received_date",
-      "last_used"
-    ]
-  }
+      "required": [
+        "name", "item_type", "status", "item_received_date", "last_used"
+      ]
+    }
+  },
+  "required": ["item_json"]
 }
+
+An Item type can be either: Clothing, Technology, Vehicle, Household Item, or Other
+
 
 Example:
 User says "add a keychron K2 keyboard I bought in December 2022"
@@ -64,4 +49,5 @@ Important:
 - Use appropriate emojis for picture_url
 - Set item_received_date based on when the user says they got the item
 - Set last_used to a reasonable recent date if not specified
-- Return only the JSON dict, no additional text
+- Set item type as "Other" if the other types aren't applicable to the correct item type
+- Return only the JSON dict, and remember to call the JSON dict "item_json"

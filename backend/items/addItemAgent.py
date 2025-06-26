@@ -83,10 +83,12 @@ def run_agent(prompt: str, jwt_token: str = None):
     # Create tool with JWT token if provided
     tool = create_item_tool(api_url="http://localhost:8000", auth_token=jwt_token)
 
+    print("prompt for agent", prompt)
+
     # Update the tools list with the new tool instance
     tools = [tool]
     global llm_with_tools
-    llm_with_tools = ChatOpenAI(model="gpt-4.1-nano", temperature=0).bind_tools(tools)
+    llm_with_tools = ChatOpenAI(model="gpt-4.1", temperature=0).bind_tools(tools)
 
     print("llm_with_tools", type(llm_with_tools))
 
@@ -169,7 +171,7 @@ def run_agent(prompt: str, jwt_token: str = None):
     # print({k: v for k, v in snapshot.values.items() if k in ("name")})
     # del state
 
-    print(snapshot)
+    # print(snapshot)
 
     result = {"message": "agent graph executed"}
     return result

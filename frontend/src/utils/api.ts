@@ -160,10 +160,10 @@ export const deleteItem = async (id: string, fetchFn: typeof fetchWithCsrf): Pro
 
 export const fetchItemsByStatus = async (status: string, fetchFn: typeof fetchWithCsrf): Promise<ApiResponse<Item[]>> => {
     try {
-        console.log('Fetching items with status:', status)
+        //console.log('Fetching items with status:', status)
         const response = await fetchFn(`/api/items?status=${status}`)
         const data = await response.json()
-        console.log('Received items data:', data)
+        //console.log('Received items data:', data)
 
         // Map backend fields to frontend interface
         const itemsWithDuration = data.map((item: any) => ({
@@ -240,7 +240,7 @@ export const fetchItemById = async (id: string, fetchFn: typeof fetchWithCsrf): 
     try {
         const response = await fetchFn(`/api/items/${id}`)
         const data = await response.json()
-        console.log('Received item data:', data)
+        //console.log('Received item data:', data)
 
         // Map backend fields to frontend interface
         const mappedItem = {
@@ -260,6 +260,7 @@ export const fetchItemById = async (id: string, fetchFn: typeof fetchWithCsrf): 
 // Agent Add Item: POST user prompt to backend agent endpoint
 export const agentAddItem = async (prompt: string, fetchFn: typeof fetchWithCsrf): Promise<ApiResponse<any>> => {
     try {
+        console.log('prompt to be sent:', prompt)
         const response = await fetchFn('/api/agent-add-item', {
             method: 'POST',
             body: JSON.stringify({ prompt }),

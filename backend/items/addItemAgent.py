@@ -80,10 +80,16 @@ def chatbot(state: State):
 
 # For demonstration, run the agent with a sample prompt
 def run_agent(prompt: str, jwt_token: str = None):
+    import datetime
+
+    # Get current date in ISO format
+    today_iso = datetime.date.today().isoformat()
+    # Prepend the date to the prompt
+    prompt_with_date = f"Today's date is {today_iso}. {prompt}"
     # Create tool with JWT token if provided
     tool = create_item_tool(api_url="http://localhost:8000", auth_token=jwt_token)
 
-    print("prompt for agent", prompt)
+    print("prompt for agent", prompt_with_date)
 
     # Update the tools list with the new tool instance
     tools = [tool]
@@ -119,7 +125,7 @@ def run_agent(prompt: str, jwt_token: str = None):
     state = {
         "messages": [
             SystemMessage(content=system_instructions),
-            HumanMessage(content=prompt),
+            HumanMessage(content=prompt_with_date),
         ]
     }
 
@@ -130,7 +136,7 @@ def run_agent(prompt: str, jwt_token: str = None):
     #     {
     #         "messages": [
     #             {"role": "system", "content": system_instructions},
-    #             {"role": "user", "content": prompt},
+    #             {"role": "user", "content": prompt_with_date},
     #         ]
     #     },
     #     indent=2,
@@ -147,7 +153,7 @@ def run_agent(prompt: str, jwt_token: str = None):
         {
             "messages": [
                 SystemMessage(content=system_instructions),
-                HumanMessage(content=prompt),
+                HumanMessage(content=prompt_with_date),
             ]
         },
         config,

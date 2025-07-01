@@ -33,6 +33,8 @@ SYSTEM_INSTRUCTIONS_PATH = os.path.join(
     os.path.dirname(__file__), "add_item_system_instructions.txt"
 )
 
+GRAPH_PATH = os.path.join(os.path.dirname(__file__), "graph_output.png")
+
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
@@ -180,4 +182,11 @@ def run_agent(prompt: str, jwt_token: str = None):
     # print(snapshot)
 
     result = {"message": "agent graph executed"}
+    try:
+        png_data = graph.get_graph().draw_mermaid_png()
+        with open(GRAPH_PATH, "wb") as f:
+            f.write(png_data)
+    except Exception:
+        # This requires some extra dependencies and is optional
+        pass
     return result

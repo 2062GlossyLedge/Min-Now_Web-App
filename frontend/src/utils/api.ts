@@ -273,3 +273,19 @@ export const agentAddItem = async (prompt: string, fetchFn: typeof fetchWithCsrf
     }
 }
 
+// Agent Add Items Batch: POST dict of prompts to backend agent endpoint
+export const agentAddItemsBatch = async (prompts: Record<string, string>, fetchFn: typeof fetchWithCsrf): Promise<ApiResponse<any>> => {
+    try {
+        console.log('prompts to be sent:', prompts)
+        const response = await fetchFn('/api/agent-add-item-batch', {
+            method: 'POST',
+            body: JSON.stringify({ prompts }),
+        })
+        const data = await response.json()
+        return { data }
+    } catch (error) {
+        console.error('Error adding items batch with agent:', error)
+        return { error: 'Failed to add items batch with agent' }
+    }
+}
+

@@ -143,7 +143,7 @@ def run_agent(batch_prompts: dict, jwt_token: str = None):
         "current_key": first_key,
         "processed_keys": [],
     }
-
+    # pretty print context given to chatbot
     # import pprint
 
     # print("\nState (as roles and content):")
@@ -192,6 +192,14 @@ def run_agent(batch_prompts: dict, jwt_token: str = None):
         if not remaining:
             break
         state["current_key"] = remaining[0]
+
+        try:
+            png_data = graph.get_graph().draw_mermaid_png()
+            with open(GRAPH_PATH, "wb") as f:
+                f.write(png_data)
+        except Exception:
+            # This requires some extra dependencies and is optional
+            pass
     # Optionally, return all results
     return {
         "message": "batch agent graph executed",

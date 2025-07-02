@@ -44,6 +44,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const [quickItemsToAdd, setQuickItemsToAdd] = useState<{ name: string, month: string, year: string }[]>([])
     const [quickFormLoading, setQuickFormLoading] = useState(false)
     const [quickFormError, setQuickFormError] = useState<string | null>(null)
+    const [quickPromptsDict, setQuickPromptsDict] = useState<Record<string, string>>({})
 
     const itemTypes = [
         'Clothing',
@@ -142,17 +143,16 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
         try {
             // Compose prompt for agent_add_item
             const prompt = `Add a new item to keep: name '${quickItemName}', received ${quickItemMonth} ${quickItemYear}`
-            const { agentAddItem } = await import('@/utils/api')
-            const result = await agentAddItem(prompt, authenticatedFetch)
-            if (result.data) {
-                setQuickItemsToAdd(prev => [...prev, { name: quickItemName, month: quickItemMonth, year: quickItemYear }])
-                setShowQuickAddForm(false)
-                setQuickItemName('')
-                setQuickItemMonth('')
-                setQuickItemYear('')
-            } else {
-                setQuickFormError(result.error || 'Failed to add item via Quick Add')
-            }
+            // Add to quickItemsToAdd and quickPromptsDict (do not send to backend yet)
+            setQuickItemsToAdd(prev => {
+                const newArr = [...prev, { name: quickItemName, month: quickItemMonth, year: quickItemYear }]
+                setQuickPromptsDict(dict => ({ ...dict, [newArr.length - 1]: prompt }))
+                return newArr
+            })
+            setShowQuickAddForm(false)
+            setQuickItemName('')
+            setQuickItemMonth('')
+            setQuickItemYear('')
         } catch (error) {
             setQuickFormError('Failed to add item via Quick Add')
         } finally {
@@ -161,19 +161,34 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     }
 
     const handleSubmitAllQuickItems = async () => {
-        // Optionally, could re-fetch items and call onItemAdded for each
-        for (const item of quickItemsToAdd) {
-            onItemAdded({
-                name: item.name,
-                itemType: '',
-                pictureUrl: '',
-                status: 'Keep',
-                ownershipDuration: '',
-                lastUsedDuration: '',
-                id: Math.random().toString(), // temp id
-            } as any)
+        if (Object.keys(quickPromptsDict).length === 0) {
+            onClose()
+            return
         }
-        onClose()
+        try {
+            const { agentAddItemsBatch } = await import('@/utils/api')
+            const result = await agentAddItemsBatch(quickPromptsDict, authenticatedFetch)
+            if (result.data) {
+                // Optionally, could re-fetch items and call onItemAdded for each
+                quickItemsToAdd.forEach((item, idx) => {
+                    onItemAdded({
+                        name: item.name,
+                        itemType: '',
+                        pictureUrl: '',
+                        status: 'Keep',
+                        ownershipDuration: '',
+                        lastUsedDuration: '',
+                        id: Math.random().toString(), // temp id
+                    } as any)
+                })
+                onClose()
+            } else {
+                // Optionally show error
+                alert(result.error || 'Failed to add items via Quick Add')
+            }
+        } catch (error) {
+            alert('Failed to add items via Quick Add')
+        }
     }
 
     // Month and year options

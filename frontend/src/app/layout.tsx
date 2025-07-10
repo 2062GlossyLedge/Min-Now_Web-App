@@ -15,6 +15,20 @@ export const metadata: Metadata = {
     },
 }
 
+// Inline script to set the correct theme class on <html> before hydration
+const setInitialTheme = `
+(function() {
+  try {
+    var theme = localStorage.getItem('theme');
+    if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  } catch (e) {}
+})();
+`;
+
 export default function RootLayout({
     children,
 }: {
@@ -23,8 +37,11 @@ export default function RootLayout({
     return (
         <ClerkProvider>
             <html lang="en" suppressHydrationWarning>
-                <body className={`${inter.className} bg-white dark:bg-black`}>
-
+                <head>
+                    {/* Inline script to set theme before hydration using Tailwind darkmode clas */}
+                    <script dangerouslySetInnerHTML={{ __html: setInitialTheme }} />
+                </head>
+                <body className={inter.className}>
                     <ThemeProvider>
                         <Navigation />
                         <main className="min-h-screen">

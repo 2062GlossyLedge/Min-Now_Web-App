@@ -125,6 +125,8 @@ def run_agent(batch_prompts: dict, jwt_token: str = None):
     graph_builder.add_node("chatbot", chatbot)
     tool_node = ToolNode(tools=[tool])
     graph_builder.add_node("tools", tool_node)
+    # how relevant is the graph with more programmatic approach shown in while loop?
+    # can same functionality be accomplished with graph approach?
     graph_builder.add_conditional_edges("chatbot", route_tools)
     graph_builder.add_edge("chatbot", "tools")
     graph_builder.add_edge("tools", "chatbot")

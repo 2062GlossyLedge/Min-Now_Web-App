@@ -152,14 +152,20 @@ export default function ItemCard({
                         }}
                         className="text-gray-500 dark:text-gray-400 hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
                     >
-                        {isExpanded ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                            </svg>
+                        {/* hide collapse button in edit mode */}
+                        {isEditing ? (
+
+                            <span></span>
                         ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
+                            isExpanded ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                </svg>
+                            ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                            )
                         )}
                     </button>
                 </div>
@@ -167,7 +173,7 @@ export default function ItemCard({
 
             {(isExpanded || isEditing) && (
                 <div className="mt-4 space-y-2">
-                    {isEmoji(pictureUrl) ? (
+                    {/* {isEmoji(pictureUrl) ? (
                         <span className="text-2xl ...">{pictureUrl}</span>
                     ) : isImageUrl(pictureUrl) ? (
                         <div className="relative w-full h-full">
@@ -175,9 +181,13 @@ export default function ItemCard({
                         </div>
                     ) : (
                         <span className="text-2xl ...">{pictureUrl}</span>
-                    )}
+                    )} */}
                     <div className="flex justify-between text-sm">
-                        <span className="text-gray-500 dark:text-gray-400 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">Ownership Duration:</span>
+                        {isEditing ? (
+                            <span className="text-gray-500 dark:text-gray-400 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">Item Received Date:</span>
+                        ) : (
+                            <span className="text-gray-500 dark:text-gray-400 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">Ownership Duration:</span>
+                        )}
                         {isEditing ? (
                             <Popover>
                                 <PopoverTrigger asChild>

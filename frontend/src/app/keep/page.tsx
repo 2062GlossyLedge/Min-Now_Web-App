@@ -12,6 +12,7 @@ import { useCheckupStatus } from '@/hooks/useCheckupStatus'
 import { SignedIn } from '@clerk/nextjs'
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
 import { useRouter } from 'next/navigation'
+import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 
 export default function KeepView() {
     const [items, setItems] = useState<Item[]>([])
@@ -32,6 +33,7 @@ export default function KeepView() {
     const [aiPrompt, setAIPrompt] = useState('')
     const [aiLoading, setAILoading] = useState(false)
     const [aiError, setAIError] = useState<string | null>(null)
+    const { refreshTrigger, clearUpdatedItems } = useItemUpdate()
 
     useEffect(() => {
         // duplicate code - see api.ts
@@ -70,7 +72,12 @@ export default function KeepView() {
         }
 
         fetchItems()
-    }, [authenticatedFetch])
+
+        // Clear updated items after refresh
+        if (refreshTrigger > 0) {
+            clearUpdatedItems()
+        }
+    }, [authenticatedFetch, refreshTrigger]) // Add refreshTrigger as dependency
 
     const handleStatusChange = async (id: string, newStatus: string) => {
         try {

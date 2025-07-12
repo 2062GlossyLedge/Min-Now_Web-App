@@ -10,6 +10,7 @@ import { Item } from '@/types/item'
 import { useCheckupStatus } from '@/hooks/useCheckupStatus'
 import { SignedIn } from '@clerk/nextjs'
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
+import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 
 export default function GiveView() {
     const [items, setItems] = useState<Item[]>([])
@@ -19,6 +20,7 @@ export default function GiveView() {
     const [showFilters, setShowFilters] = useState(false)
     const isCheckupDue = useCheckupStatus('give')
     const { authenticatedFetch } = useAuthenticatedFetch()
+    const { refreshTrigger, clearUpdatedItems } = useItemUpdate()
 
     useEffect(() => {
         const fetchItems = async () => {
@@ -38,7 +40,12 @@ export default function GiveView() {
         }
 
         fetchItems()
-    }, [authenticatedFetch])
+
+        // Clear updated items after refresh
+        if (refreshTrigger > 0) {
+            clearUpdatedItems()
+        }
+    }, [authenticatedFetch, refreshTrigger]) // Add refreshTrigger as dependency
 
     const handleStatusChange = async (id: string, newStatus: string) => {
         const { data: updatedItem, error } = await updateItem(id, { status: newStatus }, authenticatedFetch)

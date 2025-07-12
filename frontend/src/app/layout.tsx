@@ -4,6 +4,7 @@ import './global.css'
 import { ThemeProvider } from '../components/ThemeProvider'
 import Navigation from '../components/Navigation'
 import { ClerkProvider } from '@clerk/nextjs'
+import { ItemUpdateProvider } from '../contexts/ItemUpdateContext'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -42,12 +43,14 @@ export default function RootLayout({
                     <script dangerouslySetInnerHTML={{ __html: setInitialTheme }} />
                 </head>
                 <body className={inter.className}>
-                    <ThemeProvider>
-                        <Navigation />
-                        <main className="min-h-screen">
-                            {children}
-                        </main>
-                    </ThemeProvider>
+                    <ItemUpdateProvider>
+                        <ThemeProvider>
+                            <Navigation />
+                            <main className="min-h-screen">
+                                {children}
+                            </main>
+                        </ThemeProvider>
+                    </ItemUpdateProvider>
                 </body>
             </html>
         </ClerkProvider>

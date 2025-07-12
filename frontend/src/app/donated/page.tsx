@@ -7,11 +7,13 @@ import { updateItem, deleteItem, fetchItemsByStatus, createHandleEdit } from '@/
 import { Item } from '@/types/item'
 import { SignedIn } from '@clerk/nextjs'
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
+import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 
 export default function DonatedView() {
     const [items, setItems] = useState<Item[]>([])
     const [loading, setLoading] = useState(true)
     const { authenticatedFetch } = useAuthenticatedFetch()
+    const { refreshTrigger, clearUpdatedItems } = useItemUpdate()
 
     useEffect(() => {
         const fetchItems = async () => {
@@ -31,7 +33,12 @@ export default function DonatedView() {
         }
 
         fetchItems()
-    }, [authenticatedFetch])
+
+        // Clear updated items after refresh
+        if (refreshTrigger > 0) {
+            clearUpdatedItems()
+        }
+    }, [authenticatedFetch, refreshTrigger]) // Add refreshTrigger as dependency
 
     const handleStatusChange = async (id: string, newStatus: string) => {
         const { data: updatedItem, error } = await updateItem(id, { status: newStatus }, authenticatedFetch)

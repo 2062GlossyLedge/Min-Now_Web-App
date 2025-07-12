@@ -6,6 +6,7 @@ import { Item } from '@/types/item'
 import { CheckCircle2 } from 'lucide-react'
 import { updateItem, fetchCheckup, createCheckup, completeCheckup } from '@/utils/api'
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
+import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 
 interface CheckupManagerProps {
     checkupType: 'Keep' | 'Give'
@@ -22,6 +23,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
     const [changedItems, setChangedItems] = useState<Set<string>>(new Set())
     const [lastCheckupDate, setLastCheckupDate] = useState<Date | null>(null)
     const { authenticatedFetch } = useAuthenticatedFetch()
+    const { addUpdatedItem, triggerRefresh } = useItemUpdate()
 
     useEffect(() => {
         const fetchCheckupInfo = async () => {
@@ -81,6 +83,10 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
             if (updatedItem) {
                 setItems(items.filter(item => item.id !== itemId))
                 setChangedItems(prev => new Set([...prev, itemId]))
+
+                // Notify parent components about the update
+                addUpdatedItem(itemId)
+                triggerRefresh() // This will cause parent components to re-render
             }
         } catch (error) {
             console.error('Error updating item status:', error)
@@ -114,6 +120,10 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
 
             setLastCheckupDate(new Date())
             setShowConfirmation(true)
+
+            // Trigger refresh after checkup completion
+            triggerRefresh()
+
             setTimeout(() => {
                 router.refresh()
                 onClose()

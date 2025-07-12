@@ -101,6 +101,7 @@ class OwnedItemUpdateSchema(Schema):
     picture_url: Optional[str] = None
     item_type: Optional[ItemType] = None
     status: Optional[ItemStatus] = None
+    item_received_date: Optional[datetime] = None
 
 
 class CheckupCreateSchema(Schema):

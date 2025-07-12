@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
-import { CalendarIcon, Edit2, Save, X, Trash2 } from 'lucide-react'
+import { CalendarIcon, Edit2, Save, X, Trash2, ChevronDown } from 'lucide-react'
 import Image from 'next/image'
 
 interface ItemCardProps {
@@ -16,8 +16,9 @@ interface ItemCardProps {
     status: string
     ownershipDuration: string
     lastUsedDuration: string
+    receivedDate?: string
     onStatusChange?: (id: string, newStatus: string) => void
-    onEdit?: (id: string, updates: { name?: string, receivedDate?: Date }) => void
+    onEdit?: (id: string, updates: { name?: string, receivedDate?: Date, itemType?: string, status?: string }) => void
     onDelete?: (id: string) => void
 }
 
@@ -29,6 +30,7 @@ export default function ItemCard({
     status,
     ownershipDuration,
     lastUsedDuration,
+    receivedDate: initialReceivedDate,
     onStatusChange,
     onEdit,
     onDelete,
@@ -36,7 +38,20 @@ export default function ItemCard({
     const [isExpanded, setIsExpanded] = useState(false)
     const [isEditing, setIsEditing] = useState(false)
     const [editedName, setEditedName] = useState(name)
-    const [receivedDate, setReceivedDate] = useState<Date | undefined>(undefined)
+    const [editedItemType, setEditedItemType] = useState(itemType)
+    const [editedStatus, setEditedStatus] = useState(status)
+    const [receivedDate, setReceivedDate] = useState<Date | undefined>(
+        initialReceivedDate ? new Date(initialReceivedDate) : undefined
+    )
+    const [isItemTypeDropdownOpen, setIsItemTypeDropdownOpen] = useState(false)
+
+    // Update local state when props change
+    useEffect(() => {
+        setEditedName(name)
+        setEditedItemType(itemType)
+        setEditedStatus(status)
+        setReceivedDate(initialReceivedDate ? new Date(initialReceivedDate) : undefined)
+    }, [name, itemType, status, initialReceivedDate])
 
     // Function to check if the pictureUrl is an emoji
     const isEmoji = (str: string) => {
@@ -60,10 +75,12 @@ export default function ItemCard({
     }
 
     const handleSave = () => {
-        if (onEdit && receivedDate) {
+        if (onEdit) {
             onEdit(id, {
                 name: editedName,
-                receivedDate
+                receivedDate,
+                itemType: editedItemType,
+                status: editedStatus
             })
         }
         setIsEditing(false)
@@ -71,7 +88,9 @@ export default function ItemCard({
 
     const handleCancel = () => {
         setEditedName(name)
-        setReceivedDate(undefined)
+        setEditedItemType(itemType)
+        setEditedStatus(status)
+        setReceivedDate(initialReceivedDate ? new Date(initialReceivedDate) : undefined)
         setIsEditing(false)
     }
 
@@ -81,6 +100,9 @@ export default function ItemCard({
             onDelete(id);
         }
     }
+
+    // Sample item types - you can customize this list
+    const itemTypes = ['Clothing', 'Technology', 'Household Item', 'Vehicle', 'Other']
 
     return (
         <div
@@ -121,7 +143,9 @@ export default function ItemCard({
                         ) : (
                             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">{name}</h3>
                         )}
-                        <p className="text-sm text-gray-500 dark:text-gray-400 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">{itemType}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">
+                            {isEditing ? editedItemType : itemType}
+                        </p>
                     </div>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -154,7 +178,6 @@ export default function ItemCard({
                     >
                         {/* hide collapse button in edit mode */}
                         {isEditing ? (
-
                             <span></span>
                         ) : (
                             isExpanded ? (
@@ -173,109 +196,145 @@ export default function ItemCard({
 
             {(isExpanded || isEditing) && (
                 <div className="mt-4 space-y-2">
-                    {/* {isEmoji(pictureUrl) ? (
-                        <span className="text-2xl ...">{pictureUrl}</span>
-                    ) : isImageUrl(pictureUrl) ? (
-                        <div className="relative w-full h-full">
-                            <Image src={pictureUrl} alt={name} fill className="object-cover" />
-                        </div>
-                    ) : (
-                        <span className="text-2xl ...">{pictureUrl}</span>
-                    )} */}
-                    <div className="flex justify-between text-sm">
-                        {isEditing ? (
-                            <span className="text-gray-500 dark:text-gray-400 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">Item Received Date:</span>
-                        ) : (
-                            <span className="text-gray-500 dark:text-gray-400 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">Ownership Duration:</span>
-                        )}
-                        {isEditing ? (
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        className="w-[240px] justify-start text-left font-normal"
-                                    >
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {receivedDate ? format(receivedDate, "PPP") : <span>Pick a date</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-800" align="start">
-                                    <Calendar
-                                        mode="single"
-                                        selected={receivedDate}
-                                        onSelect={setReceivedDate}
-                                        initialFocus
-                                        captionLayout="dropdown"
-                                        showOutsideDays={true}
-                                        className="rounded-md border"
-                                    />
-                                </PopoverContent>
-                            </Popover>
-                        ) : (
-                            <span className="text-gray-900 dark:text-gray-100 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">{ownershipDuration}</span>
-                        )}
-                    </div>
-                    {isEditing && (
-                        <div className="mt-4 space-y-2">
-                            <div className="flex justify-between items-center mt-4">
-                                <div className="flex space-x-2">
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleStatusChange('Keep');
-                                        }}
-                                        className={`px-3 py-1 rounded ${status === 'Keep'
-                                            ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
-                                            : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-teal-100 dark:hover:bg-teal-900 hover:text-teal-700 dark:hover:text-teal-300'
-                                            }`}
-                                    >
-                                        Keep
-                                    </button>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleStatusChange('Give');
-                                        }}
-                                        className={`px-3 py-1 rounded ${status === 'Give'
-                                            ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
-                                            : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-teal-100 dark:hover:bg-teal-900 hover:text-teal-700 dark:hover:text-teal-300'
-                                            }`}
-                                    >
-                                        Give
-                                    </button>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleStatusChange('Donate');
-                                        }}
-                                        className={`px-3 py-1 rounded ${status === 'Donate'
-                                            ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
-                                            : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-teal-100 dark:hover:bg-teal-900 hover:text-teal-700 dark:hover:text-teal-300'
-                                            }`}
-                                    >
-                                        Donate
-                                    </button>
+
+
+                    {/* Edit mode layout with two columns */}
+                    {isEditing ? (
+                        <div className="space-y-4">
+                            {/* First row: Item Received Date and Status */}
+                            <div className="flex justify-between items-start">
+                                <div className="flex flex-col space-y-2">
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">Item Received Date:</span>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                className="w-[240px] justify-start text-left font-normal"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                {receivedDate ? format(receivedDate, "PPP") : <span>Pick a date</span>}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-800" align="start">
+                                            <Calendar
+                                                mode="single"
+                                                selected={receivedDate}
+                                                onSelect={setReceivedDate}
+                                                initialFocus
+                                                captionLayout="dropdown"
+                                                showOutsideDays={true}
+                                                className="rounded-md border"
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
-                                <div className="flex space-x-4">
-                                    <Button
-                                        variant="outline"
-                                        onClick={handleCancel}
-                                        className="text-gray-700 dark:text-gray-300 px-4 py-2"
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button
-                                        onClick={handleSave}
-                                        className="bg-teal-600 text-white hover:bg-teal-700 px-4 py-2"
-                                    >
-                                        Save
-                                    </Button>
+
+                                <div className="flex flex-col space-y-2">
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">Item Status:</span>
+                                    <div className="flex space-x-2">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setEditedStatus('Keep');
+                                            }}
+                                            className={`px-3 py-1 rounded text-sm ${editedStatus === 'Keep'
+                                                ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                                                : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-teal-100 dark:hover:bg-teal-900 hover:text-teal-700 dark:hover:text-teal-300'
+                                                }`}
+                                        >
+                                            Keep
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setEditedStatus('Give');
+                                            }}
+                                            className={`px-3 py-1 rounded text-sm ${editedStatus === 'Give'
+                                                ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
+                                                : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-teal-100 dark:hover:bg-teal-900 hover:text-teal-700 dark:hover:text-teal-300'
+                                                }`}
+                                        >
+                                            Give
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setEditedStatus('Donate');
+                                            }}
+                                            className={`px-3 py-1 rounded text-sm ${editedStatus === 'Donate'
+                                                ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+                                                : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-teal-100 dark:hover:bg-teal-900 hover:text-teal-700 dark:hover:text-teal-300'
+                                                }`}
+                                        >
+                                            Donate
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
+
+                            {/* Second row: Item Type */}
+                            <div className="flex justify-between items-start">
+                                <div className="flex flex-col space-y-2">
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">Item Type:</span>
+                                    <Popover open={isItemTypeDropdownOpen} onOpenChange={setIsItemTypeDropdownOpen}>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                className="w-[240px] justify-between text-left font-normal"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                {editedItemType}
+                                                <ChevronDown className="h-4 w-4 opacity-50" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[240px] p-0 bg-white dark:bg-gray-800" align="start">
+                                            <div className="max-h-[200px] overflow-y-auto">
+                                                {itemTypes.map((type) => (
+                                                    <button
+                                                        key={type}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setEditedItemType(type);
+                                                            setIsItemTypeDropdownOpen(false);
+                                                        }}
+                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none"
+                                                    >
+                                                        {type}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+                            </div>
+
+                            {/* Action buttons */}
+                            <div className="flex justify-end space-x-4 pt-4">
+                                <Button
+                                    variant="outline"
+                                    onClick={handleCancel}
+                                    className="text-gray-700 dark:text-gray-300 px-4 py-2"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    onClick={handleSave}
+                                    className="bg-teal-600 text-white hover:bg-teal-700 px-4 py-2"
+                                >
+                                    Save
+                                </Button>
+                            </div>
+                        </div>
+                    ) : (
+                        /* Non-edit mode display */
+                        <div className="flex justify-between text-sm">
+                            <span className="text-gray-500 dark:text-gray-400 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">Ownership Duration:</span>
+                            <span className="text-gray-900 dark:text-gray-100 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">{ownershipDuration}</span>
                         </div>
                     )}
                 </div>
             )}
         </div>
     )
-} 
+}

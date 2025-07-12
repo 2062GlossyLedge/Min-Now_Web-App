@@ -6,7 +6,7 @@ import AddItemForm from '../../components/AddItemForm'
 import FilterBar from '../../components/FilterBar'
 import CheckupManager from '../../components/CheckupManager'
 import AuthMessage from '../../components/AuthMessage'
-import { updateItem, deleteItem, fetchItemsByStatus, createItem, sendTestCheckupEmail, agentAddItem } from '@/utils/api'
+import { updateItem, deleteItem, fetchItemsByStatus, createItem, sendTestCheckupEmail, agentAddItem, createHandleEdit } from '@/utils/api'
 import { Item } from '@/types/item'
 import { useCheckupStatus } from '@/hooks/useCheckupStatus'
 import { SignedIn } from '@clerk/nextjs'
@@ -91,24 +91,8 @@ export default function KeepView() {
         setSelectedType(type)
     }
 
-    const handleEdit = async (id: string, updates: { name?: string, ownershipDate?: Date, lastUsedDate?: Date }) => {
-        try {
-            const { data: updatedItem, error } = await updateItem(id, updates, authenticatedFetch)
-            if (error) {
-                console.error('Error updating item:', error)
-                return
-            }
-            if (updatedItem) {
-                setItems(prevItems =>
-                    prevItems.map(item =>
-                        item.id === id ? { ...item, ...updatedItem } : item
-                    )
-                )
-            }
-        } catch (error) {
-            console.error('Error updating item:', error)
-        }
-    }
+    // Use shared handleEdit function to eliminate code duplication
+    const handleEdit = createHandleEdit('Keep', setItems, authenticatedFetch)
 
     const handleDelete = async (id: string) => {
         try {
@@ -436,6 +420,7 @@ export default function KeepView() {
                                 status={item.status}
                                 ownershipDuration={item.ownershipDuration}
                                 lastUsedDuration={item.lastUsedDuration}
+                                receivedDate={item.item_received_date}
                                 onStatusChange={handleStatusChange}
                                 onEdit={handleEdit}
                                 onDelete={handleDelete}

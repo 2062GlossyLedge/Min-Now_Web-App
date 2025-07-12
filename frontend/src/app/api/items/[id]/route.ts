@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:8000'
 
+//update item
 
-// Is this code even used? supposudly but where - see item checkup diffs
-export async function PATCH(
+export async function PUT(
     request: Request,
     { params }: { params: { id: string } }
 ) {

@@ -59,8 +59,8 @@ class Checkup(models.Model):
     checkup_interval_months = models.IntegerField(default=1)
 
     # only one checkup per type per user
-    class Meta:
-        unique_together = ("user", "checkup_type")
+    # class Meta:
+    #     unique_together = ("user", "checkup_type")
 
     @property
     def is_checkup_due(self):

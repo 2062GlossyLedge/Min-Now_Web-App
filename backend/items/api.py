@@ -19,10 +19,16 @@ load_dotenv()
 prod = os.getenv("PROD") == "True"
 log.info(f"API Environment: {'Production' if prod else 'Development'}")
 
+# Use when testing swagger docs in dev. Testing frontend dev with this running will result in invalid alg for dev tokens
+# if prod:
+#     from backend.minNow.auth import ClerkAuth
+# else:
+#     from minNow.auth import DevClerkAuth as ClerkAuth
 if prod:
     from backend.minNow.auth import ClerkAuth
 else:
-    from minNow.auth import DevClerkAuth as ClerkAuth
+    from minNow.auth import ClerkAuth
+
 
 router = Router()
 
@@ -451,14 +457,10 @@ if not prod:
                             httpx_request,
                             AuthenticateRequestOptions(
                                 authorized_parties=[
-                                    "https://min-now-frontend.vercel.app",
                                     "http://localhost:3000",
-                                    "http://localhost:8000",
                                     "https://min-now.store",
                                     "https://www.min-now.store",
                                     "https://min-now-web-app.vercel.app",
-                                    "https://magnificent-optimism-production.up.railway.app",
-                                    "https://min-nowweb-app-production.up.railway.app",
                                 ]
                             ),
                         )

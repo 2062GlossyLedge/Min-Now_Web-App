@@ -31,14 +31,10 @@ class ClerkAuth(HttpBearer):
                 request,
                 AuthenticateRequestOptions(
                     authorized_parties=[
-                        "https://min-now-frontend.vercel.app",
                         "http://localhost:3000",
-                        "http://localhost:8000",
                         "https://min-now.store",
                         "https://www.min-now.store",
                         "https://min-now-web-app.vercel.app",
-                        "https://magnificent-optimism-production.up.railway.app",
-                        "https://min-nowweb-app-production.up.railway.app",
                     ]
                 ),
             )

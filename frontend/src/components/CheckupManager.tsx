@@ -168,7 +168,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                 </div>
 
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                    Mark items as used or not used since the last checkup. Items marked as not used will be moved to the Give section. In the Give section, you can also mark items for donation.
+                    Mark items as used or not used since the last checkup. Items marked as not used will be moved to the Give section.
                 </p>
 
                 <div className="space-y-6">

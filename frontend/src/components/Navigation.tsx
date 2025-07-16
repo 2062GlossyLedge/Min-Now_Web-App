@@ -17,7 +17,7 @@ export default function Navigation() {
     const tabs = [
         { name: 'Keep', href: '/keep', icon: '↓' },
         { name: 'Give', href: '/give', icon: '↑' },
-        { name: 'Donated', href: '/donated', icon: '📦' },
+        { name: 'Gave', href: '/donated', icon: '📦' },
 
     ]
 

@@ -89,14 +89,14 @@ export default function DonatedView() {
     return (
         <div className="container mx-auto px-4 py-8">
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Donated Items</h1>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Given Items</h1>
             </div>
 
             <AuthMessage />
 
             <SignedIn>
                 {items.length === 0 ? (
-                    <p className="text-gray-500">No donated items at the moment.</p>
+                    <p className="text-gray-500">No Given items at the moment.</p>
                 ) : (
                     <div className="space-y-4">
                         {items.map((item) => (

@@ -100,6 +100,8 @@ class OwnedItemUpdateSchema(Schema):
     name: Optional[str] = None
     picture_url: Optional[str] = None
     item_type: Optional[ItemType] = None
+    item_received_date: Optional[datetime] = None
+    last_used: Optional[datetime] = None
     status: Optional[ItemStatus] = None
 
 

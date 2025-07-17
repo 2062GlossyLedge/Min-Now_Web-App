@@ -23,7 +23,7 @@ const tierColors: Record<string, string> = {
 
 const badgeViews = [
     { key: "keep", label: "Keep Badges" },
-    { key: "donated", label: "Donated Badges" },
+    { key: "donated", label: "Gave Badges" },
 ]
 
 type Badge = {

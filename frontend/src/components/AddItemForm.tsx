@@ -9,6 +9,7 @@ import { format, setDate } from 'date-fns'
 import { CalendarIcon, ChevronDownIcon, ImageIcon, SmileIcon, SearchIcon } from 'lucide-react'
 import { createItem, fetchItemById } from '@/utils/api'
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
+import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 import { Item } from '@/types/item'
 import Image from 'next/image'
 import { UploadButton } from '@uploadthing/react'
@@ -21,6 +22,7 @@ interface AddItemFormProps {
 
 export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) {
     const router = useRouter()
+    const { triggerRefresh } = useItemUpdate()
     const [name, setName] = useState('')
     const [pictureEmoji, setPictureEmoji] = useState('')
     const [itemType, setItemType] = useState('Clothing')
@@ -169,8 +171,11 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
             const { agentAddItemsBatch } = await import('@/utils/api')
             const result = await agentAddItemsBatch(quickPromptsDict, authenticatedFetch)
             if (result.data) {
+                // Trigger refresh to re-render all ItemCards
+                triggerRefresh()
+                
                 // Optionally, could re-fetch items and call onItemAdded for each
-                quickItemsToAdd.forEach((item, idx) => {
+                quickItemsToAdd.forEach((item) => {
                     onItemAdded({
                         name: item.name,
                         itemType: '',

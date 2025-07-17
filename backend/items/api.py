@@ -1,6 +1,6 @@
 from ninja import Router, Schema
 from typing import List, Optional, Dict
-from pydantic import RootModel
+from pydantic import RootModel, BaseModel
 from .models import ItemType, ItemStatus, TimeSpan, OwnedItem
 from .services import ItemService, CheckupService
 from datetime import datetime
@@ -291,3 +291,22 @@ def agent_add_item(request, payload: AgentPromptSchema):
         jwt_token = auth_header.split(" ")[1]
     result = run_agent(payload.prompt, jwt_token)
     return result
+
+
+# Schema for batch agent add item
+class AgentBatchPromptsSchema(Schema):
+    prompts: Dict[str, str]
+
+
+@router.post("/agent-add-item-batch", auth=ClerkAuth())
+def agent_add_item_batch(request, payload: AgentBatchPromptsSchema):
+    """
+    Accepts a dict of prompts, runs the agent for each, and returns a dict of results.
+    """
+    auth_header = request.headers.get("Authorization")
+    jwt_token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        jwt_token = auth_header.split(" ")[1]
+    results = {}
+    run_agent(payload.prompts, jwt_token)
+    return results

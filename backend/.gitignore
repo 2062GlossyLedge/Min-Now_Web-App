@@ -169,3 +169,5 @@ My App.swiftpm/*
 backend/staticfiles/*
 
 .cursor/*
+
+graph_output.png

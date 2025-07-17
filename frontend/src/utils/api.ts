@@ -124,22 +124,35 @@ export const createItem = async (itemData: ItemCreate, fetchFn: typeof fetchWith
 
 export const updateItem = async (id: string, updates: {
     name?: string,
-    ownershipDate?: Date,
     lastUsedDate?: Date,
-    status?: string
+    status?: string,
+    itemType?: string,
+    receivedDate?: Date
 }, fetchFn: typeof fetchWithCsrf): Promise<ApiResponse<Item>> => {
     try {
+        const requestBody = {
+            name: updates.name,
+            item_received_date: updates.receivedDate?.toISOString(),
+            last_used: updates.lastUsedDate?.toISOString(),
+            status: updates.status,
+            item_type: updates.itemType,
+        }
+
         const response = await fetchFn(`/api/items/${id}`, {
             method: 'PUT',
-            body: JSON.stringify({
-                name: updates.name,
-                item_received_date: updates.ownershipDate?.toISOString(),
-                last_used: updates.lastUsedDate?.toISOString(),
-                status: updates.status,
-            }),
+            body: JSON.stringify(requestBody),
         })
         const data = await response.json()
-        return { data }
+
+        // Map backend fields to frontend interface
+        const mappedItem = {
+            ...data,
+            itemType: data.item_type,
+            pictureUrl: data.picture_url,
+            ownershipDuration: data.ownership_duration?.description || 'Not specified'
+        }
+
+        return { data: mappedItem }
     } catch (error) {
         console.error('Error updating item:', error)
         return { error: 'Failed to update item' }
@@ -270,6 +283,43 @@ export const agentAddItem = async (prompt: string, fetchFn: typeof fetchWithCsrf
     } catch (error) {
         console.error('Error adding item with agent:', error)
         return { error: 'Failed to add item with agent' }
+    }
+}
+
+// Shared handleEdit function to eliminate code duplication
+export const createHandleEdit = (
+    currentStatus: string,
+    setItems: React.Dispatch<React.SetStateAction<Item[]>>,
+    authenticatedFetch: typeof fetchWithCsrf
+) => {
+    return async (id: string, updates: {
+        name?: string,
+        lastUsedDate?: Date,
+        itemType?: string,
+        receivedDate?: Date,
+        status?: string
+    }) => {
+        try {
+            const { data: updatedItem, error } = await updateItem(id, updates, authenticatedFetch)
+            if (error) {
+                console.error('Error updating item:', error)
+                return
+            }
+            if (updatedItem) {
+                // If the status changed and it's no longer the current view's status, remove the item from the list
+                if (updates.status && updates.status !== currentStatus) {
+                    setItems(prevItems => prevItems.filter(item => item.id !== id))
+                } else {
+                    setItems(prevItems =>
+                        prevItems.map(item =>
+                            item.id === id ? { ...item, ...updatedItem } : item
+                        )
+                    )
+                }
+            }
+        } catch (error) {
+            console.error('Error updating item:', error)
+        }
     }
 }
 

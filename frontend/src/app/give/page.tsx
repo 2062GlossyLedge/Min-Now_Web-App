@@ -5,11 +5,12 @@ import ItemCard from '../../components/ItemCard'
 import FilterBar from '../../components/FilterBar'
 import CheckupManager from '../../components/CheckupManager'
 import AuthMessage from '../../components/AuthMessage'
-import { updateItem, deleteItem, fetchItemsByStatus } from '@/utils/api'
+import { updateItem, deleteItem, fetchItemsByStatus, createHandleEdit } from '@/utils/api'
 import { Item } from '@/types/item'
 import { useCheckupStatus } from '@/hooks/useCheckupStatus'
 import { SignedIn } from '@clerk/nextjs'
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
+import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 
 export default function GiveView() {
     const [items, setItems] = useState<Item[]>([])
@@ -19,6 +20,7 @@ export default function GiveView() {
     const [showFilters, setShowFilters] = useState(false)
     const isCheckupDue = useCheckupStatus('give')
     const { authenticatedFetch } = useAuthenticatedFetch()
+    const { refreshTrigger, clearUpdatedItems } = useItemUpdate()
 
     useEffect(() => {
         const fetchItems = async () => {
@@ -38,7 +40,12 @@ export default function GiveView() {
         }
 
         fetchItems()
-    }, [authenticatedFetch])
+
+        // Clear updated items after refresh
+        if (refreshTrigger > 0) {
+            clearUpdatedItems()
+        }
+    }, [authenticatedFetch, refreshTrigger]) // Add refreshTrigger as dependency
 
     const handleStatusChange = async (id: string, newStatus: string) => {
         const { data: updatedItem, error } = await updateItem(id, { status: newStatus }, authenticatedFetch)
@@ -60,23 +67,8 @@ export default function GiveView() {
         setSelectedType(type)
     }
 
-    const handleEdit = async (id: string, updates: { name?: string, ownershipDate?: Date, lastUsedDate?: Date }) => {
-        const { data: updatedItem, error } = await updateItem(id, updates, authenticatedFetch)
-
-        if (error) {
-            console.error(error)
-            return
-        }
-
-        if (updatedItem) {
-            // Update the item in place while maintaining the list order
-            setItems(prevItems =>
-                prevItems.map(item =>
-                    item.id === id ? { ...item, ...updatedItem } : item
-                )
-            )
-        }
-    }
+    // Use shared handleEdit function to eliminate code duplication
+    const handleEdit = createHandleEdit('Give', setItems, authenticatedFetch)
 
     const handleDelete = async (id: string) => {
         const { error } = await deleteItem(id, authenticatedFetch)
@@ -154,6 +146,7 @@ export default function GiveView() {
                                 status={item.status}
                                 ownershipDuration={item.ownershipDuration}
                                 lastUsedDuration={item.lastUsedDuration}
+                                receivedDate={item.item_received_date}
                                 onStatusChange={handleStatusChange}
                                 onEdit={handleEdit}
                                 onDelete={handleDelete}

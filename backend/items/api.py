@@ -103,6 +103,7 @@ class OwnedItemUpdateSchema(Schema):
     item_received_date: Optional[datetime] = None
     last_used: Optional[datetime] = None
     status: Optional[ItemStatus] = None
+    item_received_date: Optional[datetime] = None
 
 
 class CheckupCreateSchema(Schema):

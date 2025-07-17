@@ -3,15 +3,17 @@
 import { useState, useEffect } from 'react'
 import ItemCard from '../../components/ItemCard'
 import AuthMessage from '../../components/AuthMessage'
-import { updateItem, deleteItem, fetchItemsByStatus } from '@/utils/api'
+import { updateItem, deleteItem, fetchItemsByStatus, createHandleEdit } from '@/utils/api'
 import { Item } from '@/types/item'
 import { SignedIn } from '@clerk/nextjs'
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
+import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 
 export default function DonatedView() {
     const [items, setItems] = useState<Item[]>([])
     const [loading, setLoading] = useState(true)
     const { authenticatedFetch } = useAuthenticatedFetch()
+    const { refreshTrigger, clearUpdatedItems } = useItemUpdate()
 
     useEffect(() => {
         const fetchItems = async () => {
@@ -31,7 +33,12 @@ export default function DonatedView() {
         }
 
         fetchItems()
-    }, [authenticatedFetch])
+
+        // Clear updated items after refresh
+        if (refreshTrigger > 0) {
+            clearUpdatedItems()
+        }
+    }, [authenticatedFetch, refreshTrigger]) // Add refreshTrigger as dependency
 
     const handleStatusChange = async (id: string, newStatus: string) => {
         const { data: updatedItem, error } = await updateItem(id, { status: newStatus }, authenticatedFetch)
@@ -49,23 +56,8 @@ export default function DonatedView() {
         }
     }
 
-    const handleEdit = async (id: string, updates: { name?: string, ownershipDate?: Date, lastUsedDate?: Date }) => {
-        const { data: updatedItem, error } = await updateItem(id, updates, authenticatedFetch)
-
-        if (error) {
-            console.error(error)
-            return
-        }
-
-        if (updatedItem) {
-            // Update the item in place while maintaining the list order
-            setItems(prevItems =>
-                prevItems.map(item =>
-                    item.id === id ? { ...item, ...updatedItem } : item
-                )
-            )
-        }
-    }
+    // Use shared handleEdit function to eliminate code duplication
+    const handleEdit = createHandleEdit('Donate', setItems, authenticatedFetch)
 
     const handleDelete = async (id: string) => {
         const { error } = await deleteItem(id, authenticatedFetch)
@@ -109,6 +101,7 @@ export default function DonatedView() {
                                 status={item.status}
                                 ownershipDuration={item.ownershipDuration}
                                 lastUsedDuration={item.lastUsedDuration}
+                                receivedDate={item.item_received_date}
                                 onStatusChange={handleStatusChange}
                                 onEdit={handleEdit}
                                 onDelete={handleDelete}

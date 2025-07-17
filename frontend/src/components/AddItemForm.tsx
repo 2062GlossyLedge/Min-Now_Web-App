@@ -121,7 +121,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     }
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
             <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Add New Item</h2>
 

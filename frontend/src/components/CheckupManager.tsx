@@ -203,14 +203,14 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                     </div>
                 </div>
 
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                    Mark items as used or not used since the last checkup. Items marked as not used will be moved to the Give section.
-                </p>
+                {/* <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                    Mark items based on their usage since the last checkup. Items marked as <b>Used</b> will be moved to the Keep section. Items marked as <b>Not Used</b> will be stay in the Give section. Items marked as <b>Gave</b> will be moved to the Gave section.
+                </p> */}
 
                 <div className="space-y-6">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Checkup Interval (months)
+                            Months Until Next Checkup
                         </label>
                         <div className="flex items-center space-x-4">
                             <button

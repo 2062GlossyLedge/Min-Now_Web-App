@@ -44,6 +44,12 @@ export default function Navigation() {
                     </div>
                     <div className="flex items-center space-x-4">
                         <Link
+                            href="/badges"
+                            className="text-gray-500 dark:text-gray-400 hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
+                        >
+                            <span className="text-xl">🏅</span>
+                        </Link>
+                        <Link
                             href="/settings"
                             className="text-gray-500 dark:text-gray-400 hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
                         >
@@ -52,12 +58,6 @@ export default function Navigation() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
                         </Link>
-                        <Link
-                            href="/badges"
-                            className="text-gray-500 dark:text-gray-400 hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
-                        >
-                            <span className="text-xl">🏅</span>
-                        </Link>
                         <SignedOut>
                             <SignInButton />
                             <SignUpButton />
@@ -65,9 +65,13 @@ export default function Navigation() {
                         <SignedIn>
                             <UserButton />
                         </SignedIn>
-                        {/* vertical line to demarcate buttona dn logo */}
+                        {/* vertical line to demarcate button and logo */}
                         <div className="h-8 w-px bg-gray-300 dark:bg-gray-700" />
-                        <div className="relative w-8 h-8  overflow-hidden ">
+                        <Link
+                            href="/landing"
+                            className="relative w-8 h-8 overflow-hidden hover:opacity-80 transition-opacity duration-200 rounded"
+                            title="Go to Min-Now Landing Page"
+                        >
                             <Image
                                 src="/Min-NowDarkLogoCropped.jpg"
                                 alt="Min-Now Logo"
@@ -75,7 +79,7 @@ export default function Navigation() {
                                 className="object-cover"
                                 sizes="32px"
                             />
-                        </div>
+                        </Link>
                     </div>
                 </div>
             </div>

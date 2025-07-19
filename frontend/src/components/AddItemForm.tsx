@@ -14,6 +14,7 @@ import { Item } from '@/types/item'
 import Image from 'next/image'
 import { UploadButton } from '@uploadthing/react'
 import type { OurFileRouter } from '@/app/api/uploadthing/core'
+import { toast } from 'sonner'
 
 interface AddItemFormProps {
     onClose: () => void
@@ -162,38 +163,56 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
         }
     }
 
+    function LoadingSpinnerSVG() {
+        return (
+            <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="white"
+            >
+                <path
+                    d="M12,1A11,11,0,1,0,23,12,11,11,0,0,0,12,1Zm0,19a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z"
+                    opacity=".25"
+                />
+                <path
+                    d="M10.14,1.16a11,11,0,0,0-9,8.92A1.59,1.59,0,0,0,2.46,12,1.52,1.52,0,0,0,4.11,10.7a8,8,0,0,1,6.66-6.61A1.42,1.42,0,0,0,12,2.69h0A1.57,1.57,0,0,0,10.14,1.16Z"
+                    className="spinner_ajPY"
+                />
+            </svg>
+        );
+    }
+
+
     const handleSubmitAllQuickItems = async () => {
         if (Object.keys(quickPromptsDict).length === 0) {
             onClose()
             return
         }
-        try {
-            const { agentAddItemsBatch } = await import('@/utils/api')
-            const result = await agentAddItemsBatch(quickPromptsDict, authenticatedFetch)
-            if (result.data) {
-                // Trigger refresh to re-render all ItemCards
-                triggerRefresh()
-                
-                // Optionally, could re-fetch items and call onItemAdded for each
-                quickItemsToAdd.forEach((item) => {
-                    onItemAdded({
-                        name: item.name,
-                        itemType: '',
-                        pictureUrl: '',
-                        status: 'Keep',
-                        ownershipDuration: '',
-                        lastUsedDuration: '',
-                        id: Math.random().toString(), // temp id
-                    } as any)
-                })
-                onClose()
-            } else {
-                // Optionally show error
-                alert(result.error || 'Failed to add items via Quick Add')
+        const { agentAddItemsBatchWithHandlers } = await import('@/utils/api')
+        await agentAddItemsBatchWithHandlers(
+            quickPromptsDict,
+            authenticatedFetch,
+            {
+                onSuccess: () => {
+                    triggerRefresh()
+                    quickItemsToAdd.forEach((item) => {
+                        onItemAdded({
+                            name: item.name,
+                            itemType: '',
+                            pictureUrl: '',
+                            status: 'Keep',
+                            ownershipDuration: '',
+                            lastUsedDuration: '',
+                            id: Math.random().toString(), // temp id
+                        } as any)
+                    })
+                    onClose()
+                },
+                // Optionally, you can add onSubmitting/onError handlers if you want to do more
             }
-        } catch (error) {
-            alert('Failed to add items via Quick Add')
-        }
+        )
     }
 
     // Month and year options

@@ -160,12 +160,18 @@ export const updateItem = async (id: string, updates: {
 }
 
 export const deleteItem = async (id: string, fetchFn: typeof fetchWithCsrf): Promise<ApiResponse<void>> => {
+    // Show submitting toast
+    toast.loading('Deleting item...', { id: 'delete-item' })
     try {
         await fetchFn(`/api/items/${id}`, {
             method: 'DELETE',
         })
+        toast.dismiss('delete-item')
+        toast.success('Item deleted!')
         return {}
     } catch (error) {
+        toast.dismiss('delete-item')
+        toast.error('Failed to delete item')
         console.error('Error deleting item:', error)
         return { error: 'Failed to delete item' }
     }
@@ -299,13 +305,17 @@ export const createHandleEdit = (
         receivedDate?: Date,
         status?: string
     }) => {
+        toast.loading('Updating item...', { id: 'edit-item' })
         try {
             const { data: updatedItem, error } = await updateItem(id, updates, authenticatedFetch)
+            toast.dismiss('edit-item')
             if (error) {
+                toast.error('Failed to update item')
                 console.error('Error updating item:', error)
                 return
             }
             if (updatedItem) {
+                toast.success('Item updated!')
                 // If the status changed and it's no longer the current view's status, remove the item from the list
                 if (updates.status && updates.status !== currentStatus) {
                     setItems(prevItems => prevItems.filter(item => item.id !== id))
@@ -318,6 +328,8 @@ export const createHandleEdit = (
                 }
             }
         } catch (error) {
+            toast.dismiss('edit-item')
+            toast.error('Failed to update item')
             console.error('Error updating item:', error)
         }
     }
@@ -336,6 +348,41 @@ export const agentAddItemsBatch = async (prompts: Record<string, string>, fetchF
     } catch (error) {
         console.error('Error adding items batch with agent:', error)
         return { error: 'Failed to add items batch with agent' }
+    }
+}
+
+// Helper function to handle async events with toasts for agentAddItemsBatch
+import { toast } from 'sonner'
+
+type AgentAddItemsBatchHandlers = {
+    onSubmitting?: () => void
+    onSuccess?: (data: any) => void
+    onError?: (error: string) => void
+}
+
+export const agentAddItemsBatchWithHandlers = async (
+    prompts: Record<string, string>,
+    fetchFn: typeof fetchWithCsrf,
+    handlers: AgentAddItemsBatchHandlers = {}
+) => {
+    handlers.onSubmitting?.()
+    toast.loading('Processing batch add...', { id: 'batch-add-processing' })
+    try {
+        const result = await agentAddItemsBatch(prompts, fetchFn)
+        toast.dismiss('batch-add-processing')
+        if (result.data) {
+            toast.success('All items added successfully!')
+            handlers.onSuccess?.(result.data)
+        } else {
+            toast.error(result.error || 'Failed to add items via Quick Add')
+            handlers.onError?.(result.error || 'Failed to add items via Quick Add')
+        }
+        return result
+    } catch (error: any) {
+        toast.dismiss('batch-add-processing')
+        toast.error('Failed to add items via Quick Add')
+        handlers.onError?.('Failed to add items via Quick Add')
+        return { error: 'Failed to add items via Quick Add' }
     }
 }
 

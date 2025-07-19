@@ -5,6 +5,7 @@ import { ThemeProvider } from '../components/ThemeProvider'
 import Navigation from '../components/Navigation'
 import { ClerkProvider } from '@clerk/nextjs'
 import { ItemUpdateProvider } from '../contexts/ItemUpdateContext'
+import { Toaster } from '@/components/ui/sonner'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -49,6 +50,8 @@ export default function RootLayout({
                             <main className="min-h-screen">
                                 {children}
                             </main>
+                            {/* Sonner Toaster for notifications */}
+                            <Toaster />
                         </ThemeProvider>
                     </ItemUpdateProvider>
                 </body>

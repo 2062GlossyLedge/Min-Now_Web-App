@@ -7,6 +7,7 @@ import { CheckCircle2 } from 'lucide-react'
 import { updateItem, fetchCheckup, createCheckup, completeCheckup } from '@/utils/api'
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
 import { useItemUpdate } from '@/contexts/ItemUpdateContext'
+import { useUser } from '@clerk/nextjs'
 
 interface CheckupManagerProps {
     checkupType: 'Keep' | 'Give'
@@ -21,26 +22,47 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
     const [loading, setLoading] = useState(true)
     const [showConfirmation, setShowConfirmation] = useState(false)
     const [changedItems, setChangedItems] = useState<Set<string>>(new Set())
-    const [lastCheckupDate, setLastCheckupDate] = useState<Date | null>(null)
     const { authenticatedFetch } = useAuthenticatedFetch()
     const { addUpdatedItem, triggerRefresh } = useItemUpdate()
+    const { isSignedIn, isLoaded } = useUser() // Get user authentication status
+
+    // Separate effect to handle authentication state changes
+    useEffect(() => {
+        if (isLoaded && !isSignedIn) {
+            setLoading(false)
+            setItems([])
+        }
+    }, [isLoaded, isSignedIn])
 
     useEffect(() => {
         const fetchCheckupInfo = async () => {
+            // Only fetch checkup info if user is signed in and Clerk has loaded
+            if (!isLoaded || !isSignedIn) {
+                return
+            }
+
             try {
-                const { data, error } = await fetchCheckup(checkupType.toLowerCase(), authenticatedFetch)
-                if (data) {
-                    setLastCheckupDate(new Date(data.last_checkup_date))
+                const { error } = await fetchCheckup(checkupType.toLowerCase(), authenticatedFetch)
+                if (error) {
+                    console.error('Error fetching checkup info:', error)
+                    return
                 }
+                // Checkup info fetched successfully
             } catch (error) {
                 console.error('Error fetching checkup info:', error)
             }
         }
         fetchCheckupInfo()
-    }, [checkupType, authenticatedFetch])
+    }, [checkupType, authenticatedFetch, isLoaded, isSignedIn]) // Add authentication dependencies
 
     useEffect(() => {
         const fetchItems = async () => {
+            // Only fetch items if user is signed in and Clerk has loaded
+            if (!isLoaded || !isSignedIn) {
+                setLoading(false)
+                return
+            }
+
             try {
                 const response = await authenticatedFetch(`/api/items?status=${checkupType}`)
                 const data = await response.json()
@@ -52,7 +74,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
             }
         }
         fetchItems()
-    }, [checkupType, authenticatedFetch])
+    }, [checkupType, authenticatedFetch, isLoaded, isSignedIn]) // Add authentication dependencies
 
     const handleStatusChange = async (itemId: string, newStatus: 'used' | 'not_used' | 'donate') => {
         try {
@@ -125,7 +147,6 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                 }
             }
 
-            setLastCheckupDate(new Date())
             setShowConfirmation(true)
 
             // Trigger refresh after checkup completion

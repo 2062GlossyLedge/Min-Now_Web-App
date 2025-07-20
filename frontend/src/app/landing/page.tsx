@@ -75,7 +75,7 @@ export default function LandingPage() {
             if (currentSection < 4) {
                 nextSection()
             }
-        }, 1000000)
+        }, 30000)
 
         return () => clearInterval(interval)
     }, [currentSection])

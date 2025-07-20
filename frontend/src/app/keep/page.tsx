@@ -9,7 +9,7 @@ import AuthMessage from '../../components/AuthMessage'
 import { updateItem, deleteItem, fetchItemsByStatus, createItem, sendTestCheckupEmail, agentAddItem, createHandleEdit } from '@/utils/api'
 import { Item } from '@/types/item'
 import { useCheckupStatus } from '@/hooks/useCheckupStatus'
-import { SignedIn } from '@clerk/nextjs'
+import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
 import { useRouter } from 'next/navigation'
 import { useItemUpdate } from '@/contexts/ItemUpdateContext'
@@ -17,55 +17,50 @@ import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 export default function KeepView() {
     const [items, setItems] = useState<Item[]>([])
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
     const [showAddForm, setShowAddForm] = useState(false)
     const [showCheckupManager, setShowCheckupManager] = useState(false)
     const [selectedType, setSelectedType] = useState<string | null>(null)
-    const [csrfToken, setCsrfToken] = useState('')
     const isCheckupDue = useCheckupStatus('keep')
     const [showFilters, setShowFilters] = useState(false)
     const { authenticatedFetch } = useAuthenticatedFetch()
+    const { isSignedIn, isLoaded } = useUser() // Get user authentication status
     const router = useRouter()
     const [emailStatus, setEmailStatus] = useState<string | null>(null)
-    // State for add item menu/modal
-    const [showAddMenu, setShowAddMenu] = useState(false)
-    // State for AI add item modal
-    const [showAIPrompt, setShowAIPrompt] = useState(false)
-    const [aiPrompt, setAIPrompt] = useState('')
-    const [aiLoading, setAILoading] = useState(false)
-    const [aiError, setAIError] = useState<string | null>(null)
     const { refreshTrigger, clearUpdatedItems } = useItemUpdate()
 
+    // Separate effect to handle authentication state changes
     useEffect(() => {
-        // duplicate code - see api.ts
-        const fetchCsrfToken = async () => {
-            try {
-                const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/csrf-token`, {
-                    credentials: 'include',
-                })
-                if (response.ok) {
-                    const data = await response.json()
-                    setCsrfToken(data.token)
-                }
-            } catch (error) {
-                console.error('Error fetching CSRF token:', error)
-            }
+        if (isLoaded && !isSignedIn) {
+            setLoading(false)
+            setItems([])
+            setError(null)
         }
-
-        fetchCsrfToken()
-    }, [])
+    }, [isLoaded, isSignedIn])
 
     useEffect(() => {
         const fetchItems = async () => {
+            // Only fetch items if user is signed in and Clerk has loaded
+            if (!isLoaded || !isSignedIn) {
+                setLoading(false)
+                return
+            }
+
+            setLoading(true)
+            setError(null)
             try {
                 const { data, error } = await fetchItemsByStatus('Keep', authenticatedFetch)
                 if (error) {
                     console.error(error)
+                    setError(error)
                     setItems([])
                 } else {
                     setItems(data || [])
                 }
             } catch (error) {
                 console.error('Error fetching items:', error)
+                setError('Failed to load items.')
+                setItems([])
             } finally {
                 setLoading(false)
             }
@@ -77,7 +72,7 @@ export default function KeepView() {
         if (refreshTrigger > 0) {
             clearUpdatedItems()
         }
-    }, [authenticatedFetch, refreshTrigger]) // Add refreshTrigger as dependency
+    }, [authenticatedFetch, refreshTrigger, isLoaded, isSignedIn]) // Add authentication dependencies
 
     const handleStatusChange = async (id: string, newStatus: string) => {
         try {
@@ -293,7 +288,9 @@ export default function KeepView() {
                 </SignedIn>
             </div>
 
-            <AuthMessage />
+            <SignedOut>
+                <AuthMessage />
+            </SignedOut>
 
             <SignedIn>
                 {showFilters && (
@@ -303,6 +300,9 @@ export default function KeepView() {
                     />
                 )}
 
+                {loading && <p className="text-center text-gray-500 dark:text-gray-400">Loading items...</p>}
+                {error && <p className="text-center text-red-500 dark:text-red-400">Error: {error}</p>}
+
                 {/* Add Item Form Modal */}
                 {showAddForm && (
                     <AddItemForm
@@ -311,9 +311,11 @@ export default function KeepView() {
                     />
                 )}
 
-                {filteredItems.length === 0 ? (
+                {!loading && !error && filteredItems.length === 0 && (
                     <p className="text-gray-500">No items to keep at the moment.</p>
-                ) : (
+                )}
+
+                {!loading && !error && filteredItems.length > 0 && (
                     <div className="space-y-4">
                         {filteredItems.map((item) => (
                             <ItemCard

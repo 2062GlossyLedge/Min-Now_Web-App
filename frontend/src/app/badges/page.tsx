@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch"
-
+import AuthMessage from "@/components/AuthMessage"
+import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
 // Emoji map for item types (no question marks, fallback to 🏷️)
 const itemTypeEmojis: Record<string, string> = {
     Clothing: "👕",
@@ -107,9 +108,25 @@ const BadgesPage = () => {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const { authenticatedFetch } = useAuthenticatedFetch()
+    const { isSignedIn, isLoaded } = useUser() // Get user authentication status
+
+    // Separate effect to handle authentication state changes
+    useEffect(() => {
+        if (isLoaded && !isSignedIn) {
+            setLoading(false)
+            setBadgeGroups({})
+            setError(null)
+        }
+    }, [isLoaded, isSignedIn])
 
     useEffect(() => {
         const fetchBadges = async () => {
+            // Only fetch badges if user is signed in and Clerk has loaded
+            if (!isLoaded || !isSignedIn) {
+                setLoading(false)
+                return
+            }
+
             setLoading(true)
             setError(null)
             try {
@@ -167,40 +184,49 @@ const BadgesPage = () => {
     }, [view, authenticatedFetch])
 
     return (
+
         <div className="max-w-4xl mx-auto py-8 px-4">
-            {/* Toggle buttons for views, aligned with grid */}
-            <div className="flex justify-center mb-8 gap-4">
-                {badgeViews.map((v) => (
-                    <button
-                        key={v.key}
-                        onClick={() => setView(v.key as "keep" | "donated")}
-                        className={`px-4 py-2 rounded-full font-semibold transition-colors border-2 focus:outline-none ${view === v.key
-                            ? "bg-teal-500 text-white border-teal-500"
-                            : "bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-teal-100 dark:hover:bg-teal-900"
-                            }`}
-                        aria-pressed={view === v.key}
-                    >
-                        {/* Button label for view */}
-                        {v.label}
-                    </button>
-                ))}
-            </div>
+            <SignedOut>
+                <AuthMessage />
+            </SignedOut>
+            <SignedIn>
 
-            {loading && <p className="text-center text-gray-500 dark:text-gray-400">Loading badges...</p>}
-            {error && <p className="text-center text-red-500 dark:text-red-400">Error: {error}</p>}
+                {/* Toggle buttons for views, aligned with grid */}
+                <div className="flex justify-center mb-8 gap-4">
+                    {badgeViews.map((v) => (
+                        <button
+                            key={v.key}
+                            onClick={() => setView(v.key as "keep" | "donated")}
+                            className={`px-4 py-2 rounded-full font-semibold transition-colors border-2 focus:outline-none ${view === v.key
+                                ? "bg-teal-500 text-white border-teal-500"
+                                : "bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-teal-100 dark:hover:bg-teal-900"
+                                }`}
+                            aria-pressed={view === v.key}
+                        >
+                            {/* Button label for view */}
+                            {v.label}
+                        </button>
+                    ))}
+                </div>
 
-            {!loading && !error && Object.keys(badgeGroups).length === 0 && (
-                <p className="text-center text-gray-500 dark:text-gray-400">No badges to display yet.</p>
-            )}
+                {loading && <p className="text-center text-gray-500 dark:text-gray-400">Loading badges...</p>}
+                {error && <p className="text-center text-red-500 dark:text-red-400">Error: {error}</p>}
 
-            {/* Render badge grids for each item type */}
-            {!loading && !error && Object.keys(badgeGroups).length > 0 && (
-                Object.entries(badgeGroups).map(([itemType, badges]) => (
-                    <BadgeGrid key={itemType} itemType={itemType} badges={badges} />
-                ))
-            )}
+                {!loading && !error && Object.keys(badgeGroups).length === 0 && (
+                    <p className="text-center text-gray-500 dark:text-gray-400">No badges to display yet.</p>
+                )}
+
+                {/* Render badge grids for each item type */}
+                {!loading && !error && Object.keys(badgeGroups).length > 0 && (
+                    Object.entries(badgeGroups).map(([itemType, badges]) => (
+                        <BadgeGrid key={itemType} itemType={itemType} badges={badges} />
+                    ))
+                )}
+            </SignedIn>
         </div>
     )
 }
+
+
 
 export default BadgesPage 

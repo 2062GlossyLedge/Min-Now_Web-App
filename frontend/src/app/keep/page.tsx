@@ -174,8 +174,8 @@ export default function KeepView() {
     return (
         <div className="container mx-auto px-4 py-8">
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold">Items to Keep</h1>
                 <SignedIn>
+                    <h1 className="text-2xl font-bold">Items to Keep</h1>
                     <div className="flex space-x-2">
                         {/* Checkup Manager Button */}
                         <button

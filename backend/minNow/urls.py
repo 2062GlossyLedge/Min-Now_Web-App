@@ -23,6 +23,16 @@ from ninja import NinjaAPI
 from django.http import HttpResponse
 from django.conf import settings
 from items.api import router as items_router
+from django.contrib.auth import authenticate
+import jwt
+from django.conf import settings
+from datetime import datetime, timedelta
+from dotenv import load_dotenv
+import os
+from ninja import Schema
+
+load_dotenv()
+prod = os.getenv("PROD") == "True"
 
 load_dotenv()
 debug = os.getenv("DEBUG", "False") == "True"

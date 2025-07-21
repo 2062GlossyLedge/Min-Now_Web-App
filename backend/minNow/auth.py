@@ -9,6 +9,8 @@ from ninja import Router
 from django.contrib.auth import get_user_model
 import httpx
 import logging
+import jwt
+from django.conf import settings
 
 logger = logging.getLogger("minNow")
 
@@ -29,13 +31,10 @@ class ClerkAuth(HttpBearer):
                 request,
                 AuthenticateRequestOptions(
                     authorized_parties=[
-                        "https://min-now-frontend.vercel.app",
                         "http://localhost:3000",
                         "https://min-now.store",
                         "https://www.min-now.store",
                         "https://min-now-web-app.vercel.app",
-                        "https://magnificent-optimism-production.up.railway.app",
-                        "https://min-nowweb-app-production.up.railway.app",
                     ]
                 ),
             )
@@ -92,3 +91,62 @@ class ClerkAuth(HttpBearer):
             return None
 
         return None
+
+
+# Development-only authentication class for testing
+class DevClerkAuth(HttpBearer):
+    def __init__(self):
+        super().__init__()
+        self.clerk_user_id = None
+
+    def authenticate(self, request: httpx.Request, token):
+        # Only use in development
+        if os.getenv("PROD") == "True":
+            return None
+
+        try:
+            # Decode the JWT token using Django's SECRET_KEY, disable time validation for dev
+            payload = jwt.decode(
+                token,
+                settings.SECRET_KEY,
+                algorithms=["HS256"],
+                options={
+                    "verify_signature": True,
+                    "verify_exp": False,
+                    "verify_iat": False,
+                    "verify_nbf": False,
+                    "verify_aud": False,
+                },
+            )
+
+            # Verify the token has the expected claims
+            if not payload.get("sub"):
+                return None
+
+            clerk_user_id = payload.get("sub")
+            self.clerk_user_id = clerk_user_id
+
+            # Get or create Django user
+            User = get_user_model()
+
+            try:
+                # Try to get existing user
+                user = User.objects.get(clerk_id=clerk_user_id)
+            except User.DoesNotExist:
+                # Create new user if doesn't exist
+                user = User.objects.create_user(
+                    username=clerk_user_id,
+                    clerk_id=clerk_user_id,
+                    email=f"{clerk_user_id}@dev.local",  # Placeholder email
+                )
+
+            # Set the user on the request
+            request.user = user
+            return token
+
+        except jwt.InvalidTokenError as e:
+            logger.debug(f"Development token validation failed: {str(e)}")
+            return None
+        except Exception as e:
+            logger.debug(f"Development authentication error: {str(e)}")
+            return None

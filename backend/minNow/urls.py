@@ -55,16 +55,6 @@ def home(request):
         return HttpResponse("Welcome to MinNow API!")
 
 
-from django.middleware.csrf import get_token
-
-
-@api.get("/csrf-token")
-def get_csrf_token(request):
-    token = get_token(request)
-    # print("CSRF Token:", token)
-    return {"token": token}
-
-
 urlpatterns = [
     path("", home, name="home"),
     path("admin/", admin.site.urls),

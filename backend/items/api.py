@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 import os
 import logging
 from .addItemAgent import run_agent
+from django.middleware.csrf import get_token
 
 log = logging.getLogger(__name__)
 load_dotenv()
@@ -121,6 +122,13 @@ class CheckupUpdateSchema(Schema):
 
 class DonatedBadgesResponseSchema(RootModel[Dict[str, List[BadgeProgressSchema]]]):
     pass
+
+
+@router.get("/csrf-token", response={200: dict}, auth=ClerkAuth())
+def get_csrf_token(request):
+    token = get_token(request)
+    # print("CSRF Token:", token)
+    return {"token": token}
 
 
 @router.post("/items", response={201: OwnedItemSchema}, auth=ClerkAuth())

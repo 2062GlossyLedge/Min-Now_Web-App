@@ -20,7 +20,11 @@ if prod:
 else:
     from minNow.auth import ClerkAuth
 
+# Main router for production routes
 router = Router()
+
+# Development-only router (will be conditionally added)
+dev_router = Router()
 
 
 # convert django models to pydantic schemas
@@ -247,7 +251,6 @@ class CheckupTypeSchema(Schema):
     type: str
 
 
-# Modify the list_checkups endpoint to filter by type
 @router.get("/checkups", response=List[CheckupSchema], auth=ClerkAuth())
 def list_checkups(request, type: Optional[str] = None):
     if type:
@@ -268,7 +271,8 @@ class EmailResponseSchema(Schema):
 
 ## can't add /checkups to url route bc of url matches for django url resolver stuff idk about
 # This endpoint uses AnyMail with MailerSend to send checkup reminder emails in both development and production.
-@router.post(
+# This is a development-only endpoint for testing email functionality
+@dev_router.post(
     "/send-test-email",
     response={200: List[EmailResponseSchema]},
     auth=ClerkAuth(),
@@ -284,7 +288,7 @@ class AgentPromptSchema(Schema):
     prompt: str
 
 
-@router.post("/agent-add-item", auth=ClerkAuth())
+@dev_router.post("/agent-add-item", auth=ClerkAuth())
 def agent_add_item(request, payload: AgentPromptSchema):
     auth_header = request.headers.get("Authorization")
     jwt_token = None

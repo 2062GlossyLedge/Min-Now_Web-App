@@ -21,14 +21,14 @@ prod = os.getenv("PROD") == "True"
 log.info(f"API Environment: {'Production' if prod else 'Development'}")
 
 # Use when testing swagger docs in dev. Testing frontend dev with this running will result in invalid alg for dev tokens
-# if prod:
-#     from backend.minNow.auth import ClerkAuth
-# else:
-#     from minNow.auth import DevClerkAuth as ClerkAuth
 if prod:
     from backend.minNow.auth import ClerkAuth
 else:
-    from minNow.auth import ClerkAuth
+    from minNow.auth import DevClerkAuth as ClerkAuth
+# if prod:
+#     from backend.minNow.auth import ClerkAuth
+# else:
+#     from minNow.auth import ClerkAuth
 
 
 # Main router for production routes
@@ -336,6 +336,7 @@ def agent_add_item_batch(request, payload: AgentBatchPromptsSchema):
 
 
 # Development-only route to get Clerk JWT token for testing
+# extra security check to ensure this is only used in development, in case debug is set to True in production
 if not prod:
 
     class ClerkLoginRequest(Schema):
@@ -349,7 +350,7 @@ if not prod:
         email: str
         message: str = "Use this JWT token in Swagger Authorize button"
 
-    @router.post("/auth/clerk-login", response={200: ClerkLoginResponse, 401: dict})
+    @dev_router.post("/auth/clerk-login", response={200: ClerkLoginResponse, 401: dict})
     def clerk_login(request, data: ClerkLoginRequest):
         """
         Development-only endpoint to get a Clerk JWT token for testing.

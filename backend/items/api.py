@@ -138,7 +138,7 @@ class DonatedBadgesResponseSchema(RootModel[Dict[str, List[BadgeProgressSchema]]
     pass
 
 
-@router.get("/csrf-token", response={200: dict}, auth=ClerkAuth())
+@router.get("/csrf-token", response={200: dict})
 def get_csrf_token(request):
     token = get_token(request)
     # print("CSRF Token:", token)

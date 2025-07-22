@@ -15,6 +15,11 @@ load_dotenv()
 prod = os.getenv("PROD") == "True"
 log.info(f"API Environment: {'Production' if prod else 'Development'}")
 
+# Use when testing swagger docs in dev. Testing frontend dev with this running will result in invalid alg for dev tokens
+# if prod:
+#     from backend.minNow.auth import ClerkAuth
+# else:
+#     from minNow.auth import DevClerkAuth as ClerkAuth
 if prod:
     from backend.minNow.auth import ClerkAuth
 else:

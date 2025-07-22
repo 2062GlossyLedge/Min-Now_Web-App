@@ -5,40 +5,69 @@ import ItemCard from '../../components/ItemCard'
 import FilterBar from '../../components/FilterBar'
 import CheckupManager from '../../components/CheckupManager'
 import AuthMessage from '../../components/AuthMessage'
-import { updateItem, deleteItem, fetchItemsByStatus } from '@/utils/api'
+import { updateItem, deleteItem, fetchItemsByStatus, createHandleEdit } from '@/utils/api'
 import { Item } from '@/types/item'
 import { useCheckupStatus } from '@/hooks/useCheckupStatus'
-import { SignedIn } from '@clerk/nextjs'
+import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
+import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 
 export default function GiveView() {
     const [items, setItems] = useState<Item[]>([])
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
     const [showCheckupManager, setShowCheckupManager] = useState(false)
     const [selectedType, setSelectedType] = useState<string | null>(null)
     const [showFilters, setShowFilters] = useState(false)
     const isCheckupDue = useCheckupStatus('give')
     const { authenticatedFetch } = useAuthenticatedFetch()
+    const { refreshTrigger, clearUpdatedItems } = useItemUpdate()
+    const { isSignedIn, isLoaded } = useUser() // Get user authentication status
+
+    // Separate effect to handle authentication state changes
+    useEffect(() => {
+        if (isLoaded && !isSignedIn) {
+            setLoading(false)
+            setItems([])
+            setError(null)
+        }
+    }, [isLoaded, isSignedIn])
 
     useEffect(() => {
         const fetchItems = async () => {
+            // Only fetch items if user is signed in and Clerk has loaded
+            if (!isLoaded || !isSignedIn) {
+                setLoading(false)
+                return
+            }
+
+            setLoading(true)
+            setError(null)
             try {
                 const { data, error } = await fetchItemsByStatus('Give', authenticatedFetch)
                 if (error) {
                     console.error(error)
+                    setError(error)
                     setItems([])
                 } else {
                     setItems(data || [])
                 }
             } catch (error) {
                 console.error('Error fetching items:', error)
+                setError('Failed to load items.')
+                setItems([])
             } finally {
                 setLoading(false)
             }
         }
 
         fetchItems()
-    }, [authenticatedFetch])
+
+        // Clear updated items after refresh
+        if (refreshTrigger > 0) {
+            clearUpdatedItems()
+        }
+    }, [authenticatedFetch, refreshTrigger, isLoaded, isSignedIn]) // Add authentication dependencies
 
     const handleStatusChange = async (id: string, newStatus: string) => {
         const { data: updatedItem, error } = await updateItem(id, { status: newStatus }, authenticatedFetch)
@@ -60,23 +89,8 @@ export default function GiveView() {
         setSelectedType(type)
     }
 
-    const handleEdit = async (id: string, updates: { name?: string, ownershipDate?: Date, lastUsedDate?: Date }) => {
-        const { data: updatedItem, error } = await updateItem(id, updates, authenticatedFetch)
-
-        if (error) {
-            console.error(error)
-            return
-        }
-
-        if (updatedItem) {
-            // Update the item in place while maintaining the list order
-            setItems(prevItems =>
-                prevItems.map(item =>
-                    item.id === id ? { ...item, ...updatedItem } : item
-                )
-            )
-        }
-    }
+    // Use shared handleEdit function to eliminate code duplication
+    const handleEdit = createHandleEdit('Give', setItems, authenticatedFetch)
 
     const handleDelete = async (id: string) => {
         const { error } = await deleteItem(id, authenticatedFetch)
@@ -104,8 +118,8 @@ export default function GiveView() {
     return (
         <div className="container mx-auto px-4 py-8">
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Give Items</h1>
                 <SignedIn>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Give Items</h1>
                     <div className="flex items-center space-x-4">
                         <button
                             onClick={() => setShowCheckupManager(true)}
@@ -130,7 +144,9 @@ export default function GiveView() {
                 </SignedIn>
             </div>
 
-            <AuthMessage />
+            <SignedOut>
+                <AuthMessage />
+            </SignedOut>
 
             <SignedIn>
                 {showFilters && (
@@ -140,26 +156,32 @@ export default function GiveView() {
                     />
                 )}
 
-                {filteredItems.length === 0 ? (
+                {loading && <p className="text-center text-gray-500 dark:text-gray-400">Loading items...</p>}
+                {error && <p className="text-center text-red-500 dark:text-red-400">Error: {error}</p>}
+
+                {!loading && !error && filteredItems.length === 0 ? (
                     <p className="text-gray-500">No items to give at the moment.</p>
                 ) : (
-                    <div className="space-y-4">
-                        {filteredItems.map((item) => (
-                            <ItemCard
-                                key={item.id}
-                                id={item.id}
-                                name={item.name}
-                                pictureUrl={item.pictureUrl}
-                                itemType={item.itemType}
-                                status={item.status}
-                                ownershipDuration={item.ownershipDuration}
-                                lastUsedDuration={item.lastUsedDuration}
-                                onStatusChange={handleStatusChange}
-                                onEdit={handleEdit}
-                                onDelete={handleDelete}
-                            />
-                        ))}
-                    </div>
+                    !loading && !error && (
+                        <div className="space-y-4">
+                            {filteredItems.map((item) => (
+                                <ItemCard
+                                    key={item.id}
+                                    id={item.id}
+                                    name={item.name}
+                                    pictureUrl={item.pictureUrl}
+                                    itemType={item.itemType}
+                                    status={item.status}
+                                    ownershipDuration={item.ownershipDuration}
+                                    lastUsedDuration={item.lastUsedDuration}
+                                    receivedDate={item.item_received_date}
+                                    onStatusChange={handleStatusChange}
+                                    onEdit={handleEdit}
+                                    onDelete={handleDelete}
+                                />
+                            ))}
+                        </div>
+                    )
                 )}
 
                 {showCheckupManager && (

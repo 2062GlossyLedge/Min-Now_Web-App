@@ -6,71 +6,73 @@ import AddItemForm from '../../components/AddItemForm'
 import FilterBar from '../../components/FilterBar'
 import CheckupManager from '../../components/CheckupManager'
 import AuthMessage from '../../components/AuthMessage'
-import { updateItem, deleteItem, fetchItemsByStatus, createItem, sendTestCheckupEmail, agentAddItem } from '@/utils/api'
+import { updateItem, deleteItem, fetchItemsByStatus, createItem, sendTestCheckupEmail, agentAddItem, createHandleEdit } from '@/utils/api'
 import { Item } from '@/types/item'
 import { useCheckupStatus } from '@/hooks/useCheckupStatus'
-import { SignedIn } from '@clerk/nextjs'
+import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
 import { useRouter } from 'next/navigation'
+import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 
 export default function KeepView() {
     const [items, setItems] = useState<Item[]>([])
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
     const [showAddForm, setShowAddForm] = useState(false)
     const [showCheckupManager, setShowCheckupManager] = useState(false)
     const [selectedType, setSelectedType] = useState<string | null>(null)
-    const [csrfToken, setCsrfToken] = useState('')
     const isCheckupDue = useCheckupStatus('keep')
     const [showFilters, setShowFilters] = useState(false)
     const { authenticatedFetch } = useAuthenticatedFetch()
+    const { isSignedIn, isLoaded } = useUser() // Get user authentication status
     const router = useRouter()
     const [emailStatus, setEmailStatus] = useState<string | null>(null)
-    // State for add item menu/modal
-    const [showAddMenu, setShowAddMenu] = useState(false)
-    // State for AI add item modal
-    const [showAIPrompt, setShowAIPrompt] = useState(false)
-    const [aiPrompt, setAIPrompt] = useState('')
-    const [aiLoading, setAILoading] = useState(false)
-    const [aiError, setAIError] = useState<string | null>(null)
+    const { refreshTrigger, clearUpdatedItems } = useItemUpdate()
 
+    // Separate effect to handle authentication state changes
     useEffect(() => {
-        // duplicate code - see api.ts
-        const fetchCsrfToken = async () => {
-            try {
-                const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/csrf-token`, {
-                    credentials: 'include',
-                })
-                if (response.ok) {
-                    const data = await response.json()
-                    setCsrfToken(data.token)
-                }
-            } catch (error) {
-                console.error('Error fetching CSRF token:', error)
-            }
+        if (isLoaded && !isSignedIn) {
+            setLoading(false)
+            setItems([])
+            setError(null)
         }
-
-        fetchCsrfToken()
-    }, [])
+    }, [isLoaded, isSignedIn])
 
     useEffect(() => {
         const fetchItems = async () => {
+            // Only fetch items if user is signed in and Clerk has loaded
+            if (!isLoaded || !isSignedIn) {
+                setLoading(false)
+                return
+            }
+
+            setLoading(true)
+            setError(null)
             try {
                 const { data, error } = await fetchItemsByStatus('Keep', authenticatedFetch)
                 if (error) {
                     console.error(error)
+                    setError(error)
                     setItems([])
                 } else {
                     setItems(data || [])
                 }
             } catch (error) {
                 console.error('Error fetching items:', error)
+                setError('Failed to load items.')
+                setItems([])
             } finally {
                 setLoading(false)
             }
         }
 
         fetchItems()
-    }, [authenticatedFetch])
+
+        // Clear updated items after refresh
+        if (refreshTrigger > 0) {
+            clearUpdatedItems()
+        }
+    }, [authenticatedFetch, refreshTrigger, isLoaded, isSignedIn]) // Add authentication dependencies
 
     const handleStatusChange = async (id: string, newStatus: string) => {
         try {
@@ -91,24 +93,8 @@ export default function KeepView() {
         setSelectedType(type)
     }
 
-    const handleEdit = async (id: string, updates: { name?: string, ownershipDate?: Date, lastUsedDate?: Date }) => {
-        try {
-            const { data: updatedItem, error } = await updateItem(id, updates, authenticatedFetch)
-            if (error) {
-                console.error('Error updating item:', error)
-                return
-            }
-            if (updatedItem) {
-                setItems(prevItems =>
-                    prevItems.map(item =>
-                        item.id === id ? { ...item, ...updatedItem } : item
-                    )
-                )
-            }
-        } catch (error) {
-            console.error('Error updating item:', error)
-        }
-    }
+    // Use shared handleEdit function to eliminate code duplication
+    const handleEdit = createHandleEdit('Keep', setItems, authenticatedFetch)
 
     const handleDelete = async (id: string) => {
         try {
@@ -172,31 +158,6 @@ export default function KeepView() {
         }
     }
 
-    // Handler for AI add item with user prompt
-    const handleAIPromptSubmit = async () => {
-        setAILoading(true)
-        setAIError(null)
-        setEmailStatus(null)
-        try {
-            const result = await agentAddItem(aiPrompt, authenticatedFetch)
-            if (result.data) {
-                setEmailStatus('Item added successfully via AI agent!')
-                setShowAIPrompt(false)
-                setAIPrompt('')
-                //console.log('agent add item response', result.data)
-                // Refresh items
-                const { data, error } = await fetchItemsByStatus('Keep', authenticatedFetch)
-                if (!error && data) setItems(data)
-            } else {
-                setAIError(result.error || 'Failed to add item via AI agent')
-            }
-        } catch (error) {
-            setAIError('Failed to add item via AI agent')
-        } finally {
-            setAILoading(false)
-        }
-    }
-
     if (loading) {
         return (
             <div className="flex justify-center items-center min-h-screen">
@@ -206,10 +167,10 @@ export default function KeepView() {
     }
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="container mx-auto px-4 py-8">
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold">Items to Keep</h1>
                 <SignedIn>
+                    <h1 className="text-2xl font-bold">Items to Keep</h1>
                     <div className="flex space-x-2">
                         {/* Checkup Manager Button */}
                         <button
@@ -264,9 +225,9 @@ export default function KeepView() {
                                     </svg>
                                 </button>
                             )}
-                            {/* Add Item Button (shows menu for manual/AI) */}
+                            {/* Add Item Button (shows add item form directly) */}
                             <button
-                                onClick={() => setShowAddMenu(true)}
+                                onClick={() => setShowAddForm(true)}
                                 className="p-2 text-gray-900 dark:text-white hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
                                 title="Add Item"
                             >
@@ -327,7 +288,9 @@ export default function KeepView() {
                 </SignedIn>
             </div>
 
-            <AuthMessage />
+            <SignedOut>
+                <AuthMessage />
+            </SignedOut>
 
             <SignedIn>
                 {showFilters && (
@@ -337,84 +300,10 @@ export default function KeepView() {
                     />
                 )}
 
-                {/* Add Item Menu Modal */}
-                {showAddMenu && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-                        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg p-6 w-full max-w-xs flex flex-col space-y-4">
-                            {/* Modal Title */}
-                            <h2 className="text-lg font-semibold mb-2">Add Item</h2>
-                            {/* Add Manually Option */}
-                            <button
-                                className="w-full py-2 px-4 rounded bg-teal-500 text-white hover:bg-teal-600 transition"
-                                onClick={() => {
-                                    setShowAddForm(true)
-                                    setShowAddMenu(false)
-                                }}
-                            >
-                                Add Item Manually
-                            </button>
-                            {/* Add with AI Option */}
-                            <button
-                                className="w-full py-2 px-4 rounded bg-purple-500 text-white hover:bg-purple-600 transition"
-                                onClick={() => {
-                                    setShowAIPrompt(true)
-                                    setShowAddMenu(false)
-                                }}
-                            >
-                                Add Item with AI
-                            </button>
-                            {/* Cancel Option */}
-                            <button
-                                className="w-full py-2 px-4 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition"
-                                onClick={() => setShowAddMenu(false)}
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                )}
+                {loading && <p className="text-center text-gray-500 dark:text-gray-400">Loading items...</p>}
+                {error && <p className="text-center text-red-500 dark:text-red-400">Error: {error}</p>}
 
-                {/* AI Add Item Prompt Modal */}
-                {showAIPrompt && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-                        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg p-6 w-full max-w-md flex flex-col space-y-4">
-                            {/* Modal Title */}
-                            <h2 className="text-lg font-semibold mb-2">Describe the item you want to add</h2>
-                            {/* Prompt Input */}
-                            <textarea
-                                className="w-full min-h-[80px] p-2 border border-gray-300 dark:border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                                placeholder="e.g. Add a new item to keep: name 'Jacket', received Dec 2020, last used Dec 2024"
-                                value={aiPrompt}
-                                onChange={e => setAIPrompt(e.target.value)}
-                                disabled={aiLoading}
-                            />
-                            {/* Error Message */}
-                            {aiError && <div className="text-red-600 text-sm">{aiError}</div>}
-                            {/* Modal Actions */}
-                            <div className="flex space-x-2 justify-end">
-                                <button
-                                    className="py-2 px-4 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition"
-                                    onClick={() => {
-                                        setShowAIPrompt(false)
-                                        setAIPrompt('')
-                                        setAIError(null)
-                                    }}
-                                    disabled={aiLoading}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    className="py-2 px-4 rounded bg-purple-500 text-white hover:bg-purple-600 transition disabled:opacity-50"
-                                    onClick={handleAIPromptSubmit}
-                                    disabled={aiLoading || !aiPrompt.trim()}
-                                >
-                                    {aiLoading ? 'Adding...' : 'Add with AI'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
+                {/* Add Item Form Modal */}
                 {showAddForm && (
                     <AddItemForm
                         onClose={() => setShowAddForm(false)}
@@ -422,9 +311,11 @@ export default function KeepView() {
                     />
                 )}
 
-                {filteredItems.length === 0 ? (
+                {!loading && !error && filteredItems.length === 0 && (
                     <p className="text-gray-500">No items to keep at the moment.</p>
-                ) : (
+                )}
+
+                {!loading && !error && filteredItems.length > 0 && (
                     <div className="space-y-4">
                         {filteredItems.map((item) => (
                             <ItemCard
@@ -436,6 +327,7 @@ export default function KeepView() {
                                 status={item.status}
                                 ownershipDuration={item.ownershipDuration}
                                 lastUsedDuration={item.lastUsedDuration}
+                                receivedDate={item.item_received_date}
                                 onStatusChange={handleStatusChange}
                                 onEdit={handleEdit}
                                 onDelete={handleDelete}

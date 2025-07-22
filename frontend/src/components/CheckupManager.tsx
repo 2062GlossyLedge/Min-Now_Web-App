@@ -6,6 +6,8 @@ import { Item } from '@/types/item'
 import { CheckCircle2 } from 'lucide-react'
 import { updateItem, fetchCheckup, createCheckup, completeCheckup } from '@/utils/api'
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
+import { useItemUpdate } from '@/contexts/ItemUpdateContext'
+import { useUser } from '@clerk/nextjs'
 
 interface CheckupManagerProps {
     checkupType: 'Keep' | 'Give'
@@ -20,25 +22,47 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
     const [loading, setLoading] = useState(true)
     const [showConfirmation, setShowConfirmation] = useState(false)
     const [changedItems, setChangedItems] = useState<Set<string>>(new Set())
-    const [lastCheckupDate, setLastCheckupDate] = useState<Date | null>(null)
     const { authenticatedFetch } = useAuthenticatedFetch()
+    const { addUpdatedItem, triggerRefresh } = useItemUpdate()
+    const { isSignedIn, isLoaded } = useUser() // Get user authentication status
+
+    // Separate effect to handle authentication state changes
+    useEffect(() => {
+        if (isLoaded && !isSignedIn) {
+            setLoading(false)
+            setItems([])
+        }
+    }, [isLoaded, isSignedIn])
 
     useEffect(() => {
         const fetchCheckupInfo = async () => {
+            // Only fetch checkup info if user is signed in and Clerk has loaded
+            if (!isLoaded || !isSignedIn) {
+                return
+            }
+
             try {
-                const { data, error } = await fetchCheckup(checkupType.toLowerCase(), authenticatedFetch)
-                if (data) {
-                    setLastCheckupDate(new Date(data.last_checkup_date))
+                const { error } = await fetchCheckup(checkupType.toLowerCase(), authenticatedFetch)
+                if (error) {
+                    console.error('Error fetching checkup info:', error)
+                    return
                 }
+                // Checkup info fetched successfully
             } catch (error) {
                 console.error('Error fetching checkup info:', error)
             }
         }
         fetchCheckupInfo()
-    }, [checkupType, authenticatedFetch])
+    }, [checkupType, authenticatedFetch, isLoaded, isSignedIn]) // Add authentication dependencies
 
     useEffect(() => {
         const fetchItems = async () => {
+            // Only fetch items if user is signed in and Clerk has loaded
+            if (!isLoaded || !isSignedIn) {
+                setLoading(false)
+                return
+            }
+
             try {
                 const response = await authenticatedFetch(`/api/items?status=${checkupType}`)
                 const data = await response.json()
@@ -50,7 +74,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
             }
         }
         fetchItems()
-    }, [checkupType, authenticatedFetch])
+    }, [checkupType, authenticatedFetch, isLoaded, isSignedIn]) // Add authentication dependencies
 
     const handleStatusChange = async (itemId: string, newStatus: 'used' | 'not_used' | 'donate') => {
         try {
@@ -69,9 +93,16 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
             if (checkupType === 'Keep' && newStatus === 'donate') {
                 return;
             }
-
+            // Uses map to determine behavior with item and target status
             const targetStatus = (statusMap[checkupType] as Record<typeof newStatus, string>)[newStatus]
-            const { data: updatedItem, error } = await updateItem(itemId, { status: targetStatus }, authenticatedFetch)
+
+            // If marking as used, set last_used to now
+            let updatePayload: any = { status: targetStatus };
+            if (newStatus === 'used') {
+                updatePayload.lastUsedDate = new Date();
+            }
+
+            const { data: updatedItem, error } = await updateItem(itemId, updatePayload, authenticatedFetch)
 
             if (error) {
                 console.error('Error updating item status:', error)
@@ -81,6 +112,10 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
             if (updatedItem) {
                 setItems(items.filter(item => item.id !== itemId))
                 setChangedItems(prev => new Set([...prev, itemId]))
+
+                // Notify parent components about the update
+                addUpdatedItem(itemId)
+                triggerRefresh() // This will cause parent components to re-render
             }
         } catch (error) {
             console.error('Error updating item status:', error)
@@ -112,8 +147,11 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                 }
             }
 
-            setLastCheckupDate(new Date())
             setShowConfirmation(true)
+
+            // Trigger refresh after checkup completion
+            triggerRefresh()
+
             setTimeout(() => {
                 router.refresh()
                 onClose()
@@ -142,6 +180,25 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
         )
     }
 
+    // Helper to format last used date
+    // Helper to format last used date as MM YY
+    // Helper to show how long since last used, e.g. '4y 2m'
+    const formatLastUsedDuration = (dateString: string) => {
+        if (!dateString) return '';
+        const lastUsed = new Date(dateString);
+        const now = new Date();
+        let years = now.getFullYear() - lastUsed.getFullYear();
+        let months = now.getMonth() - lastUsed.getMonth();
+        if (months < 0) {
+            years--;
+            months += 12;
+        }
+        // Only show if at least 0 months
+        const yearText = years > 0 ? `${years}y` : '';
+        const monthText = months > 0 ? `${months}m` : (years === 0 ? `${months}m` : '');
+        return `${yearText}${yearText && monthText ? ' ' : ''}${monthText}`.trim();
+    };
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
             <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
@@ -167,14 +224,14 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                     </div>
                 </div>
 
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                    Mark items as used or not used since the last checkup. Items marked as not used will be moved to the Give section. In the Give section, you can also mark items for donation.
-                </p>
+                {/* <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                    Mark items based on their usage since the last checkup. Items marked as <b>Used</b> will be moved to the Keep section. Items marked as <b>Not Used</b> will be stay in the Give section. Items marked as <b>Gave</b> will be moved to the Gave section.
+                </p> */}
 
                 <div className="space-y-6">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Checkup Interval (months)
+                            Months Until Next Checkup
                         </label>
                         <div className="flex items-center space-x-4">
                             <button
@@ -213,6 +270,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                                 {items.map((item) => (
                                     <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                                         <div className="flex items-center space-x-3">
+                                            {/* Show item image if available */}
                                             {item.pictureUrl && (
                                                 <img
                                                     src={item.pictureUrl}
@@ -223,6 +281,8 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                                             <div>
                                                 <p className="font-medium text-gray-900 dark:text-gray-100">{item.name}</p>
                                                 <p className="text-sm text-gray-500 dark:text-gray-400">{item.itemType}</p>
+                                                {/* Show how long since last used for each item */}
+                                                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Last used: {formatLastUsedDuration(item.last_used ?? '')}</p>
                                             </div>
                                         </div>
                                         <div className="flex space-x-2">
@@ -274,7 +334,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                                                             : 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 hover:bg-teal-200 dark:hover:bg-teal-800'
                                                             }`}
                                                     >
-                                                        Donate
+                                                        Gave
                                                     </button>
                                                 </>
                                             )}

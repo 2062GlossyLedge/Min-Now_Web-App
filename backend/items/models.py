@@ -6,9 +6,9 @@ from django.conf import settings
 
 
 class ItemType(models.TextChoices):
+    HOUSEHOLD_ITEM = "Household Item", "Household Item"
     CLOTHING = "Clothing", "Clothing"
     TECHNOLOGY = "Technology", "Technology"
-    HOUSEHOLD_ITEM = "Household Item", "Household Item"
     VEHICLE = "Vehicle", "Vehicle"
     OTHER = "Other", "Other"
 
@@ -59,8 +59,8 @@ class Checkup(models.Model):
     checkup_interval_months = models.IntegerField(default=1)
 
     # only one checkup per type per user
-    class Meta:
-        unique_together = ("user", "checkup_type")
+    # class Meta:
+    #     unique_together = ("user", "checkup_type")
 
     @property
     def is_checkup_due(self):
@@ -107,20 +107,20 @@ KEEP_BADGE_TIERS = [
 DONATED_BADGE_TIERS = [
     {
         "tier": "bronze",
-        "name": "Bronze {type} Donor",
-        "description": "Donated 1 {type}",
+        "name": "Bronze {type} Giver",
+        "description": "Gave 1 {type}",
         "min": 1,
     },
     {
         "tier": "silver",
-        "name": "Silver {type} Donor",
-        "description": "Donated 5 {type}s",
+        "name": "Silver {type} Giver",
+        "description": "Gave 5 {type}s",
         "min": 5,
     },
     {
         "tier": "gold",
-        "name": "Gold {type} Donor",
-        "description": "Donated 10 {type}s",
+        "name": "Gold {type} Giver",
+        "description": "Gave 10 {type}s",
         "min": 10,
     },
 ]

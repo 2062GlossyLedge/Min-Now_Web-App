@@ -1,6 +1,6 @@
 from ninja import Router, Schema
 from typing import List, Optional, Dict
-from pydantic import RootModel
+from pydantic import RootModel, BaseModel
 from .models import ItemType, ItemStatus, TimeSpan, OwnedItem
 from .services import ItemService, CheckupService
 from datetime import datetime
@@ -9,18 +9,33 @@ from dotenv import load_dotenv
 import os
 import logging
 from .addItemAgent import run_agent
+from django.contrib.auth import authenticate
+import jwt
+from django.conf import settings
+from datetime import datetime, timedelta
+from django.middleware.csrf import get_token
 
 log = logging.getLogger(__name__)
 load_dotenv()
 prod = os.getenv("PROD") == "True"
 log.info(f"API Environment: {'Production' if prod else 'Development'}")
 
+# Use when testing swagger docs in dev. Testing frontend dev with this running will result in invalid alg for dev tokens
 if prod:
     from backend.minNow.auth import ClerkAuth
 else:
-    from minNow.auth import ClerkAuth
+    from minNow.auth import DevClerkAuth as ClerkAuth
+# if prod:
+#     from backend.minNow.auth import ClerkAuth
+# else:
+#     from minNow.auth import ClerkAuth
 
+
+# Main router for production routes
 router = Router()
+
+# Development-only router (will be conditionally added)
+dev_router = Router()
 
 
 # convert django models to pydantic schemas
@@ -100,7 +115,10 @@ class OwnedItemUpdateSchema(Schema):
     name: Optional[str] = None
     picture_url: Optional[str] = None
     item_type: Optional[ItemType] = None
+    item_received_date: Optional[datetime] = None
+    last_used: Optional[datetime] = None
     status: Optional[ItemStatus] = None
+    item_received_date: Optional[datetime] = None
 
 
 class CheckupCreateSchema(Schema):
@@ -114,6 +132,13 @@ class CheckupUpdateSchema(Schema):
 
 class DonatedBadgesResponseSchema(RootModel[Dict[str, List[BadgeProgressSchema]]]):
     pass
+
+
+@router.get("/csrf-token", response={200: dict}, auth=ClerkAuth())
+def get_csrf_token(request):
+    token = get_token(request)
+    # print("CSRF Token:", token)
+    return {"token": token}
 
 
 @router.post("/items", response={201: OwnedItemSchema}, auth=ClerkAuth())
@@ -244,7 +269,6 @@ class CheckupTypeSchema(Schema):
     type: str
 
 
-# Modify the list_checkups endpoint to filter by type
 @router.get("/checkups", response=List[CheckupSchema], auth=ClerkAuth())
 def list_checkups(request, type: Optional[str] = None):
     if type:
@@ -265,7 +289,8 @@ class EmailResponseSchema(Schema):
 
 ## can't add /checkups to url route bc of url matches for django url resolver stuff idk about
 # This endpoint uses AnyMail with MailerSend to send checkup reminder emails in both development and production.
-@router.post(
+# This is a development-only endpoint for testing email functionality
+@dev_router.post(
     "/send-test-email",
     response={200: List[EmailResponseSchema]},
     auth=ClerkAuth(),
@@ -281,7 +306,7 @@ class AgentPromptSchema(Schema):
     prompt: str
 
 
-@router.post("/agent-add-item", auth=ClerkAuth())
+@dev_router.post("/agent-add-item", auth=ClerkAuth())
 def agent_add_item(request, payload: AgentPromptSchema):
     auth_header = request.headers.get("Authorization")
     jwt_token = None
@@ -289,3 +314,233 @@ def agent_add_item(request, payload: AgentPromptSchema):
         jwt_token = auth_header.split(" ")[1]
     result = run_agent(payload.prompt, jwt_token)
     return result
+
+
+# Schema for batch agent add item
+class AgentBatchPromptsSchema(Schema):
+    prompts: Dict[str, str]
+
+
+@router.post("/agent-add-item-batch", auth=ClerkAuth())
+def agent_add_item_batch(request, payload: AgentBatchPromptsSchema):
+    """
+    Accepts a dict of prompts, runs the agent for each, and returns a dict of results.
+    """
+    auth_header = request.headers.get("Authorization")
+    jwt_token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        jwt_token = auth_header.split(" ")[1]
+    results = {}
+    run_agent(payload.prompts, jwt_token)
+    return results
+
+
+# Development-only route to get Clerk JWT token for testing
+# extra security check to ensure this is only used in development, in case debug is set to True in production
+if not prod:
+
+    class ClerkLoginRequest(Schema):
+        # clerk doesn't have api to handle pass auth
+        # password: str
+        email: str
+
+    class ClerkLoginResponse(Schema):
+        jwt_token: str
+        user_id: str
+        email: str
+        message: str = "Use this JWT token in Swagger Authorize button"
+
+    @dev_router.post("/auth/clerk-login", response={200: ClerkLoginResponse, 401: dict})
+    def clerk_login(request, data: ClerkLoginRequest):
+        """
+        Development-only endpoint to get a Clerk JWT token for testing.
+        This creates a session and then gets a JWT token for the user.
+        """
+        try:
+            # Initialize Clerk SDK
+            import os
+            from clerk_backend_api import Clerk
+
+            sdk = Clerk(bearer_auth=os.getenv("CLERK_SECRET_KEY"))
+
+            # Find user by email
+            with sdk as clerk:
+                # Get all users and find by email
+                users = clerk.users.list()
+                target_user = None
+
+                for user in users:
+                    if user.email_addresses:
+                        for email_obj in user.email_addresses:
+                            if email_obj.email_address.lower() == data.email.lower():
+                                target_user = user
+                                break
+                        if target_user:
+                            break
+
+                if not target_user:
+                    return 401, {"detail": "User not found with this email"}
+
+                # Create a session for the user
+                session = clerk.sessions.create(
+                    request={
+                        "user_id": target_user.id,
+                    }
+                )
+
+                # Try different token generation methods
+                print("Testing different token generation methods...")
+
+                # Method 1: Regular session token
+                session_token = clerk.sessions.create_token(
+                    session_id=session.id,
+                    expires_in_seconds=None,
+                )
+                print(f"Session token: {session_token.jwt}")
+
+                # Method 2: Testing token
+                testing_token = clerk.testing_tokens.create()
+                print(f"Testing token: {testing_token.token}")
+
+                # Method 3: Template token with different template names
+                template_names = [
+                    "mn-template",
+                    "min-now-frontend.vercel.app",
+                    "http://localhost:3000",
+                    "http://localhost:8000",
+                ]
+                template_token = None
+
+                for template_name in template_names:
+                    try:
+                        template_token = clerk.sessions.create_token_from_template(
+                            session_id=session.id,
+                            template_name=template_name,
+                            expires_in_seconds=None,
+                        )
+                        print(
+                            f"Template token with '{template_name}': {template_token.jwt}"
+                        )
+                        break
+                    except Exception as e:
+                        print(f"Failed with template '{template_name}': {e}")
+
+                # Test all tokens with ClerkAuth
+                from minNow.auth import ClerkAuth
+                from django.test import RequestFactory
+                import httpx
+
+                tokens_to_test = [
+                    ("session_token", session_token.jwt),
+                    ("testing_token", testing_token.token),
+                    ("template_token", template_token.jwt if template_token else None),
+                ]
+
+                working_token = None
+
+                for token_name, token in tokens_to_test:
+                    if not token:
+                        continue
+
+                    print(f"\nTesting {token_name}...")
+
+                    # Create a mock request with the token
+                    factory = RequestFactory()
+                    mock_request = factory.get("/api/items")
+                    mock_request.headers = {"Authorization": f"Bearer {token}"}
+
+                    # Convert Django request to httpx request for ClerkAuth
+                    httpx_request = httpx.Request(
+                        method=mock_request.method,
+                        url=str(mock_request.build_absolute_uri()),
+                        headers=mock_request.headers,
+                    )
+
+                    # Test authentication with detailed debugging
+                    auth = ClerkAuth()
+
+                    # Add detailed debugging to see what's happening
+                    try:
+                        from clerk_backend_api import Clerk
+                        from clerk_backend_api.jwks_helpers import (
+                            authenticate_request,
+                            AuthenticateRequestOptions,
+                        )
+                        import os
+
+                        sdk = Clerk(bearer_auth=os.getenv("CLERK_SECRET_KEY"))
+                        request_state = sdk.authenticate_request(
+                            httpx_request,
+                            AuthenticateRequestOptions(
+                                authorized_parties=[
+                                    "http://localhost:3000",
+                                    "https://min-now.store",
+                                    "https://www.min-now.store",
+                                    "https://min-now-web-app.vercel.app",
+                                ]
+                            ),
+                        )
+
+                        print(
+                            f"Request state is_signed_in: {request_state.is_signed_in}"
+                        )
+                        print(f"Request state reason: {request_state.reason}")
+                        print(f"Request state payload: {request_state.payload}")
+
+                        result = auth.authenticate(httpx_request, token)
+
+                        print(f"Auth result for {token_name}: {result}")
+                        if result:
+                            print(f"✅ {token_name} is valid!")
+                            working_token = token
+                            break
+                        else:
+                            print(f"❌ {token_name} failed")
+
+                    except Exception as e:
+                        print(f"Error testing {token_name}: {str(e)}")
+                        continue
+
+                if working_token:
+                    return 200, ClerkLoginResponse(
+                        jwt_token=working_token,
+                        user_id=target_user.id,
+                        email=data.email,
+                        message=f"Use this JWT token in Swagger Authorize button (working token found)",
+                    )
+                else:
+                    # Development-only bypass: Create a token that works with a modified auth approach
+                    print("\nCreating development bypass token...")
+                    try:
+                        import jwt
+                        from datetime import datetime, timedelta
+
+                        # Create a JWT that will work with a development auth class
+                        # No timing claims needed since we disable time validation in dev
+                        payload = {
+                            "sub": target_user.id,
+                            "aud": "http://localhost:8000",
+                            "iss": "https://teaching-sturgeon-25.clerk.accounts.dev",
+                        }
+
+                        # Use Django's SECRET_KEY to sign the JWT
+                        dev_jwt = jwt.encode(
+                            payload, settings.SECRET_KEY, algorithm="HS256"
+                        )
+
+                        print(f"Development JWT created: {dev_jwt}")
+
+                        return 200, ClerkLoginResponse(
+                            jwt_token=dev_jwt,
+                            user_id=target_user.id,
+                            email=data.email,
+                            message="Use this development JWT token in Swagger Authorize button (requires dev auth class)",
+                        )
+
+                    except Exception as e:
+                        print(f"Error creating development JWT: {str(e)}")
+                        return 401, {"detail": "Failed to create development token"}
+
+        except Exception as e:
+            log.error(f"Error creating Clerk JWT: {str(e)}")
+            return 401, {"detail": f"JWT creation failed: {str(e)}"}

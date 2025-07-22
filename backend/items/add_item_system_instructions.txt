@@ -46,7 +46,7 @@ Your response should be:
 }
 
 Important:
-- Use appropriate emojis for picture_url
+- Use appropriate emojis for picture_url. If there is no appropriate matching emoji, use this emoji: 🤔
 - Set item_received_date based on when the user says they got the item
 - Set last_used to a reasonable recent date if not specified
 - Set item type as "Other" if the other types aren't applicable to the correct item type

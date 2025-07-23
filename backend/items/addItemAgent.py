@@ -49,7 +49,7 @@ class State(TypedDict):
 
 # Tool node: POST request to create item with CSRF and auth headers
 def get_csrf_token(client, api_url):
-    resp = client.get(f"{api_url}/api/csrf-token")
+    resp = client.get(f"{api_url}/api/csrf-token", follow_redirects=True)
     resp.raise_for_status()
     return resp.json()["token"]
 
@@ -79,7 +79,7 @@ def create_item_tool(api_url: str, auth_token: str = None):
     @tool
     def create_item(item_json: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new item by making a POST request to the API"""
-        with httpx.Client() as client:
+        with httpx.Client(follow_redirects=True) as client:
             csrf_token = get_csrf_token(client, api_url)
             headers = {
                 "Content-Type": "application/json",
@@ -122,9 +122,7 @@ def run_agent(batch_prompts: dict, jwt_token: str = None):
         raise ValueError("No prompts provided for batch add.")
     first_key = keys[0]
     if prod:
-        tool = create_item_tool(
-            api_url="https://www.min-now.store", auth_token=jwt_token
-        )
+        tool = create_item_tool(api_url="https://min-now.store", auth_token=jwt_token)
     else:
         tool = create_item_tool(api_url="http://localhost:8000", auth_token=jwt_token)
     global llm_with_tools

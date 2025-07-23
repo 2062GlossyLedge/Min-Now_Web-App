@@ -28,11 +28,7 @@ log.info(f"API Environment: {'Production' if prod else 'Development'}")
 if prod:
     from backend.minNow.auth import ClerkAuth
 else:
-    from minNow.auth import DevClerkAuth as ClerkAuth
-# if prod:
-#     from backend.minNow.auth import ClerkAuth
-# else:
-#     from minNow.auth import ClerkAuth
+    from minNow.auth import ClerkAuth
 
 
 # Main router for production routes

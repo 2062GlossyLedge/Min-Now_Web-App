@@ -44,12 +44,6 @@ export default function Navigation() {
                     </div>
                     <div className="flex items-center space-x-4">
                         <Link
-                            href="/badges"
-                            className="text-gray-500 dark:text-gray-400 hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
-                        >
-                            <span className="text-xl">🏅</span>
-                        </Link>
-                        <Link
                             href="/settings"
                             className="text-gray-500 dark:text-gray-400 hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
                         >

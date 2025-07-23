@@ -118,7 +118,12 @@ def run_agent(batch_prompts: dict, jwt_token: str = None):
     if not keys:
         raise ValueError("No prompts provided for batch add.")
     first_key = keys[0]
-    tool = create_item_tool(api_url="http://localhost:8000", auth_token=jwt_token)
+    if prod:
+        tool = create_item_tool(
+            api_url="https://www.min-now.store", auth_token=jwt_token
+        )
+    else:
+        tool = create_item_tool(api_url="http://localhost:8000", auth_token=jwt_token)
     global llm_with_tools
     llm_with_tools = ChatOpenAI(model="gpt-4.1", temperature=0).bind_tools([tool])
     graph_builder = StateGraph(State)

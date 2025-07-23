@@ -7,6 +7,7 @@ import { updateItem, deleteItem, fetchItemsByStatus, createHandleEdit } from '@/
 import { Item } from '@/types/item'
 import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
+import { useRouter } from 'next/navigation'
 import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 
 export default function DonatedView() {
@@ -16,6 +17,7 @@ export default function DonatedView() {
     const { authenticatedFetch } = useAuthenticatedFetch()
     const { refreshTrigger, clearUpdatedItems } = useItemUpdate()
     const { isSignedIn, isLoaded } = useUser() // Get user authentication status
+    const router = useRouter()
 
     // Separate effect to handle authentication state changes
     useEffect(() => {
@@ -105,6 +107,19 @@ export default function DonatedView() {
             <SignedIn>
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Given Items</h1>
+                    <div className="flex space-x-2">
+                        {/* Gave Badges Button */}
+                        <button
+                            onClick={() => router.push('/gave-badges')}
+                            className="p-2 text-gray-900 dark:text-white hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
+                            title="View Gave Badges"
+                        >
+                            {/* Badge Icon */}
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
 

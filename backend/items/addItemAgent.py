@@ -17,6 +17,9 @@ from langchain_openai import ChatOpenAI
 from typing import Dict, Any
 import httpx
 
+
+prod = os.getenv("PROD", "false").lower() == "true"
+
 # from clerk_backend_api import Clerk
 # from backend.minNow.auth import ClerkAuth
 # from django.http import HttpRequest

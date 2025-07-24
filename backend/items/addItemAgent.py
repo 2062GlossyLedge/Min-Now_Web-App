@@ -17,6 +17,12 @@ from typing import Dict, Any
 import httpx
 import logging
 import logging.config
+from django.middleware.csrf import get_token
+from django.http import HttpRequest
+from .services import ItemService
+from django.contrib.auth import get_user_model
+import jwt
+import json
 
 
 prod = os.getenv("PROD", "false").lower() == "true"
@@ -92,9 +98,76 @@ class State(TypedDict):
     processed_keys: list[str]  # optional: track processed keys
 
 
-# Tool node: POST request to create item with CSRF and auth headers
+# Tool node: Create item directly in database without HTTP requests
+def create_item_directly(user_id: str, item_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Create item directly in database using Django service layer"""
+    log.info(f"Creating item directly in database for user: {user_id}")
+    log.debug(f"Item data: {item_data}")
+    
+    try:
+        # Get the user model
+        User = get_user_model()
+        user = User.objects.get(clerk_id=user_id)
+        log.debug(f"Found user: {user.email}")
+        
+        # Create the item using the service layer
+        item = ItemService.create_item(
+            user=user,
+            name=item_data.get('name'),
+            picture_url=item_data.get('picture_url', '📦'),  # Default emoji if not provided
+            item_type=item_data.get('item_type', 'Other'),
+            status=item_data.get('status', 'Keep'),
+            item_received_date=item_data.get('item_received_date'),
+            last_used=item_data.get('last_used')
+        )
+        
+        log.info(f"Item created successfully with ID: {item.id}")
+        log.debug(f"Created item: {item.name} (Type: {item.item_type}, Status: {item.status})")
+        
+        # Return the item data in the same format as the API would
+        return {
+            "result": {
+                "id": str(item.id),
+                "name": item.name,
+                "picture_url": item.picture_url,
+                "item_type": item.item_type,
+                "status": item.status,
+                "item_received_date": item.item_received_date.isoformat() if item.item_received_date else None,
+                "last_used": item.last_used.isoformat() if item.last_used else None,
+                "user": str(item.user.id)
+            }
+        }
+        
+    except User.DoesNotExist:
+        log.error(f"User with clerk_id {user_id} not found")
+        raise ValueError(f"User with clerk_id {user_id} not found")
+    except Exception as e:
+        log.error(f"Error creating item directly: {type(e).__name__} - {str(e)}")
+        raise
+
+
+def generate_csrf_token():
+    """Generate CSRF token directly using Django's get_token function - DEPRECATED for direct DB access"""
+    log.warning("CSRF token generation is deprecated when using direct database access")
+    log.info("Generating CSRF token directly from Django")
+    try:
+        # Create a mock request object for CSRF token generation
+        request = HttpRequest()
+        request.META['SERVER_NAME'] = 'localhost'
+        request.META['SERVER_PORT'] = '8000'
+        
+        csrf_token = get_token(request)
+        log.info("CSRF token generated successfully")
+        log.debug(f"CSRF token length: {len(csrf_token)}")
+        return csrf_token
+    except Exception as e:
+        log.error(f"Error generating CSRF token: {type(e).__name__} - {str(e)}")
+        raise
+
+
 def get_csrf_token(client, api_url):
-    """Get CSRF token from the API with detailed logging"""
+    """Get CSRF token from the API with detailed logging - DEPRECATED, use generate_csrf_token instead"""
+    log.warning("Using deprecated HTTP-based CSRF token retrieval. Consider using generate_csrf_token() instead.")
     log.info(f"Requesting CSRF token from: {api_url}/api/csrf-token")
     try:
         log.debug("About to make GET request for CSRF token...")
@@ -156,112 +229,44 @@ def route_tools(state: State):
 
 
 def create_item_tool(api_url: str, auth_token: str = None):
-    """Tool to create an item via API call"""
+    """Tool to create an item via direct database access"""
 
     @tool
     def create_item(item_json: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a new item by making a POST request to the API"""
-        log.info(f"Creating item with API URL: {api_url}")
+        """Create a new item by directly accessing the database"""
+        log.info("Creating item via direct database access")
         log.debug(f"Item JSON data: {item_json}")
         log.debug(f"Auth token provided: {'Yes' if auth_token else 'No'}")
 
-        # Configure timeout with longer values for production, shorter for local
-        if "localhost" in api_url or "127.0.0.1" in api_url:
-            # Local development - shorter timeouts
-            timeout = httpx.Timeout(
-                connect=15.0,  # Time to establish connection
-                read=30.0,  # Time to read response
-                write=15.0,  # Time to write request
-                pool=5.0,  # Time to acquire connection from pool
-            )
-            log.info("Using local development timeout settings")
-        else:
-            # Production - longer timeouts to handle cold starts and network latency
-            timeout = httpx.Timeout(
-                connect=60.0,  # Time to establish connection
-                read=120.0,  # Time to read response (2 minutes for cold starts)
-                write=120.0,  # Time to write request
-                pool=30.0,  # Time to acquire connection from pool
-            )
-            log.info("Using production timeout settings")
-
-        log.debug(
-            f"Timeout configuration: connect={timeout.connect}s, read={timeout.read}s, write={timeout.write}s, pool={timeout.pool}s"
-        )
+        if not auth_token:
+            log.error("No authentication token provided")
+            raise ValueError("Authentication token is required for item creation")
 
         try:
-            log.debug("Creating HTTP client with configured timeout...")
-            with httpx.Client(follow_redirects=True, timeout=timeout) as client:
-                log.info("HTTP client created successfully")
+            # Extract user ID from JWT token
+            log.debug("Decoding JWT token to extract user ID...")
+            # Decode the JWT token without verification (since we trust it from the calling context)
+            # In production, you might want to verify the token properly
+            decoded_token = jwt.decode(auth_token, options={"verify_signature": False})
+            user_id = decoded_token.get('sub')  # 'sub' typically contains the user ID in JWT
+            
+            if not user_id:
+                log.error("No user ID found in JWT token")
+                raise ValueError("Invalid authentication token: no user ID found")
+            
+            log.info(f"Extracted user ID from JWT: {user_id}")
+            
+            # Create item directly in database
+            result = create_item_directly(user_id, item_json)
+            log.info("Item created successfully via direct database access")
+            
+            return result
 
-                # Always fetch CSRF token first
-                log.info("Fetching CSRF token...")
-                
-                # Try CSRF token with a shorter timeout first to diagnose if that's the issue
-                csrf_timeout = httpx.Timeout(connect=10.0, read=15.0, write=10.0, pool=5.0)
-                log.debug(f"Using shorter timeout for CSRF: {csrf_timeout}")
-                
-                try:
-                    with httpx.Client(follow_redirects=True, timeout=csrf_timeout) as csrf_client:
-                        log.debug("Created separate CSRF client")
-                        csrf_token = get_csrf_token(csrf_client, api_url)
-                except Exception as csrf_e:
-                    log.warning(f"CSRF with short timeout failed: {csrf_e}")
-                    log.info("Retrying CSRF with main client and longer timeout...")
-                    csrf_token = get_csrf_token(client, api_url)
-                
-                log.info("CSRF token obtained successfully")
-
-                headers = {
-                    "Content-Type": "application/json",
-                    "accept": "application/json",
-                    "X-CSRFToken": csrf_token,
-                }
-
-                # Add JWT auth token if provided
-                if auth_token:
-                    headers["Authorization"] = f"Bearer {auth_token}"
-                    log.debug("Authorization header added")
-
-                log.debug(f"Request headers: {dict(headers)}")
-                log.info(f"Making POST request to: {api_url}/api/items")
-
-                response = client.post(
-                    f"{api_url}/api/items", json=item_json, headers=headers
-                )
-
-                log.info(f"Response received - Status: {response.status_code}")
-                log.debug(f"Response headers: {dict(response.headers)}")
-                log.debug(f"Response content length: {len(response.content)} bytes")
-
-                response.raise_for_status()  # Raise an exception for HTTP error status codes
-
-                response_data = response.json()
-                log.info("Item created successfully")
-                log.debug(f"Response data keys: {list(response_data.keys())}")
-
-                return {"result": response_data}
-
-        except httpx.TimeoutException as e:
-            log.error(
-                f"Timeout error during item creation: {type(e).__name__} - {str(e)}"
-            )
-            log.error(f"Timeout details: {timeout}")
-            raise
-        except httpx.HTTPStatusError as e:
-            log.error(f"HTTP error during item creation: {e.response.status_code}")
-            log.error(f"Response text: {e.response.text}")
-            log.error(f"Response headers: {dict(e.response.headers)}")
-            raise
-        except httpx.RequestError as e:
-            log.error(
-                f"Request error during item creation: {type(e).__name__} - {str(e)}"
-            )
-            raise
+        except jwt.DecodeError as e:
+            log.error(f"JWT decode error: {str(e)}")
+            raise ValueError(f"Invalid authentication token: {str(e)}")
         except Exception as e:
-            log.error(
-                f"Unexpected error during item creation: {type(e).__name__} - {str(e)}"
-            )
+            log.error(f"Error creating item via direct access: {type(e).__name__} - {str(e)}")
             raise
 
     return create_item

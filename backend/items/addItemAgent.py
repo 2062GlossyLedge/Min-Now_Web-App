@@ -122,7 +122,10 @@ def run_agent(batch_prompts: dict, jwt_token: str = None):
         raise ValueError("No prompts provided for batch add.")
     first_key = keys[0]
     if prod:
-        tool = create_item_tool(api_url="https://min-now.store", auth_token=jwt_token)
+        tool = create_item_tool(
+            api_url="https://magnificent-optimism-production.up.railway.app",
+            auth_token=jwt_token,
+        )
     else:
         tool = create_item_tool(api_url="http://localhost:8000", auth_token=jwt_token)
     global llm_with_tools

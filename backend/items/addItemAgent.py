@@ -49,7 +49,8 @@ class State(TypedDict):
 
 # Tool node: POST request to create item with CSRF and auth headers
 def get_csrf_token(client, api_url):
-    resp = client.get(f"{api_url}/api/csrf-token")
+    # Use the same timeout configuration as the client
+    resp = client.get(f"{api_url}/api/csrf-token", follow_redirects=True)
     resp.raise_for_status()
     return resp.json()["token"]
 
@@ -79,18 +80,40 @@ def create_item_tool(api_url: str, auth_token: str = None):
     @tool
     def create_item(item_json: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new item by making a POST request to the API"""
-        with httpx.Client() as client:
+        # Configure timeout with longer values for production, shorter for local
+        if "localhost" in api_url or "127.0.0.1" in api_url:
+            # Local development - shorter timeouts
+            timeout = httpx.Timeout(
+                connect=15.0,  # Time to establish connection
+                read=30.0,  # Time to read response
+                write=15.0,  # Time to write request
+                pool=5.0,  # Time to acquire connection from pool
+            )
+        else:
+            # Production - longer timeouts to handle cold starts and network latency
+            timeout = httpx.Timeout(
+                connect=60.0,  # Time to establish connection
+                read=120.0,  # Time to read response (2 minutes for cold starts)
+                write=120.0,  # Time to write request
+                pool=30.0,  # Time to acquire connection from pool
+            )
+
+        with httpx.Client(follow_redirects=True, timeout=timeout) as client:
+            # Always fetch CSRF token first
             csrf_token = get_csrf_token(client, api_url)
             headers = {
                 "Content-Type": "application/json",
                 "accept": "application/json",
                 "X-CSRFToken": csrf_token,
             }
+            # Add JWT auth token if provided
             if auth_token:
                 headers["Authorization"] = f"Bearer {auth_token}"
+
             response = client.post(
                 f"{api_url}/api/items", json=item_json, headers=headers
             )
+            response.raise_for_status()  # Raise an exception for HTTP error status codes
             return {"result": response.json()}
 
     return create_item

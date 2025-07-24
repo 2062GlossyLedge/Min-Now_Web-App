@@ -77,7 +77,9 @@ class ClerkAuth(HttpBearer):
                     user = User.objects.create_user(
                         username=clerk_user_id,
                         clerk_id=clerk_user_id,
-                        email=user_obj.email_address,
+                        email=user_obj.email_addresses[
+                            0
+                        ].email_address,  # Use the first email address
                     )
 
                 # Set the user on the request

@@ -129,7 +129,9 @@ def run_agent(batch_prompts: dict, jwt_token: str = None):
     else:
         tool = create_item_tool(api_url="http://localhost:8000", auth_token=jwt_token)
     global llm_with_tools
-    llm_with_tools = ChatOpenAI(model="gpt-4.1", temperature=0).bind_tools([tool])
+    llm_with_tools = ChatOpenAI(
+        model="gpt-4.1", temperature=0, request_timeout=120
+    ).bind_tools([tool])
     graph_builder = StateGraph(State)
     graph_builder.add_node("chatbot", chatbot)
     tool_node = ToolNode(tools=[tool])

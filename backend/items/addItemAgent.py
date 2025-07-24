@@ -97,15 +97,22 @@ def get_csrf_token(client, api_url):
     """Get CSRF token from the API with detailed logging"""
     log.info(f"Requesting CSRF token from: {api_url}/api/csrf-token")
     try:
+        log.debug("About to make GET request for CSRF token...")
         # Use the same timeout configuration as the client
         resp = client.get(f"{api_url}/api/csrf-token", follow_redirects=True)
+        log.debug("GET request completed, processing response...")
         log.debug(f"CSRF request status code: {resp.status_code}")
         log.debug(f"CSRF response headers: {dict(resp.headers)}")
+        log.debug("About to call raise_for_status()...")
         resp.raise_for_status()
+        log.debug("Status check passed, parsing JSON...")
         token_data = resp.json()
         log.info("CSRF token retrieved successfully")
         log.debug(f"CSRF token data keys: {list(token_data.keys())}")
         return token_data["token"]
+    except httpx.TimeoutException as e:
+        log.error(f"Timeout error getting CSRF token: {type(e).__name__} - {str(e)}")
+        raise
     except httpx.HTTPStatusError as e:
         log.error(
             f"HTTP error getting CSRF token: {e.response.status_code} - {e.response.text}"
@@ -183,12 +190,26 @@ def create_item_tool(api_url: str, auth_token: str = None):
         )
 
         try:
+            log.debug("Creating HTTP client with configured timeout...")
             with httpx.Client(follow_redirects=True, timeout=timeout) as client:
                 log.info("HTTP client created successfully")
 
                 # Always fetch CSRF token first
                 log.info("Fetching CSRF token...")
-                csrf_token = get_csrf_token(client, api_url)
+                
+                # Try CSRF token with a shorter timeout first to diagnose if that's the issue
+                csrf_timeout = httpx.Timeout(connect=10.0, read=15.0, write=10.0, pool=5.0)
+                log.debug(f"Using shorter timeout for CSRF: {csrf_timeout}")
+                
+                try:
+                    with httpx.Client(follow_redirects=True, timeout=csrf_timeout) as csrf_client:
+                        log.debug("Created separate CSRF client")
+                        csrf_token = get_csrf_token(csrf_client, api_url)
+                except Exception as csrf_e:
+                    log.warning(f"CSRF with short timeout failed: {csrf_e}")
+                    log.info("Retrying CSRF with main client and longer timeout...")
+                    csrf_token = get_csrf_token(client, api_url)
+                
                 log.info("CSRF token obtained successfully")
 
                 headers = {

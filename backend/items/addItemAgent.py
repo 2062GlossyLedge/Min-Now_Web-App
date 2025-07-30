@@ -103,27 +103,31 @@ def create_item_directly(user_id: str, item_data: Dict[str, Any]) -> Dict[str, A
     """Create item directly in database using Django service layer"""
     log.info(f"Creating item directly in database for user: {user_id}")
     log.debug(f"Item data: {item_data}")
-    
+
     try:
         # Get the user model
         User = get_user_model()
         user = User.objects.get(clerk_id=user_id)
         log.debug(f"Found user: {user.email}")
-        
+
         # Create the item using the service layer
         item = ItemService.create_item(
             user=user,
-            name=item_data.get('name'),
-            picture_url=item_data.get('picture_url', '📦'),  # Default emoji if not provided
-            item_type=item_data.get('item_type', 'Other'),
-            status=item_data.get('status', 'Keep'),
-            item_received_date=item_data.get('item_received_date'),
-            last_used=item_data.get('last_used')
+            name=item_data.get("name"),
+            picture_url=item_data.get(
+                "picture_url", "📦"
+            ),  # Default emoji if not provided
+            item_type=item_data.get("item_type", "Other"),
+            status=item_data.get("status", "Keep"),
+            item_received_date=item_data.get("item_received_date"),
+            last_used=item_data.get("last_used"),
         )
-        
+
         log.info(f"Item created successfully with ID: {item.id}")
-        log.debug(f"Created item: {item.name} (Type: {item.item_type}, Status: {item.status})")
-        
+        log.debug(
+            f"Created item: {item.name} (Type: {item.item_type}, Status: {item.status})"
+        )
+
         # Return the item data in the same format as the API would
         return {
             "result": {
@@ -132,12 +136,16 @@ def create_item_directly(user_id: str, item_data: Dict[str, Any]) -> Dict[str, A
                 "picture_url": item.picture_url,
                 "item_type": item.item_type,
                 "status": item.status,
-                "item_received_date": item.item_received_date.isoformat() if item.item_received_date else None,
+                "item_received_date": (
+                    item.item_received_date.isoformat()
+                    if item.item_received_date
+                    else None
+                ),
                 "last_used": item.last_used.isoformat() if item.last_used else None,
-                "user": str(item.user.id)
+                "user": str(item.user.id),
             }
         }
-        
+
     except User.DoesNotExist:
         log.error(f"User with clerk_id {user_id} not found")
         raise ValueError(f"User with clerk_id {user_id} not found")
@@ -153,9 +161,9 @@ def generate_csrf_token():
     try:
         # Create a mock request object for CSRF token generation
         request = HttpRequest()
-        request.META['SERVER_NAME'] = 'localhost'
-        request.META['SERVER_PORT'] = '8000'
-        
+        request.META["SERVER_NAME"] = "localhost"
+        request.META["SERVER_PORT"] = "8000"
+
         csrf_token = get_token(request)
         log.info("CSRF token generated successfully")
         log.debug(f"CSRF token length: {len(csrf_token)}")
@@ -167,7 +175,9 @@ def generate_csrf_token():
 
 def get_csrf_token(client, api_url):
     """Get CSRF token from the API with detailed logging - DEPRECATED, use generate_csrf_token instead"""
-    log.warning("Using deprecated HTTP-based CSRF token retrieval. Consider using generate_csrf_token() instead.")
+    log.warning(
+        "Using deprecated HTTP-based CSRF token retrieval. Consider using generate_csrf_token() instead."
+    )
     log.info(f"Requesting CSRF token from: {api_url}/api/csrf-token")
     try:
         log.debug("About to make GET request for CSRF token...")
@@ -248,25 +258,29 @@ def create_item_tool(api_url: str, auth_token: str = None):
             # Decode the JWT token without verification (since we trust it from the calling context)
             # In production, you might want to verify the token properly
             decoded_token = jwt.decode(auth_token, options={"verify_signature": False})
-            user_id = decoded_token.get('sub')  # 'sub' typically contains the user ID in JWT
-            
+            user_id = decoded_token.get(
+                "sub"
+            )  # 'sub' typically contains the user ID in JWT
+
             if not user_id:
                 log.error("No user ID found in JWT token")
                 raise ValueError("Invalid authentication token: no user ID found")
-            
+
             log.info(f"Extracted user ID from JWT: {user_id}")
-            
+
             # Create item directly in database
             result = create_item_directly(user_id, item_json)
             log.info("Item created successfully via direct database access")
-            
+
             return result
 
         except jwt.DecodeError as e:
             log.error(f"JWT decode error: {str(e)}")
             raise ValueError(f"Invalid authentication token: {str(e)}")
         except Exception as e:
-            log.error(f"Error creating item via direct access: {type(e).__name__} - {str(e)}")
+            log.error(
+                f"Error creating item via direct access: {type(e).__name__} - {str(e)}"
+            )
             raise
 
     return create_item

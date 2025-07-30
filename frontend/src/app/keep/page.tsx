@@ -337,8 +337,9 @@ export default function KeepView() {
                                 itemType={item.itemType}
                                 status={item.status}
                                 ownershipDuration={item.ownershipDuration}
-                                lastUsedDuration={item.lastUsedDuration}
                                 receivedDate={item.item_received_date}
+                                ownershipDurationGoalMonths={item.ownership_duration_goal_months || item.ownershipDurationGoalMonths || 12}
+                                ownershipDurationGoalProgress={item.ownership_duration_goal_progress || item.ownershipDurationGoalProgress || 0}
                                 onStatusChange={handleStatusChange}
                                 onEdit={handleEdit}
                                 onDelete={handleDelete}

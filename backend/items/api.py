@@ -85,6 +85,8 @@ class OwnedItemSchema(Schema):
     ownership_duration: TimeSpanSchema
     last_used_duration: TimeSpanSchema
     keep_badge_progress: List[BadgeProgressSchema]
+    ownership_duration_goal_months: int
+    ownership_duration_goal_progress: float
 
     @staticmethod
     def from_orm(obj) -> "OwnedItemSchema":
@@ -99,6 +101,8 @@ class OwnedItemSchema(Schema):
             ownership_duration=TimeSpanSchema.from_orm(obj.ownership_duration),
             last_used_duration=TimeSpanSchema.from_orm(obj.last_used_duration),
             keep_badge_progress=obj.keep_badge_progress,
+            ownership_duration_goal_months=obj.ownership_duration_goal_months,
+            ownership_duration_goal_progress=obj.ownership_duration_goal_progress,
         )
 
 
@@ -109,6 +113,7 @@ class OwnedItemCreateSchema(Schema):
     status: ItemStatus = ItemStatus.KEEP
     item_received_date: datetime
     last_used: datetime
+    ownership_duration_goal_months: int = 12
 
 
 class OwnedItemUpdateSchema(Schema):
@@ -118,7 +123,7 @@ class OwnedItemUpdateSchema(Schema):
     item_received_date: Optional[datetime] = None
     last_used: Optional[datetime] = None
     status: Optional[ItemStatus] = None
-    item_received_date: Optional[datetime] = None
+    ownership_duration_goal_months: Optional[int] = None
 
 
 class CheckupCreateSchema(Schema):

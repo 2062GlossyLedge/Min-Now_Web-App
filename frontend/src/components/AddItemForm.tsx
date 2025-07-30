@@ -48,6 +48,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const [quickFormLoading, setQuickFormLoading] = useState(false)
     const [quickFormError, setQuickFormError] = useState<string | null>(null)
     const [quickPromptsDict, setQuickPromptsDict] = useState<Record<string, string>>({})
+    const [ownershipDurationGoalMonths, setOwnershipDurationGoalMonths] = useState<number>(12) // Default 1 year)
 
     const itemTypes = [
         'Clothing',
@@ -85,7 +86,8 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                 item_type: itemType,
                 status: 'Keep',
                 item_received_date: localDate.toISOString(),
-                last_used: localDate.toISOString()
+                last_used: localDate.toISOString(),
+                ownership_duration_goal_months: ownershipDurationGoalMonths
             }, authenticatedFetch)
 
             if (error) {
@@ -396,6 +398,23 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                             />
                                         </PopoverContent>
                                     </Popover>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Ownership Duration Goal</label>
+                                <div className="mt-1 flex items-center space-x-3">
+                                    <input
+                                        type="number"
+                                        value={ownershipDurationGoalMonths}
+                                        onChange={(e) => setOwnershipDurationGoalMonths(Number(e.target.value))}
+                                        min="1"
+                                        max="120"
+                                        className="block w-24 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"
+                                    />
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">months</span>
+                                    <span className="text-xs text-gray-400 dark:text-gray-500">
+                                        ({Math.floor(ownershipDurationGoalMonths / 12)}y {ownershipDurationGoalMonths % 12}m)
+                                    </span>
                                 </div>
                             </div>
                             <div className="flex justify-end space-x-3">

@@ -145,6 +145,7 @@ class OwnedItem(models.Model):
     item_type = models.CharField(
         max_length=20, choices=ItemType.choices, default=ItemType.OTHER
     )
+    ownership_duration_goal_months = models.IntegerField(default=12)  # Default 1 year
 
     @property
     def ownership_duration(self):
@@ -153,6 +154,16 @@ class OwnedItem(models.Model):
     @property
     def last_used_duration(self):
         return TimeSpan.from_dates(self.last_used, timezone.now())
+    
+    @property
+    def ownership_duration_goal_progress(self):
+        """
+        Returns the progress towards ownership duration goal as a percentage (0.0 to 1.0).
+        """
+        months_owned = (timezone.now().year - self.item_received_date.year) * 12 + (
+            timezone.now().month - self.item_received_date.month
+        )
+        return min(months_owned / self.ownership_duration_goal_months, 1.0) if self.ownership_duration_goal_months > 0 else 1.0
 
     def __str__(self):
         return f"{self.name} ({self.get_status_display()})"
@@ -166,6 +177,7 @@ class OwnedItem(models.Model):
         status=ItemStatus.KEEP,
         item_received_date=None,
         last_used=None,
+        ownership_duration_goal_months=12,
     ):
         return OwnedItem.objects.create(
             user=user,
@@ -175,9 +187,8 @@ class OwnedItem(models.Model):
             status=status,
             item_received_date=item_received_date or timezone.now(),
             last_used=last_used or timezone.now(),
-        )
-
-    @property
+            ownership_duration_goal_months=ownership_duration_goal_months,
+        )    @property
     def keep_badge_progress(self):
         """
         Returns a list of badge progress dicts for this item (keep badges based on duration owned).
@@ -215,7 +226,7 @@ class OwnedItem(models.Model):
         donated_items = OwnedItem.objects.filter(user=user, status=ItemStatus.DONATE)
         type_counts = Counter(donated_items.values_list("item_type", flat=True))
         result = {}
-        
+
         # Only process item types that have at least one donated item
         for item_type, count in type_counts.items():
             if count > 0:  # Only include types with donated items

@@ -24,6 +24,7 @@ interface ItemCreate {
     status: string;
     item_received_date: string;
     last_used: string;
+    ownership_duration_goal_months?: number;
 }
 
 interface EmailResponse {
@@ -114,7 +115,18 @@ export const createItem = async (itemData: ItemCreate, fetchFn: typeof fetchWith
             body: JSON.stringify(itemData),
         })
         const data = await response.json()
-        return { data }
+        
+        // Map backend fields to frontend interface
+        const mappedItem = {
+            ...data,
+            itemType: data.item_type,
+            pictureUrl: data.picture_url,
+            ownershipDuration: data.ownership_duration?.description || 'Not specified',
+            ownershipDurationGoalMonths: data.ownership_duration_goal_months,
+            ownershipDurationGoalProgress: data.ownership_duration_goal_progress
+        }
+        
+        return { data: mappedItem }
     } catch (error) {
         console.error('Error creating item:', error)
         return { error: 'Failed to create item' }
@@ -127,7 +139,8 @@ export const updateItem = async (id: string, updates: {
     lastUsedDate?: Date,
     status?: string,
     itemType?: string,
-    receivedDate?: Date
+    receivedDate?: Date,
+    ownershipDurationGoalMonths?: number
 }, fetchFn: typeof fetchWithCsrf): Promise<ApiResponse<Item>> => {
     try {
         const requestBody = {
@@ -136,6 +149,7 @@ export const updateItem = async (id: string, updates: {
             last_used: updates.lastUsedDate?.toISOString(),
             status: updates.status,
             item_type: updates.itemType,
+            ownership_duration_goal_months: updates.ownershipDurationGoalMonths,
         }
 
         const response = await fetchFn(`/api/items/${id}`, {
@@ -149,7 +163,9 @@ export const updateItem = async (id: string, updates: {
             ...data,
             itemType: data.item_type,
             pictureUrl: data.picture_url,
-            ownershipDuration: data.ownership_duration?.description || 'Not specified'
+            ownershipDuration: data.ownership_duration?.description || 'Not specified',
+            ownershipDurationGoalMonths: data.ownership_duration_goal_months,
+            ownershipDurationGoalProgress: data.ownership_duration_goal_progress
         }
 
         return { data: mappedItem }
@@ -189,7 +205,9 @@ export const fetchItemsByStatus = async (status: string, fetchFn: typeof fetchWi
             ...item,
             itemType: item.item_type, // Map item_type to itemType
             pictureUrl: item.picture_url, // Map picture_url to pictureUrl
-            ownershipDuration: item.ownership_duration?.description || 'Not specified'
+            ownershipDuration: item.ownership_duration?.description || 'Not specified',
+            ownershipDurationGoalMonths: item.ownership_duration_goal_months,
+            ownershipDurationGoalProgress: item.ownership_duration_goal_progress
         }))
 
         return { data: itemsWithDuration }
@@ -303,7 +321,8 @@ export const createHandleEdit = (
         lastUsedDate?: Date,
         itemType?: string,
         receivedDate?: Date,
-        status?: string
+        status?: string,
+        ownershipDurationGoalMonths?: number
     }) => {
         toast.loading('Updating item...', { id: 'edit-item' })
         try {

@@ -154,7 +154,7 @@ class OwnedItem(models.Model):
     @property
     def last_used_duration(self):
         return TimeSpan.from_dates(self.last_used, timezone.now())
-    
+
     @property
     def ownership_duration_goal_progress(self):
         """
@@ -163,7 +163,11 @@ class OwnedItem(models.Model):
         months_owned = (timezone.now().year - self.item_received_date.year) * 12 + (
             timezone.now().month - self.item_received_date.month
         )
-        return min(months_owned / self.ownership_duration_goal_months, 1.0) if self.ownership_duration_goal_months > 0 else 1.0
+        return (
+            min(months_owned / self.ownership_duration_goal_months, 1.0)
+            if self.ownership_duration_goal_months > 0
+            else 1.0
+        )
 
     def __str__(self):
         return f"{self.name} ({self.get_status_display()})"
@@ -188,7 +192,9 @@ class OwnedItem(models.Model):
             item_received_date=item_received_date or timezone.now(),
             last_used=last_used or timezone.now(),
             ownership_duration_goal_months=ownership_duration_goal_months,
-        )    @property
+        )
+
+    @property
     def keep_badge_progress(self):
         """
         Returns a list of badge progress dicts for this item (keep badges based on duration owned).

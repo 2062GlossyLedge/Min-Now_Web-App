@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('items', '0003_alter_owneditem_item_type'),
+        ("items", "0003_alter_owneditem_item_type"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='owneditem',
-            name='ownership_duration_goal_months',
+            model_name="owneditem",
+            name="ownership_duration_goal_months",
             field=models.IntegerField(default=12),
         ),
     ]

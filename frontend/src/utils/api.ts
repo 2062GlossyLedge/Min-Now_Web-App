@@ -115,7 +115,7 @@ export const createItem = async (itemData: ItemCreate, fetchFn: typeof fetchWith
             body: JSON.stringify(itemData),
         })
         const data = await response.json()
-        
+
         // Map backend fields to frontend interface
         const mappedItem = {
             ...data,
@@ -125,7 +125,7 @@ export const createItem = async (itemData: ItemCreate, fetchFn: typeof fetchWith
             ownershipDurationGoalMonths: data.ownership_duration_goal_months,
             ownershipDurationGoalProgress: data.ownership_duration_goal_progress
         }
-        
+
         return { data: mappedItem }
     } catch (error) {
         console.error('Error creating item:', error)

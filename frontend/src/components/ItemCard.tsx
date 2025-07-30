@@ -349,7 +349,7 @@ export default function ItemCard({
                                 <span className="text-gray-500 dark:text-gray-400 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">Ownership Duration:</span>
                                 <span className="text-gray-900 dark:text-gray-100 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">{ownershipDuration}</span>
                             </div>
-                            
+
                             {/* Progress bar for ownership duration goal - only show in Keep status */}
                             {status === 'Keep' && (
                                 <div className="space-y-2">
@@ -362,7 +362,7 @@ export default function ItemCard({
                                         </span>
                                     </div>
                                     <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                        <div 
+                                        <div
                                             className="bg-teal-500 h-2 rounded-full transition-all duration-300 ease-in-out"
                                             style={{ width: `${Math.min(ownershipDurationGoalProgress * 100, 100)}%` }}
                                         ></div>

@@ -137,7 +137,7 @@ const GaveBadgesPage = () => {
                 {/* Page header */}
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">Gave Badges</h1>
-                    <p className="text-gray-600 dark:text-gray-400">Track your progress for items you've donated or given away</p>
+                    <p className="text-gray-600 dark:text-gray-400">Track your progress for items you've donated or sold</p>
                 </div>
 
                 {loading && <p className="text-center text-gray-500 dark:text-gray-400">Loading gave badges...</p>}

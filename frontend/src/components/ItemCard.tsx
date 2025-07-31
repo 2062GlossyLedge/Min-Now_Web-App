@@ -15,12 +15,15 @@ interface ItemCardProps {
     itemType: string
     status: string
     ownershipDuration: string
+    lastUsedDuration: string
     receivedDate?: string
     ownershipDurationGoalMonths?: number
     ownershipDurationGoalProgress?: number
     onStatusChange?: (id: string, newStatus: string) => void
     onEdit?: (id: string, updates: { name?: string, receivedDate?: Date, itemType?: string, status?: string, ownershipDurationGoalMonths?: number }) => void
     onDelete?: (id: string) => void
+    isDeleting?: boolean // Whether this specific item is being deleted
+    isAnyDeleting?: boolean // Whether any item in the list is being deleted
 }
 
 export default function ItemCard({
@@ -35,6 +38,8 @@ export default function ItemCard({
     ownershipDurationGoalProgress = 0,
     onEdit,
     onDelete,
+    isDeleting = false,
+    isAnyDeleting = false,
 }: ItemCardProps) {
     const [isExpanded, setIsExpanded] = useState(false)
     const [isEditing, setIsEditing] = useState(false)
@@ -158,9 +163,19 @@ export default function ItemCard({
                     {onDelete && (
                         <button
                             onClick={handleDelete}
-                            className="text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                            disabled={isAnyDeleting}
+                            className={`${isAnyDeleting 
+                                ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' 
+                                : 'text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400'
+                            } transition-colors relative`}
+                            title={isAnyDeleting ? 'Please wait...' : 'Delete item'}
                         >
-                            <Trash2 className="h-5 w-5" />
+                            {isDeleting ? (
+                                /* Loading spinner for this specific item */
+                                <div className="animate-spin h-5 w-5 border-2 border-gray-300 border-t-red-500 rounded-full"></div>
+                            ) : (
+                                <Trash2 className="h-5 w-5" />
+                            )}
                         </button>
                     )}
                     <button

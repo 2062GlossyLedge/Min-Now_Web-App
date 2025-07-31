@@ -28,6 +28,7 @@ export default function KeepView() {
     const router = useRouter()
     const [emailStatus, setEmailStatus] = useState<string | null>(null)
     const { refreshTrigger, clearUpdatedItems } = useItemUpdate()
+    const [deletingItemId, setDeletingItemId] = useState<string | null>(null) // Track which item is being deleted
 
     // Separate effect to handle authentication state changes
     useEffect(() => {
@@ -97,6 +98,7 @@ export default function KeepView() {
     const handleEdit = createHandleEdit('Keep', setItems, authenticatedFetch)
 
     const handleDelete = async (id: string) => {
+        setDeletingItemId(id) // Set which item is being deleted
         try {
             const { error } = await deleteItem(id, authenticatedFetch)
             if (error) {
@@ -106,6 +108,8 @@ export default function KeepView() {
             setItems(items.filter(item => item.id !== id))
         } catch (error) {
             console.error('Error deleting item:', error)
+        } finally {
+            setDeletingItemId(null) // Clear loading state
         }
     }
 
@@ -337,12 +341,15 @@ export default function KeepView() {
                                 itemType={item.itemType}
                                 status={item.status}
                                 ownershipDuration={item.ownershipDuration}
+                                lastUsedDuration={item.lastUsedDuration || 'N/A'}
                                 receivedDate={item.item_received_date}
                                 ownershipDurationGoalMonths={item.ownership_duration_goal_months || item.ownershipDurationGoalMonths || 12}
                                 ownershipDurationGoalProgress={item.ownership_duration_goal_progress || item.ownershipDurationGoalProgress || 0}
                                 onStatusChange={handleStatusChange}
                                 onEdit={handleEdit}
                                 onDelete={handleDelete}
+                                isDeleting={deletingItemId === item.id}
+                                isAnyDeleting={deletingItemId !== null}
                             />
                         ))}
                     </div>

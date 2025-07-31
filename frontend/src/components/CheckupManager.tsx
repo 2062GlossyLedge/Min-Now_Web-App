@@ -22,6 +22,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
     const [loading, setLoading] = useState(true)
     const [showConfirmation, setShowConfirmation] = useState(false)
     const [changedItems, setChangedItems] = useState<Set<string>>(new Set())
+    const [updatingItemId, setUpdatingItemId] = useState<string | null>(null) // Track which item is being updated
     const { authenticatedFetch } = useAuthenticatedFetch()
     const { addUpdatedItem, triggerRefresh } = useItemUpdate()
     const { isSignedIn, isLoaded } = useUser() // Get user authentication status
@@ -77,6 +78,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
     }, [checkupType, authenticatedFetch, isLoaded, isSignedIn]) // Add authentication dependencies
 
     const handleStatusChange = async (itemId: string, newStatus: 'used' | 'not_used' | 'donate') => {
+        setUpdatingItemId(itemId) // Set which item is being updated
         try {
             const statusMap = {
                 'Keep': {
@@ -119,6 +121,8 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
             }
         } catch (error) {
             console.error('Error updating item status:', error)
+        } finally {
+            setUpdatingItemId(null) // Clear loading state
         }
     }
 
@@ -237,7 +241,12 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                             <button
                                 type="button"
                                 onClick={() => setInterval(Math.max(1, interval - 1))}
-                                className="px-3 py-1 border border-teal-300 dark:border-teal-600 rounded-md hover:bg-teal-50 dark:hover:bg-teal-900 text-teal-700 dark:text-teal-300"
+                                disabled={updatingItemId !== null}
+                                className={`px-3 py-1 border border-teal-300 dark:border-teal-600 rounded-md ${
+                                    updatingItemId !== null 
+                                        ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                        : 'hover:bg-teal-50 dark:hover:bg-teal-900 text-teal-700 dark:text-teal-300'
+                                }`}
                             >
                                 -
                             </button>
@@ -245,7 +254,12 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                             <button
                                 type="button"
                                 onClick={() => setInterval(Math.min(12, interval + 1))}
-                                className="px-3 py-1 border border-teal-300 dark:border-teal-600 rounded-md hover:bg-teal-50 dark:hover:bg-teal-900 text-teal-700 dark:text-teal-300"
+                                disabled={updatingItemId !== null}
+                                className={`px-3 py-1 border border-teal-300 dark:border-teal-600 rounded-md ${
+                                    updatingItemId !== null 
+                                        ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                        : 'hover:bg-teal-50 dark:hover:bg-teal-900 text-teal-700 dark:text-teal-300'
+                                }`}
                             >
                                 +
                             </button>
@@ -290,51 +304,116 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                                                 <>
                                                     <button
                                                         onClick={() => handleStatusChange(item.id, 'used')}
-                                                        className={`px-3 py-1 text-sm rounded transition-colors duration-200 ${changedItems.has(item.id)
-                                                            ? 'bg-teal-50 dark:bg-teal-800 text-teal-600 dark:text-teal-300'
-                                                            : 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 hover:bg-teal-200 dark:hover:bg-teal-800'
-                                                            }`}
+                                                        disabled={updatingItemId !== null}
+                                                        className={`px-3 py-1 text-sm rounded transition-colors duration-200 relative ${
+                                                            updatingItemId !== null 
+                                                                ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                                                : changedItems.has(item.id)
+                                                                    ? 'bg-teal-50 dark:bg-teal-800 text-teal-600 dark:text-teal-300'
+                                                                    : 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 hover:bg-teal-200 dark:hover:bg-teal-800'
+                                                        }`}
+                                                        title={updatingItemId !== null ? 'Please wait...' : 'Mark as used'}
                                                     >
-                                                        Used
+                                                        {updatingItemId === item.id ? (
+                                                            /* Loading spinner for this specific item */
+                                                            <div className="flex items-center space-x-1">
+                                                                <div className="animate-spin h-3 w-3 border border-teal-500 border-t-transparent rounded-full"></div>
+                                                                <span>Used</span>
+                                                            </div>
+                                                        ) : (
+                                                            'Used'
+                                                        )}
                                                     </button>
                                                     <button
                                                         onClick={() => handleStatusChange(item.id, 'not_used')}
-                                                        className={`px-3 py-1 text-sm rounded transition-colors duration-200 ${changedItems.has(item.id)
-                                                            ? 'bg-teal-50 dark:bg-teal-800 text-teal-600 dark:text-teal-300'
-                                                            : 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 hover:bg-teal-200 dark:hover:bg-teal-800'
-                                                            }`}
+                                                        disabled={updatingItemId !== null}
+                                                        className={`px-3 py-1 text-sm rounded transition-colors duration-200 relative ${
+                                                            updatingItemId !== null 
+                                                                ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                                                : changedItems.has(item.id)
+                                                                    ? 'bg-teal-50 dark:bg-teal-800 text-teal-600 dark:text-teal-300'
+                                                                    : 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 hover:bg-teal-200 dark:hover:bg-teal-800'
+                                                        }`}
+                                                        title={updatingItemId !== null ? 'Please wait...' : 'Mark as not used'}
                                                     >
-                                                        Not Used
+                                                        {updatingItemId === item.id ? (
+                                                            /* Loading spinner for this specific item */
+                                                            <div className="flex items-center space-x-1">
+                                                                <div className="animate-spin h-3 w-3 border border-teal-500 border-t-transparent rounded-full"></div>
+                                                                <span>Not Used</span>
+                                                            </div>
+                                                        ) : (
+                                                            'Not Used'
+                                                        )}
                                                     </button>
                                                 </>
                                             ) : (
                                                 <>
                                                     <button
                                                         onClick={() => handleStatusChange(item.id, 'used')}
-                                                        className={`px-3 py-1 text-sm rounded transition-colors duration-200 ${changedItems.has(item.id)
-                                                            ? 'bg-teal-50 dark:bg-teal-800 text-teal-600 dark:text-teal-300'
-                                                            : 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 hover:bg-teal-200 dark:hover:bg-teal-800'
-                                                            }`}
+                                                        disabled={updatingItemId !== null}
+                                                        className={`px-3 py-1 text-sm rounded transition-colors duration-200 relative ${
+                                                            updatingItemId !== null 
+                                                                ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                                                : changedItems.has(item.id)
+                                                                    ? 'bg-teal-50 dark:bg-teal-800 text-teal-600 dark:text-teal-300'
+                                                                    : 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 hover:bg-teal-200 dark:hover:bg-teal-800'
+                                                        }`}
+                                                        title={updatingItemId !== null ? 'Please wait...' : 'Mark as used'}
                                                     >
-                                                        Used
+                                                        {updatingItemId === item.id ? (
+                                                            /* Loading spinner for this specific item */
+                                                            <div className="flex items-center space-x-1">
+                                                                <div className="animate-spin h-3 w-3 border border-teal-500 border-t-transparent rounded-full"></div>
+                                                                <span>Used</span>
+                                                            </div>
+                                                        ) : (
+                                                            'Used'
+                                                        )}
                                                     </button>
                                                     <button
                                                         onClick={() => handleStatusChange(item.id, 'not_used')}
-                                                        className={`px-3 py-1 text-sm rounded transition-colors duration-200 ${changedItems.has(item.id)
-                                                            ? 'bg-teal-50 dark:bg-teal-800 text-teal-600 dark:text-teal-300'
-                                                            : 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 hover:bg-teal-200 dark:hover:bg-teal-800'
-                                                            }`}
+                                                        disabled={updatingItemId !== null}
+                                                        className={`px-3 py-1 text-sm rounded transition-colors duration-200 relative ${
+                                                            updatingItemId !== null 
+                                                                ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                                                : changedItems.has(item.id)
+                                                                    ? 'bg-teal-50 dark:bg-teal-800 text-teal-600 dark:text-teal-300'
+                                                                    : 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 hover:bg-teal-200 dark:hover:bg-teal-800'
+                                                        }`}
+                                                        title={updatingItemId !== null ? 'Please wait...' : 'Mark as not used'}
                                                     >
-                                                        Not Used
+                                                        {updatingItemId === item.id ? (
+                                                            /* Loading spinner for this specific item */
+                                                            <div className="flex items-center space-x-1">
+                                                                <div className="animate-spin h-3 w-3 border border-teal-500 border-t-transparent rounded-full"></div>
+                                                                <span>Not Used</span>
+                                                            </div>
+                                                        ) : (
+                                                            'Not Used'
+                                                        )}
                                                     </button>
                                                     <button
                                                         onClick={() => handleStatusChange(item.id, 'donate')}
-                                                        className={`px-3 py-1 text-sm rounded transition-colors duration-200 ${changedItems.has(item.id)
-                                                            ? 'bg-teal-50 dark:bg-teal-800 text-teal-600 dark:text-teal-300'
-                                                            : 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 hover:bg-teal-200 dark:hover:bg-teal-800'
-                                                            }`}
+                                                        disabled={updatingItemId !== null}
+                                                        className={`px-3 py-1 text-sm rounded transition-colors duration-200 relative ${
+                                                            updatingItemId !== null 
+                                                                ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                                                : changedItems.has(item.id)
+                                                                    ? 'bg-teal-50 dark:bg-teal-800 text-teal-600 dark:text-teal-300'
+                                                                    : 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 hover:bg-teal-200 dark:hover:bg-teal-800'
+                                                        }`}
+                                                        title={updatingItemId !== null ? 'Please wait...' : 'Mark as gave'}
                                                     >
-                                                        Gave
+                                                        {updatingItemId === item.id ? (
+                                                            /* Loading spinner for this specific item */
+                                                            <div className="flex items-center space-x-1">
+                                                                <div className="animate-spin h-3 w-3 border border-teal-500 border-t-transparent rounded-full"></div>
+                                                                <span>Gave</span>
+                                                            </div>
+                                                        ) : (
+                                                            'Gave'
+                                                        )}
                                                     </button>
                                                 </>
                                             )}
@@ -349,14 +428,21 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
+                            disabled={updatingItemId !== null}
+                            className={`px-4 py-2 text-sm font-medium border border-gray-300 dark:border-gray-600 rounded-md ${
+                                updatingItemId !== null
+                                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                    : 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
+                            }`}
+                            title={updatingItemId !== null ? 'Please wait for updates to complete...' : ''}
                         >
                             Cancel
                         </button>
                         <button
                             onClick={handleSubmit}
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || updatingItemId !== null}
                             className="px-4 py-2 text-sm font-medium text-white bg-teal-600 border border-transparent rounded-md hover:bg-teal-700 disabled:opacity-50"
+                            title={updatingItemId !== null ? 'Please wait for item updates to complete...' : ''}
                         >
                             {isSubmitting ? 'Saving...' : 'Complete Checkup'}
                         </button>

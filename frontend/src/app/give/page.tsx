@@ -23,6 +23,7 @@ export default function GiveView() {
     const { authenticatedFetch } = useAuthenticatedFetch()
     const { refreshTrigger, clearUpdatedItems } = useItemUpdate()
     const { isSignedIn, isLoaded } = useUser() // Get user authentication status
+    const [deletingItemId, setDeletingItemId] = useState<string | null>(null) // Track which item is being deleted
 
     // Separate effect to handle authentication state changes
     useEffect(() => {
@@ -93,14 +94,21 @@ export default function GiveView() {
     const handleEdit = createHandleEdit('Give', setItems, authenticatedFetch)
 
     const handleDelete = async (id: string) => {
-        const { error } = await deleteItem(id, authenticatedFetch)
+        setDeletingItemId(id) // Set which item is being deleted
+        try {
+            const { error } = await deleteItem(id, authenticatedFetch)
 
-        if (error) {
-            console.error(error)
-            return
+            if (error) {
+                console.error(error)
+                return
+            }
+
+            setItems(items.filter((item) => item.id !== id))
+        } catch (error) {
+            console.error('Error deleting item:', error)
+        } finally {
+            setDeletingItemId(null) // Clear loading state
         }
-
-        setItems(items.filter((item) => item.id !== id))
     }
 
     const filteredItems = selectedType
@@ -178,6 +186,8 @@ export default function GiveView() {
                                     onStatusChange={handleStatusChange}
                                     onEdit={handleEdit}
                                     onDelete={handleDelete}
+                                    isDeleting={deletingItemId === item.id}
+                                    isAnyDeleting={deletingItemId !== null}
                                 />
                             ))}
                         </div>

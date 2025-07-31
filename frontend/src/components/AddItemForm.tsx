@@ -297,8 +297,8 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const years = Array.from({ length: 21 }, (_, i) => `${2024 - i}`)
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md relative">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-3 sm:p-6 w-full max-w-xs sm:max-w-md relative max-h-[95vh] overflow-y-auto">
                 <div className="flex mb-4">
                     <button
                         className={`px-4 py-2 rounded-tl-lg border-b-2 font-semibold focus:outline-none ${activeTab === 'manual' ? 'border-teal-500 text-teal-600 dark:text-teal-300' : 'border-transparent text-gray-500 dark:text-gray-400'}`}
@@ -381,23 +381,32 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                 ) : (
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Item Image</label>
-                                        <UploadButton<OurFileRouter, "imageUploader">
-                                            endpoint="imageUploader"
-                                            onClientUploadComplete={(res: any) => {
-                                                setUploadedImageUrl(res?.[0]?.url ?? res?.[0]?.fileUrl ?? null)
-                                                setIsUploading(false)
-                                            }}
-                                            onUploadError={(error: Error) => {
-                                                setIsUploading(false)
-                                                alert('Upload failed: ' + error.message)
-                                            }}
-                                            onUploadBegin={() => {
-                                                setIsUploading(true)
-                                            }}
-                                            appearance={{
-                                                button: 'mt-1 block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-teal-50 file:text-teal-700 dark:file:bg-teal-900 dark:file:text-teal-300 hover:file:bg-teal-100 dark:hover:file:bg-teal-800',
-                                            }}
-                                        />
+                                        <div className="relative">
+                                            <UploadButton<OurFileRouter, "imageUploader">
+                                                endpoint="imageUploader"
+                                                onClientUploadComplete={(res: any) => {
+                                                    setUploadedImageUrl(res?.[0]?.url ?? res?.[0]?.fileUrl ?? null)
+                                                    setIsUploading(false)
+                                                }}
+                                                onUploadError={(error: Error) => {
+                                                    setIsUploading(false)
+                                                    alert('Upload failed: ' + error.message)
+                                                }}
+                                                onUploadBegin={() => {
+                                                    setIsUploading(true)
+                                                }}
+                                                appearance={{
+                                                    button: 'mt-1 block w-full text-sm bg-white border rounded-md px-10 py-4 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600',
+                                                    allowedContent: 'text-gray-600 dark:text-gray-400 text-sm',
+                                                }}
+                                            />
+                                            {/* Custom overlay text to ensure visibility - only in light mode */}
+                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none mt-1 dark:hidden">
+                                                <span className="text-gray-700 font-medium">
+                                                    Choose File
+                                                </span>
+                                            </div>
+                                        </div>
                                         {uploadedImageUrl && (
                                             <div className="mt-2 relative w-24 h-24">
                                                 <Image

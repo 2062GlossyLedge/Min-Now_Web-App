@@ -37,25 +37,37 @@ export default function Navigation() {
                                         }`}
                                 >
                                     <span className="mr-1 text-sm">{tab.icon}</span>
-                                    <span className="text-sm">{tab.name}</span>
+                                    <span className="text-xs md:text-sm lg:text-sm">{tab.name}</span>
                                 </Link>
                             ))}
                         </div>
                     </div>
                     <div className="flex items-center space-x-2 sm:space-x-2 md:space-x-3">
-                        <Link
-                            href="/settings"
-                            className="text-gray-500 dark:text-gray-400 hover:text-teal-500 dark:hover:text-teal-400 transition-colors p-1"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                        </Link>
+                        {/* Settings icon - only visible when signed in */}
+                        <SignedIn>
+                            <Link
+                                href="/settings"
+                                className="text-gray-500 dark:text-gray-400 hover:text-teal-500 dark:hover:text-teal-400 transition-colors p-1"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                            </Link>
+                        </SignedIn>
                         <div className="flex items-center">
                             <SignedOut>
-                                <SignInButton />
-                                <SignUpButton />
+                                {/* Container for sign in/sign up buttons with responsive sizing and spacing */}
+                                <div className="flex items-center space-x-1 sm:space-x-4">
+                                    {/* Sign In Button with responsive sizing */}
+                                    <div className="text-xs sm:text-sm">
+                                        <SignInButton />
+                                    </div>
+                                    {/* Sign Up Button with responsive sizing */}
+                                    <div className="text-xs sm:text-sm">
+                                        <SignUpButton />
+                                    </div>
+                                </div>
                             </SignedOut>
                             <SignedIn>
                                 <UserButton />
@@ -65,7 +77,7 @@ export default function Navigation() {
                         <div className="h-8 w-px bg-gray-300 dark:bg-gray-700" />
                         <Link
                             href="/landing"
-                            className="relative w-8 h-8 overflow-hidden hover:opacity-80 transition-opacity duration-200 rounded"
+                            className="relative w-10 h-9 sm:w-8 sm:h-8 overflow-hidden hover:opacity-80 transition-opacity duration-200 rounded"
                             title="Go to Min-Now Landing Page"
                         >
                             <Image
@@ -73,7 +85,7 @@ export default function Navigation() {
                                 alt="Min-Now Logo"
                                 fill
                                 className="object-cover"
-                                sizes="24px"
+                                sizes="(max-width: 640px) 40px, 24px"
                             />
                         </Link>
                     </div>

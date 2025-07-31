@@ -5,7 +5,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
-import { CalendarIcon, Edit2, Save, X, Trash2, ChevronDown } from 'lucide-react'
+import { CalendarIcon, Edit2, X, Trash2, ChevronDown } from 'lucide-react'
 import Image from 'next/image'
 
 interface ItemCardProps {
@@ -17,9 +17,13 @@ interface ItemCardProps {
     ownershipDuration: string
     lastUsedDuration: string
     receivedDate?: string
+    ownershipDurationGoalMonths?: number
+    ownershipDurationGoalProgress?: number
     onStatusChange?: (id: string, newStatus: string) => void
-    onEdit?: (id: string, updates: { name?: string, receivedDate?: Date, itemType?: string, status?: string }) => void
+    onEdit?: (id: string, updates: { name?: string, receivedDate?: Date, itemType?: string, status?: string, ownershipDurationGoalMonths?: number }) => void
     onDelete?: (id: string) => void
+    isDeleting?: boolean // Whether this specific item is being deleted
+    isAnyDeleting?: boolean // Whether any item in the list is being deleted
 }
 
 export default function ItemCard({
@@ -29,17 +33,20 @@ export default function ItemCard({
     itemType,
     status,
     ownershipDuration,
-    lastUsedDuration,
     receivedDate: initialReceivedDate,
-    onStatusChange,
+    ownershipDurationGoalMonths = 12,
+    ownershipDurationGoalProgress = 0,
     onEdit,
     onDelete,
+    isDeleting = false,
+    isAnyDeleting = false,
 }: ItemCardProps) {
     const [isExpanded, setIsExpanded] = useState(false)
     const [isEditing, setIsEditing] = useState(false)
     const [editedName, setEditedName] = useState(name)
     const [editedItemType, setEditedItemType] = useState(itemType)
     const [editedStatus, setEditedStatus] = useState(status)
+    const [editedOwnershipDurationGoalMonths, setEditedOwnershipDurationGoalMonths] = useState(ownershipDurationGoalMonths)
     const [receivedDate, setReceivedDate] = useState<Date | undefined>(
         initialReceivedDate ? new Date(initialReceivedDate) : undefined
     )
@@ -50,28 +57,18 @@ export default function ItemCard({
         setEditedName(name)
         setEditedItemType(itemType)
         setEditedStatus(status)
+        setEditedOwnershipDurationGoalMonths(ownershipDurationGoalMonths)
         setReceivedDate(initialReceivedDate ? new Date(initialReceivedDate) : undefined)
-    }, [name, itemType, status, initialReceivedDate])
+    }, [name, itemType, status, ownershipDurationGoalMonths, initialReceivedDate])
 
     // Function to check if the pictureUrl is an emoji
     const isEmoji = (str: string) => {
         return str.length > 1 && str.length <= 2;
     }
 
-    // Function to check if the pictureUrl is a base64 image
-    const isBase64Image = (str: string) => {
-        return str.startsWith('data:image');
-    }
-
     // Function to check if the pictureUrl is a valid image URL (http or /)
     const isImageUrl = (str: string) => {
         return typeof str === 'string' && (str.startsWith('http') || str.startsWith('/'));
-    }
-
-    const handleStatusChange = (newStatus: string) => {
-        if (onStatusChange) {
-            onStatusChange(id, newStatus)
-        }
     }
 
     const handleSave = () => {
@@ -80,7 +77,8 @@ export default function ItemCard({
                 name: editedName,
                 receivedDate,
                 itemType: editedItemType,
-                status: editedStatus
+                status: editedStatus,
+                ownershipDurationGoalMonths: editedOwnershipDurationGoalMonths
             })
         }
         setIsEditing(false)
@@ -90,6 +88,7 @@ export default function ItemCard({
         setEditedName(name)
         setEditedItemType(itemType)
         setEditedStatus(status)
+        setEditedOwnershipDurationGoalMonths(ownershipDurationGoalMonths)
         setReceivedDate(initialReceivedDate ? new Date(initialReceivedDate) : undefined)
         setIsEditing(false)
     }
@@ -164,9 +163,19 @@ export default function ItemCard({
                     {onDelete && (
                         <button
                             onClick={handleDelete}
-                            className="text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                            disabled={isAnyDeleting}
+                            className={`${isAnyDeleting
+                                ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                                : 'text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400'
+                                } transition-colors relative`}
+                            title={isAnyDeleting ? 'Please wait...' : 'Delete item'}
                         >
-                            <Trash2 className="h-5 w-5" />
+                            {isDeleting ? (
+                                /* Loading spinner for this specific item */
+                                <div className="animate-spin h-5 w-5 border-2 border-gray-300 border-t-red-500 rounded-full"></div>
+                            ) : (
+                                <Trash2 className="h-5 w-5" />
+                            )}
                         </button>
                     )}
                     <button
@@ -309,6 +318,28 @@ export default function ItemCard({
                                 </div>
                             </div>
 
+                            {/* Third row: Ownership Duration Goal */}
+                            <div className="flex justify-between items-start">
+                                <div className="flex flex-col space-y-2">
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">Ownership Duration Goal:</span>
+                                    <div className="flex items-center space-x-3">
+                                        <input
+                                            type="number"
+                                            value={editedOwnershipDurationGoalMonths}
+                                            onChange={(e) => setEditedOwnershipDurationGoalMonths(Number(e.target.value))}
+                                            min="1"
+                                            max="120"
+                                            className="block w-24 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"
+                                            onClick={(e) => e.stopPropagation()}
+                                        />
+                                        <span className="text-sm text-gray-500 dark:text-gray-400">months</span>
+                                        <span className="text-xs text-gray-400 dark:text-gray-500">
+                                            ({Math.floor(editedOwnershipDurationGoalMonths / 12)}y {editedOwnershipDurationGoalMonths % 12}m)
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Action buttons */}
                             <div className="flex justify-end space-x-4 pt-4">
                                 <Button
@@ -328,9 +359,31 @@ export default function ItemCard({
                         </div>
                     ) : (
                         /* Non-edit mode display */
-                        <div className="flex justify-between text-sm">
-                            <span className="text-gray-500 dark:text-gray-400 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">Ownership Duration:</span>
-                            <span className="text-gray-900 dark:text-gray-100 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">{ownershipDuration}</span>
+                        <div className="space-y-3">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500 dark:text-gray-400 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">Ownership Duration:</span>
+                                <span className="text-gray-900 dark:text-gray-100 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">{ownershipDuration}</span>
+                            </div>
+
+                            {/* Progress bar for ownership duration goal - only show in Keep status */}
+                            {status === 'Keep' && (
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-xs">
+                                        <span className="text-gray-500 dark:text-gray-400">
+                                            Goal: {Math.floor(ownershipDurationGoalMonths / 12)}y {ownershipDurationGoalMonths % 12}m
+                                        </span>
+                                        <span className="text-gray-500 dark:text-gray-400">
+                                            {Math.round(ownershipDurationGoalProgress * 100)}%
+                                        </span>
+                                    </div>
+                                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                        <div
+                                            className="bg-teal-500 h-2 rounded-full transition-all duration-300 ease-in-out"
+                                            style={{ width: `${Math.min(ownershipDurationGoalProgress * 100, 100)}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

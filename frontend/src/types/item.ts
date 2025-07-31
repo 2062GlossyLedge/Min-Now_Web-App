@@ -16,4 +16,8 @@ export interface Item {
         days: number
         description: string
     }
+    ownership_duration_goal_months?: number
+    ownershipDurationGoalMonths?: number
+    ownership_duration_goal_progress?: number
+    ownershipDurationGoalProgress?: number
 } 

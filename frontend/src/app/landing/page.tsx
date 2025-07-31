@@ -80,6 +80,16 @@ export default function LandingPage() {
         return () => clearInterval(interval)
     }, [currentSection])
 
+    // Preload all section images to prevent loading delays during transitions
+    useEffect(() => {
+        sections.forEach(section => {
+            section.images.forEach(imageSrc => {
+                const img = new window.Image()
+                img.src = imageSrc
+            })
+        })
+    }, [])
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-teal-400 via-teal-500 to-teal-600 dark:from-teal-600 dark:via-teal-700 dark:to-teal-800 relative overflow-hidden">
             {/* Background decoration */}
@@ -149,15 +159,16 @@ export default function LandingPage() {
                                 <div className="flex flex-wrap gap-4 justify-center lg:justify-end order-1 lg:order-2">
                                     {sections[currentSection].images.map((image, index) => (
                                         <div
-                                            key={index}
+                                            key={`section-${currentSection}-image-${index}`}
                                             className="relative w-80 h-60 sm:w-96 sm:h-72 lg:w-[500px] lg:h-[350px] xl:w-[600px] xl:h-[400px] rounded-2xl overflow-hidden shadow-2xl bg-white/10 backdrop-blur-sm border border-white/20"
                                         >
                                             <Image
                                                 src={image}
                                                 alt={`Screenshot ${index + 1} for ${sections[currentSection].title}`}
                                                 fill
-                                                className="object-contain"
+                                                className="object-contain transition-opacity duration-300"
                                                 sizes="(max-width: 640px) 320px, (max-width: 1024px) 384px, 600px"
+                                                priority={currentSection === 0 && index === 0}
                                             />
 
                                         </div>

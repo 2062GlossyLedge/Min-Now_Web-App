@@ -164,10 +164,10 @@ export default function ItemCard({
                         <button
                             onClick={handleDelete}
                             disabled={isAnyDeleting}
-                            className={`${isAnyDeleting 
-                                ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' 
+                            className={`${isAnyDeleting
+                                ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
                                 : 'text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400'
-                            } transition-colors relative`}
+                                } transition-colors relative`}
                             title={isAnyDeleting ? 'Please wait...' : 'Delete item'}
                         >
                             {isDeleting ? (

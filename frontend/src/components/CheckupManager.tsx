@@ -22,7 +22,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
     const [loading, setLoading] = useState(true)
     const [showConfirmation, setShowConfirmation] = useState(false)
     const [changedItems, setChangedItems] = useState<Set<string>>(new Set())
-    const [updatingItemId, setUpdatingItemId] = useState<string | null>(null) // Track which item is being updated
+    const [itemStatusChanges, setItemStatusChanges] = useState<Map<string, 'used' | 'not_used' | 'donate'>>(new Map()) // Track pending status changes
     const { authenticatedFetch } = useAuthenticatedFetch()
     const { addUpdatedItem, triggerRefresh } = useItemUpdate()
     const { isSignedIn, isLoaded } = useUser() // Get user authentication status
@@ -78,8 +78,26 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
     }, [checkupType, authenticatedFetch, isLoaded, isSignedIn]) // Add authentication dependencies
 
     const handleStatusChange = async (itemId: string, newStatus: 'used' | 'not_used' | 'donate') => {
-        setUpdatingItemId(itemId) // Set which item is being updated
+        // Only update local UI state, don't make backend calls yet
+        if (checkupType === 'Keep' && newStatus === 'donate') {
+            return; // Keep items can't be marked as gave/donate
+        }
+
+        // Store the status change for later processing
+        setItemStatusChanges(prev => {
+            const newMap = new Map(prev)
+            newMap.set(itemId, newStatus)
+            return newMap
+        })
+
+        // Add to changed items set for UI feedback
+        setChangedItems(prev => new Set([...prev, itemId]))
+    }
+
+    const handleSubmit = async () => {
+        setIsSubmitting(true)
         try {
+            // Process all pending item status changes first
             const statusMap = {
                 'Keep': {
                     'used': 'Keep',
@@ -92,43 +110,36 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                 } as const
             } as const
 
-            if (checkupType === 'Keep' && newStatus === 'donate') {
-                return;
+            // Update all items with changed status
+            for (const [itemId, newStatus] of itemStatusChanges.entries()) {
+                try {
+                    const targetStatus = (statusMap[checkupType] as Record<typeof newStatus, string>)[newStatus]
+
+                    // If marking as used, set last_used to now
+                    let updatePayload: any = { status: targetStatus };
+                    if (newStatus === 'used') {
+                        updatePayload.lastUsedDate = new Date();
+                    }
+
+                    const { data: updatedItem, error } = await updateItem(itemId, updatePayload, authenticatedFetch)
+
+                    if (error) {
+                        console.error(`Error updating item ${itemId}:`, error)
+                        continue // Continue with other items even if one fails
+                    }
+
+                    if (updatedItem) {
+                        // Remove the item from the local list since it's been processed
+                        setItems(prevItems => prevItems.filter(item => item.id !== itemId))
+
+                        // Notify parent components about the update
+                        addUpdatedItem(itemId)
+                    }
+                } catch (error) {
+                    console.error(`Error updating item ${itemId}:`, error)
+                }
             }
-            // Uses map to determine behavior with item and target status
-            const targetStatus = (statusMap[checkupType] as Record<typeof newStatus, string>)[newStatus]
 
-            // If marking as used, set last_used to now
-            let updatePayload: any = { status: targetStatus };
-            if (newStatus === 'used') {
-                updatePayload.lastUsedDate = new Date();
-            }
-
-            const { data: updatedItem, error } = await updateItem(itemId, updatePayload, authenticatedFetch)
-
-            if (error) {
-                console.error('Error updating item status:', error)
-                return
-            }
-
-            if (updatedItem) {
-                setItems(items.filter(item => item.id !== itemId))
-                setChangedItems(prev => new Set([...prev, itemId]))
-
-                // Notify parent components about the update
-                addUpdatedItem(itemId)
-                triggerRefresh() // This will cause parent components to re-render
-            }
-        } catch (error) {
-            console.error('Error updating item status:', error)
-        } finally {
-            setUpdatingItemId(null) // Clear loading state
-        }
-    }
-
-    const handleSubmit = async () => {
-        setIsSubmitting(true)
-        try {
             // First, try to get existing checkup
             const { data: existingCheckup } = await fetchCheckup(checkupType.toLowerCase(), authenticatedFetch)
 
@@ -153,13 +164,12 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
 
             setShowConfirmation(true)
 
-            // Trigger refresh after checkup completion
-            triggerRefresh()
-
             setTimeout(() => {
+                // Trigger refresh after checkup completion and animation
+                triggerRefresh()
                 router.refresh()
                 onClose()
-            }, 1500)
+            }, 1500) // Extended from 1500ms to 3000ms for longer animation viewing
         } catch (error) {
             console.error('Error setting checkup:', error)
             setIsSubmitting(false)
@@ -203,6 +213,26 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
         return `${yearText}${yearText && monthText ? ' ' : ''}${monthText}`.trim();
     };
 
+    // Helper to get the pending status change text for display
+    const getPendingStatusText = (itemId: string) => {
+        const pendingStatus = itemStatusChanges.get(itemId);
+        if (!pendingStatus) return '';
+
+        const statusMap = {
+            'Keep': {
+                'used': 'Will stay in Keep',
+                'not_used': 'Will move to Give'
+            },
+            'Give': {
+                'used': 'Will move to Keep',
+                'not_used': 'Will stay in Give',
+                'donate': 'Will move to Gave'
+            }
+        } as const;
+
+        return (statusMap[checkupType] as any)[pendingStatus] || '';
+    };
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
             <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
@@ -241,12 +271,11 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                             <button
                                 type="button"
                                 onClick={() => setInterval(Math.max(1, interval - 1))}
-                                disabled={updatingItemId !== null}
-                                className={`px-3 py-1 border border-teal-300 dark:border-teal-600 rounded-md ${
-                                    updatingItemId !== null 
-                                        ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                                        : 'hover:bg-teal-50 dark:hover:bg-teal-900 text-teal-700 dark:text-teal-300'
-                                }`}
+                                disabled={isSubmitting}
+                                className={`px-3 py-1 border border-teal-300 dark:border-teal-600 rounded-md ${isSubmitting
+                                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                    : 'hover:bg-teal-50 dark:hover:bg-teal-900 text-teal-700 dark:text-teal-300'
+                                    }`}
                             >
                                 -
                             </button>
@@ -254,12 +283,11 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                             <button
                                 type="button"
                                 onClick={() => setInterval(Math.min(12, interval + 1))}
-                                disabled={updatingItemId !== null}
-                                className={`px-3 py-1 border border-teal-300 dark:border-teal-600 rounded-md ${
-                                    updatingItemId !== null 
-                                        ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                                        : 'hover:bg-teal-50 dark:hover:bg-teal-900 text-teal-700 dark:text-teal-300'
-                                }`}
+                                disabled={isSubmitting}
+                                className={`px-3 py-1 border border-teal-300 dark:border-teal-600 rounded-md ${isSubmitting
+                                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                    : 'hover:bg-teal-50 dark:hover:bg-teal-900 text-teal-700 dark:text-teal-300'
+                                    }`}
                             >
                                 +
                             </button>
@@ -297,6 +325,12 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                                                 <p className="text-sm text-gray-500 dark:text-gray-400">{item.itemType}</p>
                                                 {/* Show how long since last used for each item */}
                                                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Last used: {formatLastUsedDuration(item.last_used ?? '')}</p>
+                                                {/* Show pending status change if any */}
+                                                {getPendingStatusText(item.id) && (
+                                                    <p className="text-xs text-teal-600 dark:text-teal-400 mt-1 font-medium">
+                                                        {getPendingStatusText(item.id)}
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
                                         <div className="flex space-x-2">
@@ -304,116 +338,71 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                                                 <>
                                                     <button
                                                         onClick={() => handleStatusChange(item.id, 'used')}
-                                                        disabled={updatingItemId !== null}
-                                                        className={`px-3 py-1 text-sm rounded transition-colors duration-200 relative ${
-                                                            updatingItemId !== null 
-                                                                ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                                                                : changedItems.has(item.id)
-                                                                    ? 'bg-teal-50 dark:bg-teal-800 text-teal-600 dark:text-teal-300'
-                                                                    : 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 hover:bg-teal-200 dark:hover:bg-teal-800'
-                                                        }`}
-                                                        title={updatingItemId !== null ? 'Please wait...' : 'Mark as used'}
+                                                        disabled={isSubmitting}
+                                                        className={`px-3 py-1 text-sm rounded transition-colors duration-200 ${isSubmitting
+                                                            ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                                            : changedItems.has(item.id)
+                                                                ? 'bg-teal-50 dark:bg-teal-800 text-teal-600 dark:text-teal-300'
+                                                                : 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 hover:bg-teal-200 dark:hover:bg-teal-800'
+                                                            }`}
+                                                        title={isSubmitting ? 'Please wait...' : 'Mark as used'}
                                                     >
-                                                        {updatingItemId === item.id ? (
-                                                            /* Loading spinner for this specific item */
-                                                            <div className="flex items-center space-x-1">
-                                                                <div className="animate-spin h-3 w-3 border border-teal-500 border-t-transparent rounded-full"></div>
-                                                                <span>Used</span>
-                                                            </div>
-                                                        ) : (
-                                                            'Used'
-                                                        )}
+                                                        Used
                                                     </button>
                                                     <button
                                                         onClick={() => handleStatusChange(item.id, 'not_used')}
-                                                        disabled={updatingItemId !== null}
-                                                        className={`px-3 py-1 text-sm rounded transition-colors duration-200 relative ${
-                                                            updatingItemId !== null 
-                                                                ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                                                                : changedItems.has(item.id)
-                                                                    ? 'bg-teal-50 dark:bg-teal-800 text-teal-600 dark:text-teal-300'
-                                                                    : 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 hover:bg-teal-200 dark:hover:bg-teal-800'
-                                                        }`}
-                                                        title={updatingItemId !== null ? 'Please wait...' : 'Mark as not used'}
+                                                        disabled={isSubmitting}
+                                                        className={`px-3 py-1 text-sm rounded transition-colors duration-200 ${isSubmitting
+                                                            ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                                            : changedItems.has(item.id)
+                                                                ? 'bg-teal-50 dark:bg-teal-800 text-teal-600 dark:text-teal-300'
+                                                                : 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 hover:bg-teal-200 dark:hover:bg-teal-800'
+                                                            }`}
+                                                        title={isSubmitting ? 'Please wait...' : 'Mark as not used'}
                                                     >
-                                                        {updatingItemId === item.id ? (
-                                                            /* Loading spinner for this specific item */
-                                                            <div className="flex items-center space-x-1">
-                                                                <div className="animate-spin h-3 w-3 border border-teal-500 border-t-transparent rounded-full"></div>
-                                                                <span>Not Used</span>
-                                                            </div>
-                                                        ) : (
-                                                            'Not Used'
-                                                        )}
+                                                        Not Used
                                                     </button>
                                                 </>
                                             ) : (
                                                 <>
                                                     <button
                                                         onClick={() => handleStatusChange(item.id, 'used')}
-                                                        disabled={updatingItemId !== null}
-                                                        className={`px-3 py-1 text-sm rounded transition-colors duration-200 relative ${
-                                                            updatingItemId !== null 
-                                                                ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                                                                : changedItems.has(item.id)
-                                                                    ? 'bg-teal-50 dark:bg-teal-800 text-teal-600 dark:text-teal-300'
-                                                                    : 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 hover:bg-teal-200 dark:hover:bg-teal-800'
-                                                        }`}
-                                                        title={updatingItemId !== null ? 'Please wait...' : 'Mark as used'}
+                                                        disabled={isSubmitting}
+                                                        className={`px-3 py-1 text-sm rounded transition-colors duration-200 ${isSubmitting
+                                                            ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                                            : changedItems.has(item.id)
+                                                                ? 'bg-teal-50 dark:bg-teal-800 text-teal-600 dark:text-teal-300'
+                                                                : 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 hover:bg-teal-200 dark:hover:bg-teal-800'
+                                                            }`}
+                                                        title={isSubmitting ? 'Please wait...' : 'Mark as used'}
                                                     >
-                                                        {updatingItemId === item.id ? (
-                                                            /* Loading spinner for this specific item */
-                                                            <div className="flex items-center space-x-1">
-                                                                <div className="animate-spin h-3 w-3 border border-teal-500 border-t-transparent rounded-full"></div>
-                                                                <span>Used</span>
-                                                            </div>
-                                                        ) : (
-                                                            'Used'
-                                                        )}
+                                                        Used
                                                     </button>
                                                     <button
                                                         onClick={() => handleStatusChange(item.id, 'not_used')}
-                                                        disabled={updatingItemId !== null}
-                                                        className={`px-3 py-1 text-sm rounded transition-colors duration-200 relative ${
-                                                            updatingItemId !== null 
-                                                                ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                                                                : changedItems.has(item.id)
-                                                                    ? 'bg-teal-50 dark:bg-teal-800 text-teal-600 dark:text-teal-300'
-                                                                    : 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 hover:bg-teal-200 dark:hover:bg-teal-800'
-                                                        }`}
-                                                        title={updatingItemId !== null ? 'Please wait...' : 'Mark as not used'}
+                                                        disabled={isSubmitting}
+                                                        className={`px-3 py-1 text-sm rounded transition-colors duration-200 ${isSubmitting
+                                                            ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                                            : changedItems.has(item.id)
+                                                                ? 'bg-teal-50 dark:bg-teal-800 text-teal-600 dark:text-teal-300'
+                                                                : 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 hover:bg-teal-200 dark:hover:bg-teal-800'
+                                                            }`}
+                                                        title={isSubmitting ? 'Please wait...' : 'Mark as not used'}
                                                     >
-                                                        {updatingItemId === item.id ? (
-                                                            /* Loading spinner for this specific item */
-                                                            <div className="flex items-center space-x-1">
-                                                                <div className="animate-spin h-3 w-3 border border-teal-500 border-t-transparent rounded-full"></div>
-                                                                <span>Not Used</span>
-                                                            </div>
-                                                        ) : (
-                                                            'Not Used'
-                                                        )}
+                                                        Not Used
                                                     </button>
                                                     <button
                                                         onClick={() => handleStatusChange(item.id, 'donate')}
-                                                        disabled={updatingItemId !== null}
-                                                        className={`px-3 py-1 text-sm rounded transition-colors duration-200 relative ${
-                                                            updatingItemId !== null 
-                                                                ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                                                                : changedItems.has(item.id)
-                                                                    ? 'bg-teal-50 dark:bg-teal-800 text-teal-600 dark:text-teal-300'
-                                                                    : 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 hover:bg-teal-200 dark:hover:bg-teal-800'
-                                                        }`}
-                                                        title={updatingItemId !== null ? 'Please wait...' : 'Mark as gave'}
+                                                        disabled={isSubmitting}
+                                                        className={`px-3 py-1 text-sm rounded transition-colors duration-200 ${isSubmitting
+                                                            ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                                            : changedItems.has(item.id)
+                                                                ? 'bg-teal-50 dark:bg-teal-800 text-teal-600 dark:text-teal-300'
+                                                                : 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 hover:bg-teal-200 dark:hover:bg-teal-800'
+                                                            }`}
+                                                        title={isSubmitting ? 'Please wait...' : 'Mark as gave'}
                                                     >
-                                                        {updatingItemId === item.id ? (
-                                                            /* Loading spinner for this specific item */
-                                                            <div className="flex items-center space-x-1">
-                                                                <div className="animate-spin h-3 w-3 border border-teal-500 border-t-transparent rounded-full"></div>
-                                                                <span>Gave</span>
-                                                            </div>
-                                                        ) : (
-                                                            'Gave'
-                                                        )}
+                                                        Gave
                                                     </button>
                                                 </>
                                             )}
@@ -428,23 +417,21 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                         <button
                             type="button"
                             onClick={onClose}
-                            disabled={updatingItemId !== null}
-                            className={`px-4 py-2 text-sm font-medium border border-gray-300 dark:border-gray-600 rounded-md ${
-                                updatingItemId !== null
-                                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                                    : 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
-                            }`}
-                            title={updatingItemId !== null ? 'Please wait for updates to complete...' : ''}
+                            disabled={isSubmitting}
+                            className={`px-4 py-2 text-sm font-medium border border-gray-300 dark:border-gray-600 rounded-md ${isSubmitting
+                                ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                : 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
+                                }`}
+                            title={isSubmitting ? 'Please wait for checkup to complete...' : ''}
                         >
                             Cancel
                         </button>
                         <button
                             onClick={handleSubmit}
-                            disabled={isSubmitting || updatingItemId !== null}
+                            disabled={isSubmitting}
                             className="px-4 py-2 text-sm font-medium text-white bg-teal-600 border border-transparent rounded-md hover:bg-teal-700 disabled:opacity-50"
-                            title={updatingItemId !== null ? 'Please wait for item updates to complete...' : ''}
                         >
-                            {isSubmitting ? 'Saving...' : 'Complete Checkup'}
+                            {isSubmitting ? 'Processing Changes...' : `Complete Checkup${itemStatusChanges.size > 0 ? ` (${itemStatusChanges.size} changes)` : ''}`}
                         </button>
                     </div>
                 </div>

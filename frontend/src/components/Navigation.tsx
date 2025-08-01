@@ -77,7 +77,7 @@ export default function Navigation() {
                         <div className="h-8 w-px bg-gray-300 dark:bg-gray-700" />
                         <Link
                             href="/landing"
-                            className="relative w-10 h-9 sm:w-8 sm:h-8 overflow-hidden hover:opacity-80 transition-opacity duration-200 rounded"
+                            className="relative w-10 h-10 sm:w-8 sm:h-8 overflow-hidden hover:opacity-80 transition-opacity duration-200 rounded"
                             title="Go to Min-Now Landing Page"
                         >
                             <Image

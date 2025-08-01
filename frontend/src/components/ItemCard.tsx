@@ -5,8 +5,30 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
-import { CalendarIcon, Edit2, X, Trash2, ChevronDown } from 'lucide-react'
+import { CalendarIcon, Edit2, X, Trash2, ChevronDown, ImageIcon, SmileIcon } from 'lucide-react'
 import Image from 'next/image'
+import { UploadButton } from '@uploadthing/react'
+import type { OurFileRouter } from '@/app/api/uploadthing/core'
+
+/**
+ * ItemCard Component with Image/Emoji Editing Capability
+ * 
+ * Features:
+ * - Display item information in a card format
+ * - Expandable/collapsible view
+ * - Edit mode with inline editing for all item properties
+ * - Image/Emoji editing with toggle between emoji input and file upload
+ * - Real-time preview of edited image/emoji in card header
+ * - Support for uploaded images via UploadThing
+ * - Progress bar for ownership duration goals
+ * - Status buttons (Keep, Give, Donate)
+ * - Delete functionality with loading states
+ * 
+ * Image editing modes:
+ * - Emoji mode: Text input for emoji characters with emoji picker tip
+ * - Image mode: File upload with preview and upload progress
+ * - Live preview in card header during editing
+ */
 
 interface ItemCardProps {
     id: string
@@ -20,7 +42,7 @@ interface ItemCardProps {
     ownershipDurationGoalMonths?: number
     ownershipDurationGoalProgress?: number
     onStatusChange?: (id: string, newStatus: string) => void
-    onEdit?: (id: string, updates: { name?: string, receivedDate?: Date, itemType?: string, status?: string, ownershipDurationGoalMonths?: number }) => void
+    onEdit?: (id: string, updates: { name?: string, receivedDate?: Date, itemType?: string, status?: string, ownershipDurationGoalMonths?: number, pictureUrl?: string }) => void
     onDelete?: (id: string) => void
     isDeleting?: boolean // Whether this specific item is being deleted
     isAnyDeleting?: boolean // Whether any item in the list is being deleted
@@ -51,6 +73,16 @@ export default function ItemCard({
         initialReceivedDate ? new Date(initialReceivedDate) : undefined
     )
     const [isItemTypeDropdownOpen, setIsItemTypeDropdownOpen] = useState(false)
+    
+    // Image editing states
+    const [useEmoji, setUseEmoji] = useState(true)
+    const [editedPictureEmoji, setEditedPictureEmoji] = useState('')
+    const [editedUploadedImageUrl, setEditedUploadedImageUrl] = useState<string | null>(null)
+    const [isUploading, setIsUploading] = useState(false)
+    
+    // Current picture URL state (tracks the most recent saved picture)
+    // This allows immediate display of changes after saving, before parent component updates
+    const [currentPictureUrl, setCurrentPictureUrl] = useState(pictureUrl)
 
     // Update local state when props change
     useEffect(() => {
@@ -59,7 +91,19 @@ export default function ItemCard({
         setEditedStatus(status)
         setEditedOwnershipDurationGoalMonths(ownershipDurationGoalMonths)
         setReceivedDate(initialReceivedDate ? new Date(initialReceivedDate) : undefined)
-    }, [name, itemType, status, ownershipDurationGoalMonths, initialReceivedDate])
+        setCurrentPictureUrl(pictureUrl)
+        
+        // Initialize image editing states based on pictureUrl from props
+        if (isImageUrl(pictureUrl)) {
+            setUseEmoji(false)
+            setEditedUploadedImageUrl(pictureUrl)
+            setEditedPictureEmoji('')
+        } else {
+            setUseEmoji(true)
+            setEditedPictureEmoji(pictureUrl)
+            setEditedUploadedImageUrl(null)
+        }
+    }, [name, itemType, status, ownershipDurationGoalMonths, initialReceivedDate, pictureUrl])
 
     // Function to check if the pictureUrl is an emoji
     const isEmoji = (str: string) => {
@@ -73,12 +117,24 @@ export default function ItemCard({
 
     const handleSave = () => {
         if (onEdit) {
+            // Determine the picture URL based on selected mode
+            let finalPictureUrl = pictureUrl; // fallback to current
+            if (useEmoji && editedPictureEmoji) {
+                finalPictureUrl = editedPictureEmoji;
+            } else if (!useEmoji && editedUploadedImageUrl) {
+                finalPictureUrl = editedUploadedImageUrl;
+            }
+            
+            // Update local state immediately to reflect changes
+            setCurrentPictureUrl(finalPictureUrl);
+            
             onEdit(id, {
                 name: editedName,
                 receivedDate,
                 itemType: editedItemType,
                 status: editedStatus,
-                ownershipDurationGoalMonths: editedOwnershipDurationGoalMonths
+                ownershipDurationGoalMonths: editedOwnershipDurationGoalMonths,
+                pictureUrl: finalPictureUrl
             })
         }
         setIsEditing(false)
@@ -90,6 +146,18 @@ export default function ItemCard({
         setEditedStatus(status)
         setEditedOwnershipDurationGoalMonths(ownershipDurationGoalMonths)
         setReceivedDate(initialReceivedDate ? new Date(initialReceivedDate) : undefined)
+        
+        // Reset image editing states to current picture URL
+        if (isImageUrl(currentPictureUrl)) {
+            setUseEmoji(false)
+            setEditedUploadedImageUrl(currentPictureUrl)
+            setEditedPictureEmoji('')
+        } else {
+            setUseEmoji(true)
+            setEditedPictureEmoji(currentPictureUrl)
+            setEditedUploadedImageUrl(null)
+        }
+        
         setIsEditing(false)
     }
 
@@ -111,23 +179,49 @@ export default function ItemCard({
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                     <div className="w-12 h-12 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-md overflow-hidden">
-                        {isEmoji(pictureUrl) ? (
-                            <span className="text-2xl group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">
-                                {pictureUrl}
-                            </span>
-                        ) : isImageUrl(pictureUrl) ? (
-                            <div className="relative w-full h-full">
-                                <Image
-                                    src={pictureUrl}
-                                    alt={name}
-                                    fill
-                                    className="object-cover"
-                                />
-                            </div>
+                        {/* Show edited image/emoji when in edit mode, otherwise show current pictureUrl */}
+                        {isEditing ? (
+                            useEmoji ? (
+                                editedPictureEmoji ? (
+                                    <span className="text-2xl group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">
+                                        {editedPictureEmoji}
+                                    </span>
+                                ) : (
+                                    <span className="text-lg text-gray-400 dark:text-gray-500">📷</span>
+                                )
+                            ) : (
+                                editedUploadedImageUrl ? (
+                                    <div className="relative w-full h-full">
+                                        <Image
+                                            src={editedUploadedImageUrl}
+                                            alt={editedName}
+                                            fill
+                                            className="object-cover"
+                                        />
+                                    </div>
+                                ) : (
+                                    <span className="text-lg text-gray-400 dark:text-gray-500">📷</span>
+                                )
+                            )
                         ) : (
-                            <span className="text-2xl group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">
-                                {pictureUrl}
-                            </span>
+                            isEmoji(currentPictureUrl) ? (
+                                <span className="text-2xl group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">
+                                    {currentPictureUrl}
+                                </span>
+                            ) : isImageUrl(currentPictureUrl) ? (
+                                <div className="relative w-full h-full">
+                                    <Image
+                                        src={currentPictureUrl}
+                                        alt={name}
+                                        fill
+                                        className="object-cover"
+                                    />
+                                </div>
+                            ) : (
+                                <span className="text-2xl group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">
+                                    {currentPictureUrl}
+                                </span>
+                            )
                         )}
                     </div>
                     <div>
@@ -282,7 +376,106 @@ export default function ItemCard({
                                 </div>
                             </div>
 
-                            {/* Second row: Item Type */}
+                            {/* Second row: Item Image/Emoji */}
+                            <div className="flex justify-between items-start">
+                                <div className="flex flex-col space-y-2">
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">Item Image:</span>
+                                    <div className="flex items-center space-x-4 mb-2">
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setUseEmoji(true);
+                                                setEditedUploadedImageUrl(null);
+                                            }}
+                                            className={`flex items-center space-x-2 px-3 py-2 rounded-md ${useEmoji ? 'bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300' : 'bg-gray-100 dark:bg-gray-700'}`}
+                                        >
+                                            <SmileIcon className="h-5 w-5" />
+                                            <span>Emoji</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setUseEmoji(false);
+                                                setEditedPictureEmoji('');
+                                            }}
+                                            className={`flex items-center space-x-2 px-3 py-2 rounded-md ${!useEmoji ? 'bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300' : 'bg-gray-100 dark:bg-gray-700'}`}
+                                        >
+                                            <ImageIcon className="h-5 w-5" />
+                                            <span>Image</span>
+                                        </button>
+                                    </div>
+                                    {useEmoji ? (
+                                        <div>
+                                            <input
+                                                type="text"
+                                                value={editedPictureEmoji || ""}
+                                                onChange={(e) => {
+                                                    e.stopPropagation();
+                                                    const input = e.target.value;
+                                                    const lastChar = input.slice(-1);
+                                                    if (lastChar.length > 1) {
+                                                        setEditedPictureEmoji(lastChar);
+                                                    } else {
+                                                        setEditedPictureEmoji(input);
+                                                    }
+                                                }}
+                                                className="block w-[240px] rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"
+                                                placeholder="Enter an emoji"
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+                                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                Tip: Windows key + . (period) for emoji picker
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <div className="relative">
+                                                <UploadButton<OurFileRouter, "imageUploader">
+                                                    endpoint="imageUploader"
+                                                    onClientUploadComplete={(res: any) => {
+                                                        setEditedUploadedImageUrl(res?.[0]?.url ?? res?.[0]?.fileUrl ?? null)
+                                                        setIsUploading(false)
+                                                    }}
+                                                    onUploadError={(error: Error) => {
+                                                        setIsUploading(false)
+                                                        alert('Upload failed: ' + error.message)
+                                                    }}
+                                                    onUploadBegin={() => {
+                                                        setIsUploading(true)
+                                                    }}
+                                                    appearance={{
+                                                        button: 'w-[240px] text-sm bg-white border rounded-md px-4 py-2 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600',
+                                                        allowedContent: 'text-gray-600 dark:text-gray-400 text-sm',
+                                                    }}
+                                                />
+                                                {/* Custom overlay text to ensure visibility - only in light mode */}
+                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none dark:hidden">
+                                                    <span className="text-gray-700 font-medium">
+                                                        Choose File
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            {editedUploadedImageUrl && (
+                                                <div className="mt-2 relative w-16 h-16">
+                                                    <Image
+                                                        src={editedUploadedImageUrl}
+                                                        alt="Preview"
+                                                        fill
+                                                        className="object-cover rounded-md"
+                                                    />
+                                                </div>
+                                            )}
+                                            {isUploading && (
+                                                <div className="mt-2 text-sm text-teal-600">Uploading...</div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Third row: Item Type */}
                             <div className="flex justify-between items-start">
                                 <div className="flex flex-col space-y-2">
                                     <span className="text-sm text-gray-500 dark:text-gray-400">Item Type:</span>
@@ -318,7 +511,7 @@ export default function ItemCard({
                                 </div>
                             </div>
 
-                            {/* Third row: Ownership Duration Goal */}
+                            {/* Fourth row: Ownership Duration Goal */}
                             <div className="flex justify-between items-start">
                                 <div className="flex flex-col space-y-2">
                                     <span className="text-sm text-gray-500 dark:text-gray-400">Ownership Duration Goal:</span>

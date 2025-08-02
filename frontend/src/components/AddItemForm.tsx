@@ -24,7 +24,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const { triggerRefresh } = useItemUpdate()
     const [name, setName] = useState('')
     const [pictureEmoji, setPictureEmoji] = useState('')
-    const [itemType, setItemType] = useState('Clothing')
+    const [itemType, setItemType] = useState('Clothing & Accessories')
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [receivedDate, setReceivedDate] = useState<Date | undefined>(new Date())
     const [useEmoji, setUseEmoji] = useState(true)
@@ -60,10 +60,20 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const [endYear, setEndYear] = useState<string>('')
 
     const itemTypes = [
-        'Clothing',
+        'Clothing & Accessories',
         'Technology',
-        'Household Item',
-        'Vehicle',
+        'Furniture & Appliances',
+        'Books & Media',
+        'Vehicles',
+        'Personal Care Items',
+        'Decor & Art',
+        'Tools & Equipment',
+        'Toys & Games',
+        'Outdoor Gear',
+        'Fitness Equipment',
+        'Pet Supplies',
+        'Subscriptions & Licenses',
+        'Miscellaneous',
         'Other'
     ]
 

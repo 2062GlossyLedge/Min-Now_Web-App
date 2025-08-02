@@ -6,10 +6,20 @@ from django.conf import settings
 
 
 class ItemType(models.TextChoices):
-    HOUSEHOLD_ITEM = "Household Item", "Household Item"
-    CLOTHING = "Clothing", "Clothing"
+    CLOTHING_ACCESSORIES = "Clothing_Accessories", "Clothing & Accessories"
+    PERSONAL_CARE_ITEMS = "Personal_Care_Items", "Personal Care Items"
+    FURNITURE_APPLIANCES = "Furniture_Appliances", "Furniture & Appliances"
+    DECOR_ART = "Decor_Art", "Decor & Art"
+    SUBSCRIPTIONS_LICENSES = "Subscriptions_Licenses", "Subscriptions & Licenses"
     TECHNOLOGY = "Technology", "Technology"
-    VEHICLE = "Vehicle", "Vehicle"
+    VEHICLES = "Vehicles", "Vehicles"
+    TOOLS_EQUIPMENT = "Tools_Equipment", "Tools & Equipment"
+    OUTDOOR_GEAR = "Outdoor_Gear", "Outdoor Gear"
+    FITNESS_EQUIPMENT = "Fitness_Equipment", "Fitness Equipment"
+    TOYS_GAMES = "Toys_Games", "Toys & Games"
+    PET_SUPPLIES = "Pet_Supplies", "Pet Supplies"
+    BOOKS_MEDIA = "Books_Media", "Books & Media"
+    MISCELLANEOUS = "Miscellaneous", "Miscellaneous"
     OTHER = "Other", "Other"
 
 
@@ -143,7 +153,7 @@ class OwnedItem(models.Model):
     )
     last_used = models.DateTimeField(default=timezone.now)
     item_type = models.CharField(
-        max_length=20, choices=ItemType.choices, default=ItemType.OTHER
+        max_length=30, choices=ItemType.choices, default=ItemType.OTHER
     )
     ownership_duration_goal_months = models.IntegerField(default=12)  # Default 1 year
 

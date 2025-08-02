@@ -8,6 +8,9 @@ import { format } from 'date-fns'
 import { CalendarIcon, Edit2, X, Trash2, ChevronDown, ImageIcon, SmileIcon } from 'lucide-react'
 import Image from 'next/image'
 import { UploadButton } from '@uploadthing/react'
+import "@uploadthing/react/styles.css";
+import { twMerge } from 'tailwind-merge'
+
 import type { OurFileRouter } from '@/app/api/uploadthing/core'
 
 /**
@@ -73,13 +76,13 @@ export default function ItemCard({
         initialReceivedDate ? new Date(initialReceivedDate) : undefined
     )
     const [isItemTypeDropdownOpen, setIsItemTypeDropdownOpen] = useState(false)
-    
+
     // Image editing states
     const [useEmoji, setUseEmoji] = useState(true)
     const [editedPictureEmoji, setEditedPictureEmoji] = useState('')
     const [editedUploadedImageUrl, setEditedUploadedImageUrl] = useState<string | null>(null)
     const [isUploading, setIsUploading] = useState(false)
-    
+
     // Current picture URL state (tracks the most recent saved picture)
     // This allows immediate display of changes after saving, before parent component updates
     const [currentPictureUrl, setCurrentPictureUrl] = useState(pictureUrl)
@@ -92,7 +95,7 @@ export default function ItemCard({
         setEditedOwnershipDurationGoalMonths(ownershipDurationGoalMonths)
         setReceivedDate(initialReceivedDate ? new Date(initialReceivedDate) : undefined)
         setCurrentPictureUrl(pictureUrl)
-        
+
         // Initialize image editing states based on pictureUrl from props
         if (isImageUrl(pictureUrl)) {
             setUseEmoji(false)
@@ -124,10 +127,10 @@ export default function ItemCard({
             } else if (!useEmoji && editedUploadedImageUrl) {
                 finalPictureUrl = editedUploadedImageUrl;
             }
-            
+
             // Update local state immediately to reflect changes
             setCurrentPictureUrl(finalPictureUrl);
-            
+
             onEdit(id, {
                 name: editedName,
                 receivedDate,
@@ -146,7 +149,7 @@ export default function ItemCard({
         setEditedStatus(status)
         setEditedOwnershipDurationGoalMonths(ownershipDurationGoalMonths)
         setReceivedDate(initialReceivedDate ? new Date(initialReceivedDate) : undefined)
-        
+
         // Reset image editing states to current picture URL
         if (isImageUrl(currentPictureUrl)) {
             setUseEmoji(false)
@@ -157,7 +160,7 @@ export default function ItemCard({
             setEditedPictureEmoji(currentPictureUrl)
             setEditedUploadedImageUrl(null)
         }
-        
+
         setIsEditing(false)
     }
 
@@ -168,8 +171,44 @@ export default function ItemCard({
         }
     }
 
-    // Sample item types - you can customize this list
-    const itemTypes = ['Clothing', 'Technology', 'Household Item', 'Vehicle', 'Other']
+    // Match exactly with backend ItemType choices - using database values (underscored)
+    const itemTypes = [
+        'Clothing_Accessories',
+        'Technology',
+        'Furniture_Appliances',
+        'Books_Media',
+        'Vehicles',
+        'Personal_Care_Items',
+        'Decor_Art',
+        'Tools_Equipment',
+        'Toys_Games',
+        'Outdoor_Gear',
+        'Fitness_Equipment',
+        'Pet_Supplies',
+        'Subscriptions_Licenses',
+        'Miscellaneous',
+        'Other'
+    ] as const
+
+    // Map database values to display names
+    const itemTypeDisplayNames: Record<string, string> = {
+        'Clothing_Accessories': 'Clothing & Accessories',
+        'Technology': 'Technology',
+        'Furniture_Appliances': 'Furniture & Appliances',
+        'Kitchenware': 'Kitchenware',
+        'Books_Media': 'Books & Media',
+        'Vehicles': 'Vehicles',
+        'Personal_Care_Items': 'Personal Care Items',
+        'Decor_Art': 'Decor & Art',
+        'Tools_Equipment': 'Tools & Equipment',
+        'Toys_Games': 'Toys & Games',
+        'Outdoor_Gear': 'Outdoor Gear',
+        'Fitness_Equipment': 'Fitness Equipment',
+        'Pet_Supplies': 'Pet Supplies',
+        'Subscriptions_Licenses': 'Subscriptions & Licenses',
+        'Miscellaneous': 'Miscellaneous',
+        'Other': 'Other'
+    }
 
     return (
         <div
@@ -237,7 +276,7 @@ export default function ItemCard({
                             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">{name}</h3>
                         )}
                         <p className="text-sm text-gray-500 dark:text-gray-400 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">
-                            {isEditing ? editedItemType : itemType}
+                            {isEditing ? (itemTypeDisplayNames[editedItemType] || editedItemType) : (itemTypeDisplayNames[itemType] || itemType)}
                         </p>
                     </div>
                 </div>
@@ -433,6 +472,9 @@ export default function ItemCard({
                                         <div>
                                             <div className="relative">
                                                 <UploadButton<OurFileRouter, "imageUploader">
+                                                    // issues applying ut styles, using default styles from C:\Min-Now_Web-App-1\frontend\node_modules\@uploadthing\react\dist\button-client-BLNyMUF0.js. see https://docs.uploadthing.com/concepts/theming#theming-with-tailwind-css
+                                                    className="mt-4 "
+                                                    config={{ cn: twMerge }}
                                                     endpoint="imageUploader"
                                                     onClientUploadComplete={(res: any) => {
                                                         setEditedUploadedImageUrl(res?.[0]?.url ?? res?.[0]?.fileUrl ?? null)
@@ -445,17 +487,9 @@ export default function ItemCard({
                                                     onUploadBegin={() => {
                                                         setIsUploading(true)
                                                     }}
-                                                    appearance={{
-                                                        button: 'w-[240px] text-sm bg-white border rounded-md px-4 py-2 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600',
-                                                        allowedContent: 'text-gray-600 dark:text-gray-400 text-sm',
-                                                    }}
+
+
                                                 />
-                                                {/* Custom overlay text to ensure visibility - only in light mode */}
-                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none dark:hidden">
-                                                    <span className="text-gray-700 font-medium">
-                                                        Choose File
-                                                    </span>
-                                                </div>
                                             </div>
                                             {editedUploadedImageUrl && (
                                                 <div className="mt-2 relative w-16 h-16">
@@ -486,7 +520,7 @@ export default function ItemCard({
                                                 className="w-[240px] justify-between text-left font-normal"
                                                 onClick={(e) => e.stopPropagation()}
                                             >
-                                                {editedItemType}
+                                                {itemTypeDisplayNames[editedItemType] || editedItemType}
                                                 <ChevronDown className="h-4 w-4 opacity-50" />
                                             </Button>
                                         </PopoverTrigger>
@@ -502,7 +536,7 @@ export default function ItemCard({
                                                         }}
                                                         className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none"
                                                     >
-                                                        {type}
+                                                        {itemTypeDisplayNames[type] || type}
                                                     </button>
                                                 ))}
                                             </div>

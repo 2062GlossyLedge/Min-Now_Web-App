@@ -26,7 +26,22 @@ Your output must be a valid JSON object matching the following schema:
   "required": ["item_json"]
 }
 
-An Item type can be either: Clothing, Technology, Vehicle, Household Item, or Other
+An Item type can be either:
+     'Clothing_Accessories',
+        'Technology',
+        'Furniture_Appliances',
+        'Books_Media',
+        'Vehicles',
+        'Personal_Care_Items',
+        'Decor_Art',
+        'Tools_Equipment',
+        'Toys_Games',
+        'Outdoor_Gear',
+        'Fitness_Equipment',
+        'Pet_Supplies',
+        'Subscriptions_Licenses',
+        'Miscellaneous',
+        'Other'
 
 
 Example:

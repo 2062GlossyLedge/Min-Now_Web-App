@@ -75,7 +75,7 @@ export default function LandingPage() {
             if (currentSection < 4) {
                 nextSection()
             }
-        }, 30000)
+        }, 15000)
 
         return () => clearInterval(interval)
     }, [currentSection])
@@ -115,8 +115,7 @@ export default function LandingPage() {
                         href="/keep"
                         className="bg-white/20 hover:bg-white/30 text-white px-3 py-2 sm:px-6 sm:py-3 rounded-full transition-all duration-300 backdrop-blur-sm border border-white/20 text-sm sm:text-base"
                     >
-                        <span className="hidden sm:inline">Go to App</span>
-                        <span className="sm:hidden">App</span>
+                        <span className=" sm:inline">Go to App</span>
                     </Link>
                 </div>
             </header>

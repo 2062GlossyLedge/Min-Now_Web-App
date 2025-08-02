@@ -7,12 +7,20 @@ import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
 
 // Emoji map for item types (no question marks, fallback to 🏷️)
 const itemTypeEmojis: Record<string, string> = {
-    Clothing: "👕",
-    Books: "📚",
-    Electronics: "💻",
+    Clothing_Accessories: "💍",
+    Personal_Care_Items: "🪮",
     Technology: "💻",
-    "Household Item": "🏠",
-    Vehicle: "🚗",
+    Subscriptions_Licenses: "📅",
+    Vehicles: "🚗",
+    Tools_Equipment: "🔧",
+    Outdoor_Gear: "🏕️",
+    Fitness_Equipment: "🎾",
+    Furniture_Appliances: "🪑",
+    Decor_Art: "🎄",
+    Books_Media: "📚",
+    Toys_Games: "🧸",
+    Pet_Supplies: "🐾",
+    Miscellaneous: "🗃️",
     Other: "🏷️",
 }
 

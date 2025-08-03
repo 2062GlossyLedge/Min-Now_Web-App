@@ -123,8 +123,8 @@ if prod:
     CSRF_COOKIE_SECURE = True
     # No restriction on what type of methods can be sent cross site when "none".
     # Not safe for prod - look into reverse proxy allowing fe&be be same domain
-    SESSION_COOKIE_SAMESITE = "None"
-    CSRF_COOKIE_SAMESITE = "None"
+    SESSION_COOKIE_SAMESITE = "Lax"
+    CSRF_COOKIE_SAMESITE = "Lax"
 
     # Couple more listed in link that reqs packages downloading from A+
     # refer policy
@@ -157,6 +157,10 @@ else:
 
     # Optionally, use console backend for local dev:
     # EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+    SESSION_COOKIE_SAMESITE = "Lax"
+    CSRF_COOKIE_SAMESITE = "Lax"
+
 
 # EMAIL_BACKEND = "anymail.backends.mailersend.EmailBackend"
 # ANYMAIL = {"MAILERSEND_API_TOKEN": os.getenv("MAILERSEND_API_TOKEN", "")}
@@ -263,7 +267,6 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "https://min-now.store",
     "https://www.min-now.store",
-    "https://magnificent-optimism-production.up.railway.app",
     "https://min-now-web-app.vercel.app",
 ]
 
@@ -274,7 +277,6 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "https://min-now.store",
     "https://www.min-now.store",
-    "https://magnificent-optimism-production.up.railway.app",
     "https://min-now-web-app.vercel.app",
 ]
 # Add this line to ensure WhiteNoise works in production

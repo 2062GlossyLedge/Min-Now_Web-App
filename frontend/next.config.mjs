@@ -32,7 +32,7 @@ const config = {
         return [
             {
                 source: '/api/:slug*',
-                destination: 'https://magnificent-optimism-production.up.railway.app/api/:slug*',
+                destination: `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/:slug*`,
             },
         ]
     },

@@ -28,6 +28,17 @@ const config = {
     eslint: {
         ignoreDuringBuilds: true,
     },
+    async rewrites() {
+        return [
+            {
+                source: '/api/:slug*',
+                destination: 'https://magnificent-optimism-production.up.railway.app/api/:slug*',
+            },
+        ]
+    },
 }
+
+// module.exports = {
+// }
 
 export default config

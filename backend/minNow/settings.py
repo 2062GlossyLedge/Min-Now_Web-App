@@ -63,11 +63,8 @@ SECRET_KEY = os.getenv("django_secret_key")
 
 prod = os.getenv("PROD") == "True"
 log.info(f"Environment: {'Production' if prod else 'Development'}")
-log.debug("test blue logger")
-log.debug("This is another test debug message")
-log.info("This is a test info message")
 
-# how to debug an error only occuring on prod?
+
 DEBUG = os.getenv("DEBUG") == "True"
 ROOT_URLCONF = os.getenv("ROOT_URLCONF")
 
@@ -77,6 +74,8 @@ if prod:
 
     # Add the project root directory to Python path
     sys.path.append(str(BASE_DIR))
+
+    # debugging info for disparate dev and prod environments
     # log.info(f"Production BASE_DIR: {BASE_DIR}")
     # log.info(f"Python sys.path: {sys.path}")
     # log.info(
@@ -124,9 +123,8 @@ if prod:
     CSRF_COOKIE_SECURE = True
     # No restriction on what type of methods can be sent cross site when "none".
     # Not safe for prod - look into reverse proxy allowing fe&be be same domain
-    SESSION_COOKIE_SAMESITE = "None"
-    CSRF_COOKIE_SAMESITE = "None"
-    #
+    SESSION_COOKIE_SAMESITE = "Lax"
+    CSRF_COOKIE_SAMESITE = "Lax"
 
     # Couple more listed in link that reqs packages downloading from A+
     # refer policy
@@ -134,10 +132,6 @@ if prod:
     # django docs
     # securing user file uploads. Uploadthing suffice?
 
-    # Email backend configuration
-
-    # To send error messages
-    # SERVER_EMAIL =
 else:
     # Build paths inside the project like this: BASE_DIR / 'subdir'.
     BASE_DIR = Path(__file__).resolve().parent.parent
@@ -163,6 +157,10 @@ else:
 
     # Optionally, use console backend for local dev:
     # EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+    SESSION_COOKIE_SAMESITE = "Lax"
+    CSRF_COOKIE_SAMESITE = "Lax"
+
 
 # EMAIL_BACKEND = "anymail.backends.mailersend.EmailBackend"
 # ANYMAIL = {"MAILERSEND_API_TOKEN": os.getenv("MAILERSEND_API_TOKEN", "")}
@@ -269,7 +267,6 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "https://min-now.store",
     "https://www.min-now.store",
-    "https://magnificent-optimism-production.up.railway.app",
     "https://min-now-web-app.vercel.app",
 ]
 
@@ -280,7 +277,6 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "https://min-now.store",
     "https://www.min-now.store",
-    "https://magnificent-optimism-production.up.railway.app",
     "https://min-now-web-app.vercel.app",
 ]
 # Add this line to ensure WhiteNoise works in production

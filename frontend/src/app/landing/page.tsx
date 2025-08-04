@@ -10,7 +10,7 @@ const sections = [
     {
         id: 1,
         title: "Track What You Own",
-        content: "Min-Now helps you keep track of all your belongings. Add items with photos or emojis, categorize them, and never lose track of what you have.",
+        content: "Min-Now helps you keep track of your belongings. Easily add items with our Quick Add feature.",
         images: [
             "/ownedItems2.png",
 
@@ -19,7 +19,7 @@ const sections = [
     {
         id: 2,
         title: "Smart Organization",
-        content: "Organize your items by categories like Clothing, Technology, Household Items, and more. Min-Now helps you understand your ownership patterns and usage habits.",
+        content: "Organize your items by categories and when you received them. Effortlessly understand your ownership patterns and usage habits.",
         images: [
             "/ownedItemExpanded3.png",
 
@@ -36,7 +36,7 @@ const sections = [
     {
         id: 4,
         title: "Track Your Impact",
-        content: "See the positive impact of your ownership habits with our badges system. Get rewarded for the more items you give away, as well as the longer you keep items you use often.",
+        content: "See the positive impact of your ownership habits with our badges system. Get rewarded for the more items you give away that you don't use, as well as the longer you keep items you use often.",
         images: [
 
             "/gaveBadge2.png",

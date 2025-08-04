@@ -28,6 +28,17 @@ const config = {
     eslint: {
         ignoreDuringBuilds: true,
     },
+    async rewrites() {
+        return [
+            {
+                source: '/api/:slug*',
+                destination: `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/:slug*`,
+            },
+        ]
+    },
 }
+
+// module.exports = {
+// }
 
 export default config

@@ -190,8 +190,9 @@ const KeepBadgesPage = () => {
                 </div>
 
                 {loading && <p className="text-center text-gray-500 dark:text-gray-400">Loading keep badges...</p>}
-                {error && <p className="text-center text-red-500 dark:text-red-400">Error: {error}</p>}
-
+                {process.env.DEBUG === 'true' && error && (
+                    <p className="text-center text-red-500 dark:text-red-400">Error: {error}</p>
+                )}
                 {!loading && !error && Object.keys(badgeGroups).length === 0 && (
                     <p className="text-center text-gray-500 dark:text-gray-400">No keep badges to display yet.</p>
                 )}

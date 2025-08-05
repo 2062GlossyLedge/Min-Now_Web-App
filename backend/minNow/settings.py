@@ -104,6 +104,8 @@ if prod:
     # https://adamj.eu/tech/2019/04/10/how-to-score-a+-for-security-headers-on-your-django-website/
     # https://docs.djangoproject.com/en/4.2/topics/security/
     SECURE_SSL_REDIRECT = False  # Handled by railway
+    # must satisfy three conditions to use this header: Does it strip?
+    # https://docs.djangoproject.com/en/5.2/ref/settings/#:~:text=request.META.)-,Warning,In%20other%20words%2C%20if%20end%20users%20include%20that%20header%20in%20their,-requests%2C%20the%20proxy
     SECURE_PROXY_SSL_HEADER = (
         "HTTP_X_FORWARDED_PROTO",
         "https",
@@ -113,10 +115,16 @@ if prod:
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = "DENY"
 
+    # increment gradually to avoid breaking things
+    # https://docs.djangoproject.com/en/5.2/ref/settings/#secure-hsts-seconds
     SECURE_HSTS_SECONDS = 31536000  # 1 year
     # If I have subdomains
     # SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     # SECURE_HSTS_PRELOAD =
+
+    # Won't send url of this website when clicked on a cross-origin link.
+    # Might disable getting referrer information of user sent to this site?
+    SECURE_REFERRER_POLICY = "same-origin"  # or strict-origin-when-cross-origin
 
     # session and csrf only sent over https
     SESSION_COOKIE_SECURE = True
@@ -158,10 +166,6 @@ else:
     # Optionally, use console backend for local dev:
     # EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
-    SESSION_COOKIE_SAMESITE = "Lax"
-    CSRF_COOKIE_SAMESITE = "Lax"
-
-
 # EMAIL_BACKEND = "anymail.backends.mailersend.EmailBackend"
 # ANYMAIL = {"MAILERSEND_API_TOKEN": os.getenv("MAILERSEND_API_TOKEN", "")}
 # DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
@@ -186,15 +190,15 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
 

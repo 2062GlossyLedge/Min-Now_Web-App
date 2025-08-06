@@ -111,6 +111,7 @@ if prod:
         "https",
     )  # Tell Django about the proxy
 
+    #note the ineffective settings from client side seperation. see next.config.mjs
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = "DENY"

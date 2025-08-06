@@ -13,6 +13,9 @@ import { Item } from '@/types/item'
 import Image from 'next/image'
 import { UploadButton } from '@uploadthing/react'
 import type { OurFileRouter } from '@/app/api/uploadthing/core'
+import { twMerge } from 'tailwind-merge'
+import "@uploadthing/react/styles.css";
+
 
 interface AddItemFormProps {
     onClose: () => void
@@ -391,9 +394,11 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                 ) : (
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Item Image</label>
-                                        <div className="relative">
+                                        <div className="relative flex justify-start">
                                             <UploadButton<OurFileRouter, "imageUploader">
+                                                className="mt-4 flex flex-row justify-start gap-3"
                                                 endpoint="imageUploader"
+                                                config={{ cn: twMerge }}
                                                 onClientUploadComplete={(res: any) => {
                                                     setUploadedImageUrl(res?.[0]?.url ?? res?.[0]?.fileUrl ?? null)
                                                     setIsUploading(false)
@@ -405,17 +410,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                                 onUploadBegin={() => {
                                                     setIsUploading(true)
                                                 }}
-                                                appearance={{
-                                                    button: 'mt-1 block w-full text-sm bg-white border rounded-md px-10 py-4 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600',
-                                                    allowedContent: 'text-gray-600 dark:text-gray-400 text-sm',
-                                                }}
                                             />
-                                            {/* Custom overlay text to ensure visibility - only in light mode */}
-                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none mt-1 dark:hidden">
-                                                <span className="text-gray-700 font-medium">
-                                                    Choose File
-                                                </span>
-                                            </div>
                                         </div>
                                         {uploadedImageUrl && (
                                             <div className="mt-2 relative w-24 h-24">

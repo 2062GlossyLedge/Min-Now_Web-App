@@ -1,4 +1,13 @@
+"""
+MinNow API - Items and Checkups Management
+
+This module implements the Django-Ninja API for the MinNow application.
+All endpoints are protected with Upstash rate limiting.
+
+"""
+
 from ninja import Router, Schema
+from ninja.errors import HttpError
 from typing import List, Optional, Dict
 from pydantic import RootModel, BaseModel
 from .models import ItemType, ItemStatus, TimeSpan, OwnedItem
@@ -14,11 +23,29 @@ import jwt
 from django.conf import settings
 from datetime import datetime, timedelta
 from django.middleware.csrf import get_token
+from upstash_ratelimit import Ratelimit, FixedWindow
+from upstash_redis import Redis
 
 log = logging.getLogger(__name__)
 load_dotenv()
 prod = os.getenv("PROD") == "True"
 log.info(f"API Environment: {'Production' if prod else 'Development'}")
+
+# Initialize Upstash Rate Limiter
+try:
+    print("Initializing Upstash rate limiter...")
+    redis = Redis.from_env()
+    rate_limiter = Ratelimit(
+        redis=redis,
+        limiter=FixedWindow(max_requests=10, window=10),
+        prefix="api_rate_limit",
+    )
+    log.info("Upstash rate limiter initialized successfully")
+except Exception as e:
+    log.warning(
+        f"Failed to initialize Upstash rate limiter: {e}. Rate limiting will be disabled."
+    )
+    rate_limiter = None
 
 # Use when testing swagger docs in dev. Testing frontend dev with this running will result in invalid alg for dev tokens
 # if prod:
@@ -36,6 +63,44 @@ router = Router()
 
 # Development-only router (will be conditionally added)
 dev_router = Router()
+
+
+# Rate limiting helper function
+def check_rate_limit(request):
+    """
+    Helper function to check rate limit for a request.
+    Returns tuple: (is_allowed: bool, error_response: dict or None)
+    """
+    if rate_limiter is None:
+        return True, None
+
+    # Get user ID from request
+    user_id = None
+    if hasattr(request, "user") and request.user:
+        if hasattr(request.user, "id"):
+            user_id = str(request.user.id)
+        elif hasattr(request.user, "clerk_user_id"):
+            user_id = str(request.user.clerk_user_id)
+
+    # Fallback to IP address if no user ID available
+    if not user_id:
+        user_id = request.META.get(
+            "HTTP_X_FORWARDED_FOR", request.META.get("REMOTE_ADDR", "unknown")
+        )
+        if "," in user_id:
+            user_id = user_id.split(",")[0].strip()
+
+    try:
+        response = rate_limiter.limit(user_id)
+        if not response.allowed:
+            reset_time = response.reset
+            return False, {
+                "detail": f"Rate limit exceeded. Try again after {reset_time} seconds."
+            }
+        return True, None
+    except Exception as e:
+        log.warning(f"Rate limiting check failed: {e}. Allowing request to proceed.")
+        return True, None
 
 
 # convert django models to pydantic schemas
@@ -139,15 +204,22 @@ class DonatedBadgesResponseSchema(RootModel[Dict[str, List[BadgeProgressSchema]]
     pass
 
 
-@router.get("/csrf-token", response={200: dict})
+@router.get("/csrf-token", response={200: dict, 429: dict})
 def get_csrf_token(request):
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        return 429, error_response
+
     token = get_token(request)
-    # print("CSRF Token:", token)
-    return {"token": token}
+    return 200, {"token": token}
 
 
-@router.post("/items", response={201: OwnedItemSchema}, auth=ClerkAuth())
+@router.post("/items", response={201: OwnedItemSchema, 429: dict}, auth=ClerkAuth())
 def create_item(request, payload: OwnedItemCreateSchema):
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        return 429, error_response
+
     user = request.user
     item = ItemService.create_item(
         user=user,
@@ -163,10 +235,14 @@ def create_item(request, payload: OwnedItemCreateSchema):
 
 @router.get(
     "/items/{item_id}",
-    response={200: OwnedItemSchema, 404: dict},
+    response={200: OwnedItemSchema, 404: dict, 429: dict},
     auth=ClerkAuth(),
 )
 def get_item(request, item_id: UUID):
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        return 429, error_response
+
     item = ItemService.get_item(item_id)
     if not item:
         return 404, {"detail": "Item not found"}
@@ -175,10 +251,14 @@ def get_item(request, item_id: UUID):
 
 @router.put(
     "/items/{item_id}",
-    response={200: OwnedItemSchema, 404: dict},
+    response={200: OwnedItemSchema, 404: dict, 429: dict},
     auth=ClerkAuth(),
 )
 def update_item(request, item_id: UUID, payload: OwnedItemUpdateSchema):
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        return 429, error_response
+
     update_data = payload.dict(exclude_unset=True)
     item = ItemService.update_item(item_id, **update_data)
     if not item:
@@ -186,18 +266,30 @@ def update_item(request, item_id: UUID, payload: OwnedItemUpdateSchema):
     return 200, OwnedItemSchema.from_orm(item)
 
 
-@router.delete("/items/{item_id}", response={200: dict, 404: dict}, auth=ClerkAuth())
+@router.delete(
+    "/items/{item_id}", response={200: dict, 404: dict, 429: dict}, auth=ClerkAuth()
+)
 def delete_item(request, item_id: UUID):
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        return 429, error_response
+
     success = ItemService.delete_item(item_id)
     if not success:
         return 404, {"detail": "Item not found"}
     return 200, {"detail": "Item deleted successfully"}
 
 
-@router.get("/items", response=List[OwnedItemSchema], auth=ClerkAuth())
+@router.get(
+    "/items", response={200: List[OwnedItemSchema], 429: dict}, auth=ClerkAuth()
+)
 def list_items(
     request, status: Optional[ItemStatus] = None, item_type: Optional[ItemType] = None
 ):
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        return 429, error_response
+
     user = request.user  # This should be set by ClerkAuth
 
     # Filter items by the authenticated user
@@ -205,15 +297,29 @@ def list_items(
     return [OwnedItemSchema.from_orm(item) for item in items]
 
 
-@router.get("/badges/donated", response=DonatedBadgesResponseSchema, auth=ClerkAuth())
+@router.get(
+    "/badges/donated",
+    response={200: DonatedBadgesResponseSchema, 429: dict},
+    auth=ClerkAuth(),
+)
 def get_donated_badges(request):
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        return 429, error_response
+
     user = request.user
     donated_badges = OwnedItem.donated_badge_progress(user)
     return donated_badges
 
 
-@router.post("/checkups", response={201: CheckupSchema, 400: dict}, auth=ClerkAuth())
+@router.post(
+    "/checkups", response={201: CheckupSchema, 400: dict, 429: dict}, auth=ClerkAuth()
+)
 def create_checkup(request, payload: CheckupCreateSchema):
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        return 429, error_response
+
     # Check if user already has a checkup of this type
     existing_checkup = CheckupService.get_checkups_by_type(
         request.user, payload.checkup_type
@@ -231,10 +337,14 @@ def create_checkup(request, payload: CheckupCreateSchema):
 
 @router.get(
     "/checkups/{checkup_id}",
-    response={200: CheckupSchema, 404: dict},
+    response={200: CheckupSchema, 404: dict, 429: dict},
     auth=ClerkAuth(),
 )
 def get_checkup(request, checkup_id: int):
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        return 429, error_response
+
     checkup = CheckupService.get_checkup(checkup_id)
     if not checkup or checkup.user != request.user:
         return 404, {"detail": "Checkup not found"}
@@ -243,10 +353,14 @@ def get_checkup(request, checkup_id: int):
 
 @router.put(
     "/checkups/{checkup_id}/interval",
-    response={200: CheckupSchema, 404: dict},
+    response={200: CheckupSchema, 404: dict, 429: dict},
     auth=ClerkAuth(),
 )
 def update_checkup_interval(request, checkup_id: int, payload: CheckupUpdateSchema):
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        return 429, error_response
+
     checkup = CheckupService.get_checkup(checkup_id)
     if not checkup or checkup.user != request.user:
         return 404, {"detail": "Checkup not found"}
@@ -258,10 +372,14 @@ def update_checkup_interval(request, checkup_id: int, payload: CheckupUpdateSche
 
 @router.post(
     "/checkups/{checkup_id}/complete",
-    response={200: CheckupSchema, 404: dict},
+    response={200: CheckupSchema, 404: dict, 429: dict},
     auth=ClerkAuth(),
 )
 def complete_checkup(request, checkup_id: int):
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        return 429, error_response
+
     checkup = CheckupService.get_checkup(checkup_id)
     if not checkup or checkup.user != request.user:
         return 404, {"detail": "Checkup not found"}
@@ -274,8 +392,14 @@ class CheckupTypeSchema(Schema):
     type: str
 
 
-@router.get("/checkups", response=List[CheckupSchema], auth=ClerkAuth())
+@router.get(
+    "/checkups", response={200: List[CheckupSchema], 429: dict}, auth=ClerkAuth()
+)
 def list_checkups(request, type: Optional[str] = None):
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        return 429, error_response
+
     if type:
         checkups = CheckupService.get_checkups_by_type(
             user=request.user, checkup_type=type
@@ -297,10 +421,14 @@ class EmailResponseSchema(Schema):
 # This is a development-only endpoint for testing email functionality
 @dev_router.post(
     "/send-test-email",
-    response={200: List[EmailResponseSchema]},
+    response={200: List[EmailResponseSchema], 429: dict},
     auth=ClerkAuth(),
 )
 def send_test_checkup_email(request):
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        return 429, error_response
+
     user = request.user
 
     results = CheckupService.check_and_send_due_emails(user)
@@ -311,8 +439,12 @@ class AgentPromptSchema(Schema):
     prompt: str
 
 
-@dev_router.post("/agent-add-item", auth=ClerkAuth())
+@dev_router.post("/agent-add-item", response={200: dict, 429: dict}, auth=ClerkAuth())
 def agent_add_item(request, payload: AgentPromptSchema):
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        return 429, error_response
+
     auth_header = request.headers.get("Authorization")
     jwt_token = None
     if auth_header and auth_header.startswith("Bearer "):
@@ -326,11 +458,15 @@ class AgentBatchPromptsSchema(Schema):
     prompts: Dict[str, str]
 
 
-@router.post("/agent-add-item-batch", auth=ClerkAuth())
+@router.post("/agent-add-item-batch", response={200: dict, 429: dict}, auth=ClerkAuth())
 def agent_add_item_batch(request, payload: AgentBatchPromptsSchema):
     """
     Accepts a dict of prompts, runs the agent for each, and returns a dict of results.
     """
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        return 429, error_response
+
     auth_header = request.headers.get("Authorization")
     jwt_token = None
     if auth_header and auth_header.startswith("Bearer "):
@@ -355,12 +491,18 @@ if not prod:
         email: str
         message: str = "Use this JWT token in Swagger Authorize button"
 
-    @dev_router.post("/auth/clerk-login", response={200: ClerkLoginResponse, 401: dict})
+    @dev_router.post(
+        "/auth/clerk-login", response={200: ClerkLoginResponse, 401: dict, 429: dict}
+    )
     def clerk_login(request, data: ClerkLoginRequest):
         """
         Development-only endpoint to get a Clerk JWT token for testing.
         This creates a session and then gets a JWT token for the user.
         """
+        is_allowed, error_response = check_rate_limit(request)
+        if not is_allowed:
+            return 429, error_response
+
         try:
             # Initialize Clerk SDK
             import os

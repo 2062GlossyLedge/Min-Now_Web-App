@@ -17,6 +17,7 @@ import { twMerge } from 'tailwind-merge'
 import "@uploadthing/react/styles.css";
 
 
+
 interface AddItemFormProps {
     onClose: () => void
     onItemAdded: (newItem: Item) => void
@@ -61,6 +62,8 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const [selectedYear, setSelectedYear] = useState<string>('')
     const [startYear, setStartYear] = useState<string>('')
     const [endYear, setEndYear] = useState<string>('')
+    const [manualAddError, setManualAddError] = useState<string | null>(null)
+    const [quickBatchError, setQuickBatchError] = useState<string | null>(null)
 
     const itemTypes = [
         'Clothing & Accessories',
@@ -164,14 +167,17 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setIsSubmitting(true)
+        setManualAddError(null) // Clear any previous errors
 
         const calculatedDate = calculateReceivedDate()
         if (!calculatedDate) {
             console.error('Received date is required')
+            setManualAddError('Received date is required')
             setIsSubmitting(false)
             return
         }
         if (!useEmoji && !uploadedImageUrl) {
+            setManualAddError('Please select an emoji or upload an image')
             setIsSubmitting(false)
             return
         }
@@ -204,6 +210,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
             }
         } catch (error) {
             console.error('Error adding item:', error)
+            setManualAddError(error instanceof Error ? error.message : 'Failed to add item')
         } finally {
             setIsSubmitting(false)
         }
@@ -277,29 +284,39 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
             onClose()
             return
         }
-        const { agentAddItemsBatchWithHandlers } = await import('@/utils/api')
-        await agentAddItemsBatchWithHandlers(
-            quickPromptsDict,
-            authenticatedFetch,
-            {
-                onSuccess: () => {
-                    triggerRefresh()
-                    quickItemsToAdd.forEach((item) => {
-                        onItemAdded({
-                            name: item.name,
-                            itemType: '',
-                            pictureUrl: '',
-                            status: 'Keep',
-                            ownershipDuration: '',
-                            lastUsedDuration: '',
-                            id: Math.random().toString(), // temp id
-                        } as any)
-                    })
-                    onClose()
-                },
-                // Optionally, you can add onSubmitting/onError handlers if you want to do more
-            }
-        )
+
+        setQuickBatchError(null) // Clear any previous errors
+
+        try {
+            const { agentAddItemsBatchWithHandlers } = await import('@/utils/api')
+            await agentAddItemsBatchWithHandlers(
+                quickPromptsDict,
+                authenticatedFetch,
+                {
+                    onSuccess: () => {
+                        triggerRefresh()
+                        quickItemsToAdd.forEach((item) => {
+                            onItemAdded({
+                                name: item.name,
+                                itemType: '',
+                                pictureUrl: '',
+                                status: 'Keep',
+                                ownershipDuration: '',
+                                lastUsedDuration: '',
+                                id: Math.random().toString(), // temp id
+                            } as any)
+                        })
+                        onClose()
+                    },
+                    onError: (error: string) => {
+                        setQuickBatchError(error)
+                    }
+                }
+            )
+        } catch (error) {
+            console.error('Error in quick add batch:', error)
+            setQuickBatchError(error instanceof Error ? error.message : 'Failed to add items')
+        }
     }
 
     // Month and year options
@@ -315,14 +332,22 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                 <div className="flex mb-4">
                     <button
                         className={`px-4 py-2 rounded-tl-lg border-b-2 font-semibold focus:outline-none ${activeTab === 'manual' ? 'border-teal-500 text-teal-600 dark:text-teal-300' : 'border-transparent text-gray-500 dark:text-gray-400'}`}
-                        onClick={() => setActiveTab('manual')}
+                        onClick={() => {
+                            setActiveTab('manual')
+                            setManualAddError(null)
+                            setQuickBatchError(null)
+                        }}
                         type="button"
                     >
                         Manual Add
                     </button>
                     <button
                         className={`px-4 py-2 rounded-tr-lg border-b-2 font-semibold focus:outline-none ${activeTab === 'quick' ? 'border-purple-500 text-purple-600 dark:text-purple-300' : 'border-transparent text-gray-500 dark:text-gray-400'}`}
-                        onClick={() => setActiveTab('quick')}
+                        onClick={() => {
+                            setActiveTab('quick')
+                            setManualAddError(null)
+                            setQuickBatchError(null)
+                        }}
                         type="button"
                     >
                         Quick Add
@@ -332,6 +357,15 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                 {activeTab === 'manual' && (
                     <>
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Add New Item</h2>
+                        
+                        {/* Manual Add Error Display */}
+                        {manualAddError && (
+                            <p className="text-center text-red-500 dark:text-red-400 mb-4">Error</p>
+                        )}
+                        {process.env.NEXT_PUBLIC_DEBUG === 'true' && manualAddError && (
+                            <p className="text-center text-red-500 dark:text-red-400 mb-4">Error: {manualAddError}</p>
+                        )}
+                        
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Item Name</label>
@@ -654,6 +688,14 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
 
                 {activeTab === 'quick' && (
                     <>
+                        {/* Quick Add Error Display */}
+                        {quickBatchError && (
+                            <p className="text-center text-red-500 dark:text-red-400 mb-4">Error</p>
+                        )}
+                        {process.env.NEXT_PUBLIC_DEBUG === 'true' && quickBatchError && (
+                            <p className="text-center text-red-500 dark:text-red-400 mb-4">Error: {quickBatchError}</p>
+                        )}
+                        
                         {/* Quick Add Card */}
                         <div className="bg-gray-50 dark:bg-gray-900 rounded-lg shadow p-4 mb-4">
                             {/* Quick Add Item Button */}

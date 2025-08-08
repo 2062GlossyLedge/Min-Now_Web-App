@@ -1,7 +1,7 @@
 import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { UploadThingError } from "uploadthing/server";
 import { auth } from "@clerk/nextjs/server";
-import { ratelimit } from "../../../server/ratelimit";
+import { ratelimit } from "~ratelimit";
 
 const f = createUploadthing();
 

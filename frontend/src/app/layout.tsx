@@ -6,6 +6,7 @@ import Navigation from '../components/Navigation'
 import { ClerkProvider } from '@clerk/nextjs'
 import { ItemUpdateProvider } from '../contexts/ItemUpdateContext'
 import { Toaster } from '@/components/ui/sonner'
+import { HydrationWrapper } from '@/app/HydrationWrapper'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -17,19 +18,6 @@ export const metadata: Metadata = {
     },
 }
 
-// Inline script to set the correct theme class on <html> before hydration
-const setInitialTheme = `
-(function() {
-  try {
-    var theme = localStorage.getItem('theme');
-    if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  } catch (e) {}
-})();
-`;
 
 export default function RootLayout({
     children,
@@ -39,21 +27,20 @@ export default function RootLayout({
     return (
         <ClerkProvider>
             <html lang="en" suppressHydrationWarning>
-                <head>
-                    {/* Inline script to set theme before hydration using Tailwind darkmode clas */}
-                    <script dangerouslySetInnerHTML={{ __html: setInitialTheme }} />
-                </head>
                 <body className={inter.className}>
-                    <ItemUpdateProvider>
-                        <ThemeProvider>
-                            <Navigation />
-                            <main className="min-h-screen">
-                                {children}
-                            </main>
-                            {/* Sonner Toaster for notifications */}
-                            <Toaster />
-                        </ThemeProvider>
-                    </ItemUpdateProvider>
+                    {/* HydrationWrapper mounts first, blocking all children until mounted */}
+                    <HydrationWrapper>
+                        <ItemUpdateProvider>
+                            <ThemeProvider>
+                                <Navigation />
+                                <main className="min-h-screen">
+                                    {children}
+                                </main>
+                                {/* Sonner Toaster for notifications */}
+                                <Toaster />
+                            </ThemeProvider>
+                        </ItemUpdateProvider>
+                    </HydrationWrapper>
                 </body>
             </html>
         </ClerkProvider>

@@ -357,7 +357,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                 {activeTab === 'manual' && (
                     <>
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Add New Item</h2>
-                        
+
                         {/* Manual Add Error Display */}
                         {manualAddError && (
                             <p className="text-center text-red-500 dark:text-red-400 mb-4">Error</p>
@@ -365,7 +365,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                         {process.env.NEXT_PUBLIC_DEBUG === 'true' && manualAddError && (
                             <p className="text-center text-red-500 dark:text-red-400 mb-4">Error: {manualAddError}</p>
                         )}
-                        
+
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Item Name</label>
@@ -695,7 +695,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                         {process.env.NEXT_PUBLIC_DEBUG === 'true' && quickBatchError && (
                             <p className="text-center text-red-500 dark:text-red-400 mb-4">Error: {quickBatchError}</p>
                         )}
-                        
+
                         {/* Quick Add Card */}
                         <div className="bg-gray-50 dark:bg-gray-900 rounded-lg shadow p-4 mb-4">
                             {/* Quick Add Item Button */}

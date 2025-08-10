@@ -136,12 +136,8 @@ def create_item_directly(user_id: str, item_data: Dict[str, Any]) -> Dict[str, A
                 "picture_url": item.picture_url,
                 "item_type": item.item_type,
                 "status": item.status,
-                "item_received_date": (
-                    item.item_received_date.isoformat()
-                    if item.item_received_date
-                    else None
-                ),
-                "last_used": item.last_used.isoformat() if item.last_used else None,
+                "item_received_date": (item.item_received_date),
+                "last_used": item.last_used,
                 "user": str(item.user.id),
             }
         }
@@ -355,7 +351,7 @@ def run_agent(batch_prompts: dict, jwt_token: str = None):
     global llm_with_tools
     log.info("Initializing LLM with tools...")
     llm_with_tools = ChatOpenAI(
-        model="gpt-4.1", temperature=0, request_timeout=120
+        model="gpt-4.1", temperature=1, request_timeout=120, max_completion_tokens=200
     ).bind_tools([tool])
     log.info("LLM with tools initialized successfully")
 
@@ -487,23 +483,3 @@ def run_agent(batch_prompts: dict, jwt_token: str = None):
     }
     log.info(f"Final result: {result}")
     return result
-
-
-if __name__ == "__main__":
-    # Sample batch prompts: key is identifier, value is prompt
-    batch_prompts = {
-        "1": "Add an item: name is 'Red Apple', received on 2025-06-29.",
-        "2": "Add an item: name is 'Blue Pen', received on 2025-06-29.",
-        "3": "Add an item: name is 'Notebook', received on 2025-06-29.",
-    }
-    log.info("Starting main execution with sample batch prompts")
-    try:
-        result = run_agent(
-            batch_prompts,
-            "eyJhbGciOiJSUzI1NiIsImNhdCI6ImNsX0I3ZDRQRDExMUFBQSIsImtpZCI6Imluc18yeDdRVmt6cFFPclFtanlLWU5xU0h6V1ViQTIiLCJ0eXAiOiJKV1QifQ.eyJhenAiOiJodHRwOi8vbG9jYWxob3N0OjMwMDAiLCJleHAiOjE3NTEzNDYzNjAsImZ2YSI6WzUyNjEsLTFdLCJpYXQiOjE3NTEzNDYzMDAsImlzcyI6Imh0dHBzOi8vdGVhY2hpbmctc3R1cmdlb24tMjUuY2xlcmsuYWNjb3VudHMuZGV2IiwibmJmIjoxNzUxMzQ2MjkwLCJzaWQiOiJzZXNzXzJ6NXA4MG9tSEJiS2JFWTBZSWRTdG1hZW14YyIsInN1YiI6InVzZXJfMnhMUHF2S2Y1MjZGYm1oU2xJaHRLRU5LelYzIiwidiI6Mn0.jezgv6UQWjXS3r2N3IihDG0w8DuBFZNAFZMYBiU74YiyHZGUrZeit3gYBUtwwDS5eB5-fpxPbvLNiH37Fwc-T1RjG1Cdd5bBGsiKp9Uk7QOekAIZ4DLMu5p0xatndQPvqKlsTRYIUK4yTLEm99C81ovMH_7zw7WvvSetbwRhCAUJ406ZcY4tsxWPhXjct_GoObfu_9qYswmFmzsTolGx8Q-yQ1-S-dQOeLSmzy46LpSjtNrL3PzmudP2oaZXOt3cJE3-7JgY4z5YZjk_o4QKGXnyhdGeoYB5DHszNwEDNNSsYv0UUl6mZE5GcHhnsGCsNxkIA_b59KumOfpQCUyCwA",
-        )
-        log.info("Main execution completed successfully")
-        print("Batch run result:", result)
-    except Exception as e:
-        log.error(f"Main execution failed: {type(e).__name__} - {str(e)}")
-        raise

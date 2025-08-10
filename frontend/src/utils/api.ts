@@ -299,7 +299,7 @@ export const fetchItemById = async (id: string, fetchFn: typeof fetchWithCsrf): 
 export const agentAddItem = async (prompt: string, fetchFn: typeof fetchWithCsrf): Promise<ApiResponse<any>> => {
     try {
         console.log('prompt to be sent:', prompt)
-        const response = await fetchFn('/api/agent-add-item', {
+        const response = await fetchFn('/api/dev/agent-add-item', {
             method: 'POST',
             body: JSON.stringify({ prompt }),
         })

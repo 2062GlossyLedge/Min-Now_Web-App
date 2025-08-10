@@ -449,7 +449,13 @@ def agent_add_item(request, payload: AgentPromptSchema):
     jwt_token = None
     if auth_header and auth_header.startswith("Bearer "):
         jwt_token = auth_header.split(" ")[1]
-    result = run_agent(payload.prompt, jwt_token)
+
+    # If prompt is a string, convert to dict with a default key
+    prompt_data = payload.prompt
+    if isinstance(prompt_data, str):
+        prompt_data = {"prompt": prompt_data}
+
+    result = run_agent(prompt_data, jwt_token)
     return result
 
 

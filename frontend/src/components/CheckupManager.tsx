@@ -312,14 +312,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                                 {items.map((item) => (
                                     <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                                         <div className="flex items-center space-x-3">
-                                            {/* Show item image if available */}
-                                            {item.pictureUrl && (
-                                                <img
-                                                    src={item.pictureUrl}
-                                                    alt={item.name}
-                                                    className="w-12 h-12 object-cover rounded"
-                                                />
-                                            )}
+
                                             <div>
                                                 <p className="font-medium text-gray-900 dark:text-gray-100">{item.name}</p>
                                                 <p className="text-sm text-gray-500 dark:text-gray-400">{item.itemType}</p>

@@ -34,6 +34,11 @@ const config = {
                 source: '/api/:slug*',
                 destination: `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/:slug*`,
             },
+            {
+                source: '/django-api/:slug*',
+                destination: `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/django-api/:slug*`,
+            },
+
         ]
     },
     async headers() {

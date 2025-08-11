@@ -19,12 +19,17 @@ import os
 import logging
 from .addItemAgent import run_agent
 from django.contrib.auth import authenticate
+from django.http import JsonResponse
 import jwt
 from django.conf import settings
 from datetime import datetime, timedelta
 from django.middleware.csrf import get_token
 from upstash_ratelimit import Ratelimit, FixedWindow
 from upstash_redis import Redis
+
+from django.views.decorators.http import require_http_methods
+from django.utils.decorators import method_decorator
+from minNow.auth import jwt_required
 
 log = logging.getLogger(__name__)
 load_dotenv()
@@ -280,9 +285,10 @@ def delete_item(request, item_id: UUID):
     return 200, {"detail": "Item deleted successfully"}
 
 
-@router.get(
-    "/items", response={200: List[OwnedItemSchema], 429: dict}, auth=ClerkAuth()
-)
+# gets all items for the authenticated user
+# can filter by status and item_type
+#@method_decorator(jwt_required, name="dispatch")
+@router.get("/items", response={200: List[OwnedItemSchema], 429: dict})
 def list_items(
     request, status: Optional[ItemStatus] = None, item_type: Optional[ItemType] = None
 ):
@@ -290,7 +296,7 @@ def list_items(
     if not is_allowed:
         return 429, error_response
 
-    user = request.user  # This should be set by ClerkAuth
+    user = request.user.id  # This should be set by ClerkAuth
 
     # Filter items by the authenticated user
     items = ItemService.get_items_for_user(user, status=status, item_type=item_type)
@@ -697,3 +703,75 @@ if not prod:
         except Exception as e:
             log.error(f"Error creating Clerk JWT: {str(e)}")
             return 401, {"detail": f"JWT creation failed: {str(e)}"}
+
+
+# New Django-based JWT authenticated endpoints (alternative approach)
+# These endpoints demonstrate an alternative to the Django Ninja approach above
+# Key differences:
+# 1. Uses Django views instead of Ninja API
+# 2. Uses JwtAuthBackend for authentication instead of ClerkAuth
+# 3. No CSRF tokens required - just JWT Authorization header
+# 4. Can be called from frontend with: Authorization: Bearer <clerk_jwt_token>
+
+from django.views.decorators.http import require_http_methods
+from django.utils.decorators import method_decorator
+from minNow.auth import jwt_required
+import json
+
+
+@jwt_required
+def clerk_jwt_test(request):
+    """
+    Test endpoint to verify JWT authentication is working.
+    Returns the user ID from the authenticated request.
+    """
+    data = {
+        "userId": request.user.clerk_id,
+        "username": request.user.username,
+        "email": request.user.email,
+    }
+    return JsonResponse(data)
+
+
+@jwt_required
+@require_http_methods(["GET"])
+def list_items_django(request):
+    """
+    Django view version of list_items endpoint using JWT authentication.
+    Alternative to the ninja-based endpoint.
+    """
+    try:
+        # Parse query parameters
+        status_param = request.GET.get("status")
+        item_type_param = request.GET.get("item_type")
+
+        # Convert string parameters to enum values if provided
+        status = None
+        if status_param:
+            try:
+                status = ItemStatus(status_param)
+            except ValueError:
+                return JsonResponse({"error": "Invalid status value"}, status=400)
+
+        item_type = None
+        if item_type_param:
+            try:
+                item_type = ItemType(item_type_param)
+            except ValueError:
+                return JsonResponse({"error": "Invalid item_type value"}, status=400)
+
+        # Get items for the authenticated user
+        user = request.user
+        items = ItemService.get_items_for_user(user, status=status, item_type=item_type)
+
+        # Convert to OwnedItemSchema format (same as list_items ninja endpoint)
+        items_schemas = [OwnedItemSchema.from_orm(item) for item in items]
+        
+        # Convert schemas to dictionaries for JSON serialization
+        items_data = [schema.dict() for schema in items_schemas]
+
+        return JsonResponse(items_data, safe=False)
+
+    except Exception as e:
+        log.error(f"Error in list_items_django: {str(e)}")
+        return JsonResponse({"error": "Internal server error"}, status=500)

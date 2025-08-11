@@ -6,10 +6,10 @@ import AddItemForm from '../../components/AddItemForm'
 import FilterBar from '../../components/FilterBar'
 import CheckupManager from '../../components/CheckupManager'
 import AuthMessage from '../../components/AuthMessage'
-import { updateItem, deleteItem, fetchItemsByStatus, createItem, sendTestCheckupEmail, agentAddItem, createHandleEdit } from '@/utils/api'
+import { updateItem, deleteItem, fetchItemsByStatus, createItem, sendTestCheckupEmail, agentAddItem, createHandleEdit, fetchItemsByStatusJWT, testClerkJWT } from '@/utils/api'
 import { Item } from '@/types/item'
 import { useCheckupStatus } from '@/hooks/useCheckupStatus'
-import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
+import { SignedIn, SignedOut, useUser, useAuth } from '@clerk/nextjs'
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
 import { useRouter } from 'next/navigation'
 import { useItemUpdate } from '@/contexts/ItemUpdateContext'
@@ -25,6 +25,7 @@ export default function KeepView() {
     const [showFilters, setShowFilters] = useState(false)
     const { authenticatedFetch } = useAuthenticatedFetch()
     const { isSignedIn, isLoaded } = useUser() // Get user authentication status
+    const { getToken } = useAuth() // New JWT authentication approach
     const router = useRouter()
     const [emailStatus, setEmailStatus] = useState<string | null>(null)
     const { refreshTrigger, clearUpdatedItems } = useItemUpdate()
@@ -39,8 +40,54 @@ export default function KeepView() {
         }
     }, [isLoaded, isSignedIn])
 
+    // useEffect(() => {
+    //     const fetchItems = async () => {
+    //         // Only fetch items if user is signed in and Clerk has loaded
+    //         if (!isLoaded || !isSignedIn) {
+    //             setLoading(false)
+    //             return
+    //         }
+
+    //         setLoading(true)
+    //         setError(null)
+    //         try {
+    //             const { data, error } = await fetchItemsByStatus('Keep', authenticatedFetch)
+    //             if (error) {
+    //                 console.error(error)
+    //                 setError(error)
+    //                 setItems([])
+    //             } else {
+    //                 setItems(data || [])
+    //             }
+    //         } catch (error) {
+    //             console.error('Error fetching items:', error)
+    //             setError('Failed to load items.')
+    //             setItems([])
+    //         } finally {
+    //             setLoading(false)
+    //         }
+    //     }
+
+    //     fetchItems()
+
+    //     // Clear updated items after refresh
+    //     if (refreshTrigger > 0) {
+    //         clearUpdatedItems()
+    //     }
+    // }, [authenticatedFetch, refreshTrigger, isLoaded, isSignedIn]) // Add authentication dependencies
+
+    // ALTERNATIVE JWT AUTHENTICATION APPROACH (COMMENTED OUT FOR TESTING)
+    // This approach uses Clerk's getToken() directly without CSRF tokens
+    // 
+    // TO USE THE NEW JWT APPROACH:
+    // 1. Comment out the current useEffect above that uses fetchItemsByStatus
+    // 2. Uncomment the useEffect below that uses fetchItemsByStatusJWT  
+    // 3. The new approach fetches from /django-api/items instead of /api/items
+    // 4. It uses JWT tokens from Clerk directly instead of CSRF tokens
+    // 5. No additional authenticated fetch wrapper is needed
+
     useEffect(() => {
-        const fetchItems = async () => {
+        const fetchItemsWithJWT = async () => {
             // Only fetch items if user is signed in and Clerk has loaded
             if (!isLoaded || !isSignedIn) {
                 setLoading(false)
@@ -50,30 +97,49 @@ export default function KeepView() {
             setLoading(true)
             setError(null)
             try {
-                const { data, error } = await fetchItemsByStatus('Keep', authenticatedFetch)
+                // Test JWT authentication first
+                const jwtTest = await testClerkJWT(getToken)
+                console.log('JWT Test Result:', jwtTest)
+
+                // Fetch items using JWT
+                const { data, error } = await fetchItemsByStatusJWT('Keep', getToken)
                 if (error) {
-                    console.error(error)
+                    console.error('JWT Fetch Error:', error)
                     setError(error)
                     setItems([])
                 } else {
-                    setItems(data || [])
+                    console.log('JWT Fetch Success:', data)
+                    // Map API response to frontend format
+                    const mappedItems = (data || []).map((item: any) => ({
+                        ...item,
+                        // Map snake_case API fields to camelCase frontend fields
+                        itemType: item.item_type || item.itemType,
+                        pictureUrl: item.picture_url || item.pictureUrl,
+                        ownershipDuration: item.ownership_duration?.description || item.ownershipDuration || 'Not specified',
+                        lastUsedDuration: item.last_used_duration?.description || item.lastUsedDuration || 'N/A',
+                        receivedDate: item.item_received_date || item.receivedDate,
+                        ownershipDurationGoalMonths: item.ownership_duration_goal_months || item.ownershipDurationGoalMonths || 12,
+                        ownershipDurationGoalProgress: item.ownership_duration_goal_progress || item.ownershipDurationGoalProgress || 0,
+                    }))
+                    setItems(mappedItems)
                 }
             } catch (error) {
-                console.error('Error fetching items:', error)
-                setError('Failed to load items.')
+                console.error('Error fetching items with JWT:', error)
+                setError('Failed to load items with JWT.')
                 setItems([])
             } finally {
                 setLoading(false)
             }
         }
 
-        fetchItems()
+        fetchItemsWithJWT()
 
         // Clear updated items after refresh
         if (refreshTrigger > 0) {
             clearUpdatedItems()
         }
-    }, [authenticatedFetch, refreshTrigger, isLoaded, isSignedIn]) // Add authentication dependencies
+    }, [getToken, refreshTrigger, isLoaded, isSignedIn])
+
 
     const handleStatusChange = async (id: string, newStatus: string) => {
         try {

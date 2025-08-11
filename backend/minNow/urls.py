@@ -31,6 +31,9 @@ from dotenv import load_dotenv
 import os
 from ninja import Schema
 
+# Import new Django views
+from items.api import clerk_jwt_test, list_items_django
+
 load_dotenv()
 prod = os.getenv("PROD") == "True"
 
@@ -69,4 +72,9 @@ urlpatterns = [
     path("", home, name="home"),
     path("admin/", admin.site.urls),
     path("api/", api.urls),
+    # New Django JWT authenticated endpoints (alternative approach)
+    # These demonstrate an alternative to ninja-based auth using JwtAuthBackend
+    # Test with: curl -H "Authorization: Bearer <clerk_jwt>" http://localhost:8000/django-api/clerk_jwt
+    path("django-api/clerk_jwt", clerk_jwt_test, name="clerk_jwt_test"),
+    path("django-api/items", list_items_django, name="list_items_django"),
 ]

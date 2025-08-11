@@ -34,6 +34,7 @@ interface EmailResponse {
 }
 
 // utility csrf fetching for put, post, delete reqs
+// to be called every request
 export const fetchWithCsrf = async (url: string, options: RequestInit = {}) => {
     // First, ensure we have a CSRF token
     try {
@@ -403,6 +404,88 @@ export const agentAddItemsBatchWithHandlers = async (
         toast.error('Failed to add items via Quick Add')
         handlers.onError?.('Failed to add items via Quick Add')
         return { error: 'Failed to add items via Quick Add' }
+    }
+}
+
+// New JWT-based authentication functions (alternative approach)
+// These functions use Clerk's getToken() directly without CSRF tokens
+// 
+// COMPARISON:
+// Current approach: fetchItemsByStatus() -> uses authenticatedFetch -> includes CSRF tokens -> calls /api/items
+// New approach: fetchItemsByStatusJWT() -> uses getToken() -> JWT only -> calls /django-api/items
+//
+// BENEFITS OF NEW APPROACH:
+// 1. Simpler - no CSRF token management needed
+// 2. More standard - uses JWT Authorization header
+// 3. Lighter - fewer HTTP requests (no CSRF token fetch)
+// 4. More secure - JWT tokens are stateless and self-contained
+
+export const fetchWithJWT = async (url: string, token: string, options: RequestInit = {}) => {
+    const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        ...options.headers,
+    }
+
+    const response = await fetch(url, {
+        ...options,
+        headers,
+    })
+
+    return response
+}
+
+// Test endpoint to verify JWT authentication
+export const testClerkJWT = async (getToken: () => Promise<string | null>): Promise<ApiResponse<any>> => {
+    try {
+        const token = await getToken()
+        if (!token) {
+            return { error: 'No authentication token available' }
+        }
+
+        const response = await fetchWithJWT(
+            `${process.env.NEXT_PUBLIC_API_URL}/django-api/clerk_jwt`,
+            token
+        )
+
+        if (!response.ok) {
+            return { error: `HTTP ${response.status}: ${response.statusText}` }
+        }
+
+        const data = await response.json()
+        return { data }
+    } catch (error) {
+        console.error('Error testing JWT:', error)
+        return { error: 'Failed to test JWT authentication' }
+    }
+}
+
+// Fetch items using JWT authentication (alternative to fetchItemsByStatus)
+export const fetchItemsByStatusJWT = async (
+    status: string,
+    getToken: () => Promise<string | null>
+): Promise<ApiResponse<Item[]>> => {
+    try {
+        const token = await getToken()
+        if (!token) {
+            return { error: 'No authentication token available' }
+        }
+
+        const params = new URLSearchParams({ status })
+        const response = await fetchWithJWT(
+            `${process.env.NEXT_PUBLIC_API_URL}/django-api/items?${params}`,
+            token
+        )
+
+        if (!response.ok) {
+            return { error: `HTTP ${response.status}: ${response.statusText}` }
+        }
+
+        const data = await response.json()
+        return { data }
+    } catch (error) {
+        console.error('Error fetching items with JWT:', error)
+        return { error: 'Failed to fetch items' }
     }
 }
 

@@ -111,7 +111,7 @@ if prod:
         "https",
     )  # Tell Django about the proxy
 
-    #note the ineffective settings from client side seperation. see next.config.mjs
+    # note the ineffective settings from client side seperation. see next.config.mjs
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = "DENY"
@@ -135,11 +135,8 @@ if prod:
     SESSION_COOKIE_SAMESITE = "Lax"
     CSRF_COOKIE_SAMESITE = "Lax"
 
-    # Couple more listed in link that reqs packages downloading from A+
-    # refer policy
+    CSRF_HTTPONLY = True  # Prevents CSRF cookie from being accessed via JavaScript
 
-    # django docs
-    # securing user file uploads. Uploadthing suffice?
 
 else:
     # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -167,9 +164,12 @@ else:
     # Optionally, use console backend for local dev:
     # EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
-# EMAIL_BACKEND = "anymail.backends.mailersend.EmailBackend"
-# ANYMAIL = {"MAILERSEND_API_TOKEN": os.getenv("MAILERSEND_API_TOKEN", "")}
-# DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
+    # EMAIL_BACKEND = "anymail.backends.mailersend.EmailBackend"
+    # ANYMAIL = {"MAILERSEND_API_TOKEN": os.getenv("MAILERSEND_API_TOKEN", "")}
+    # DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
+
+    CSRF_HTTPONLY = True  # Prevents CSRF cookie from being accessed via JavaScript
+
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 MAILERSEND_SMTP_PORT = 587
@@ -200,6 +200,12 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+]
+
+# Authentication backends - add the new JWT backend for alternative authentication
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",  # Default Django backend
+    "minNow.auth.JwtAuthBackend",  # New JWT authentication backend for alternative approach
 ]
 
 

@@ -6,8 +6,12 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { ChevronDownIcon, ImageIcon, SmileIcon } from 'lucide-react'
-import { createItem } from '@/utils/api'
-import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
+// CSRF-based API imports (commented out - using JWT approach)
+// import { createItem } from '@/utils/api'
+// import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
+
+// JWT-based API imports (new approach)
+import { createItemJWT } from '@/utils/api'
 import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 import { Item } from '@/types/item'
 import Image from 'next/image'
@@ -15,6 +19,7 @@ import { UploadButton } from '@uploadthing/react'
 import type { OurFileRouter } from '@/app/api/uploadthing/core'
 import { twMerge } from 'tailwind-merge'
 import "@uploadthing/react/styles.css";
+import { useAuth } from '@clerk/nextjs'
 
 
 
@@ -34,7 +39,8 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const [useEmoji, setUseEmoji] = useState(true)
     const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null)
     const [isUploading, setIsUploading] = useState(false)
-    const { authenticatedFetch } = useAuthenticatedFetch()
+    // const { authenticatedFetch } = useAuthenticatedFetch() // CSRF approach - commented out
+    const { getToken } = useAuth() // JWT approach - get token from Clerk
     const [open, setOpen] = useState(false)
     const [activeTab, setActiveTab] = useState<'manual' | 'quick'>('manual')
     const [showQuickAddForm, setShowQuickAddForm] = useState(false)
@@ -190,7 +196,8 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                 pictureUrl = uploadedImageUrl
             }
 
-            const { data, error } = await createItem({
+            // const { data, error } = await createItem({ // CSRF approach - commented out
+            const { data, error } = await createItemJWT({
                 name,
                 picture_url: pictureUrl,
                 item_type: itemType,
@@ -198,7 +205,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                 item_received_date: localDate.toISOString(),
                 last_used: localDate.toISOString(),
                 ownership_duration_goal_months: calculateOwnershipDurationMonths()
-            }, authenticatedFetch)
+            }, getToken) // JWT approach - using getToken from Clerk
 
             if (error) {
                 throw new Error(error)
@@ -288,10 +295,11 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
         setQuickBatchError(null) // Clear any previous errors
 
         try {
-            const { agentAddItemsBatchWithHandlers } = await import('@/utils/api')
-            await agentAddItemsBatchWithHandlers(
+            // const { agentAddItemsBatchWithHandlers } = await import('@/utils/api') // CSRF approach - commented out
+            const { agentAddItemsBatchJWTWithHandlers } = await import('@/utils/api') // JWT approach
+            await agentAddItemsBatchJWTWithHandlers(
                 quickPromptsDict,
-                authenticatedFetch,
+                getToken, // JWT approach - using getToken from Clerk
                 {
                     onSuccess: () => {
                         triggerRefresh()

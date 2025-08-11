@@ -4,10 +4,14 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Item } from '@/types/item'
 import { CheckCircle2 } from 'lucide-react'
-import { updateItem, fetchCheckup, createCheckup, completeCheckup } from '@/utils/api'
-import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
+// CSRF-based API imports (commented out - using JWT approach)
+// import { updateItem, fetchCheckup, createCheckup, completeCheckup } from '@/utils/api'
+// import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
+
+// JWT-based API imports (new approach)
+import { updateItemJWT, fetchCheckupJWT, createCheckupJWT, completeCheckupJWT, testClerkJWT, fetchItemsByStatusJWT } from '@/utils/api'
 import { useItemUpdate } from '@/contexts/ItemUpdateContext'
-import { useUser } from '@clerk/nextjs'
+import { useUser, useAuth } from '@clerk/nextjs'
 
 interface CheckupManagerProps {
     checkupType: 'Keep' | 'Give'
@@ -23,7 +27,8 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
     const [showConfirmation, setShowConfirmation] = useState(false)
     const [changedItems, setChangedItems] = useState<Set<string>>(new Set())
     const [itemStatusChanges, setItemStatusChanges] = useState<Map<string, 'used' | 'not_used' | 'donate'>>(new Map()) // Track pending status changes
-    const { authenticatedFetch } = useAuthenticatedFetch()
+    // const { authenticatedFetch } = useAuthenticatedFetch() // CSRF approach - commented out
+    const { getToken } = useAuth() // JWT approach - get token from Clerk
     const { addUpdatedItem, triggerRefresh } = useItemUpdate()
     const { isSignedIn, isLoaded } = useUser() // Get user authentication status
 
@@ -43,7 +48,16 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
             }
 
             try {
-                const { error } = await fetchCheckup(checkupType.toLowerCase(), authenticatedFetch)
+                // Test JWT authentication first
+                const jwtTest = await testClerkJWT(getToken)
+                console.log('CheckupManager JWT Test Result:', jwtTest)
+
+                // JWT approach - using fetchCheckupJWT
+                const { error } = await fetchCheckupJWT(checkupType.toLowerCase(), getToken)
+                
+                // CSRF approach (commented out)
+                // const { error } = await fetchCheckup(checkupType.toLowerCase(), authenticatedFetch)
+                
                 if (error) {
                     console.error('Error fetching checkup info:', error)
                     return
@@ -54,7 +68,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
             }
         }
         fetchCheckupInfo()
-    }, [checkupType, authenticatedFetch, isLoaded, isSignedIn]) // Add authentication dependencies
+    }, [checkupType, getToken, isLoaded, isSignedIn]) // Updated dependencies for JWT approach
 
     useEffect(() => {
         const fetchItems = async () => {
@@ -65,17 +79,28 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
             }
 
             try {
-                const response = await authenticatedFetch(`/api/items?status=${checkupType}`)
-                const data = await response.json()
-                setItems(data)
+                // JWT approach - using fetchItemsByStatusJWT
+                const { data, error } = await fetchItemsByStatusJWT(checkupType, getToken)
+                
+                // CSRF approach (commented out)
+                // const response = await authenticatedFetch(`/api/items?status=${checkupType}`)
+                // const data = await response.json()
+                
+                if (error) {
+                    console.error('Error fetching items:', error)
+                    setItems([])
+                } else {
+                    setItems(data || [])
+                }
             } catch (error) {
                 console.error('Error fetching items:', error)
+                setItems([])
             } finally {
                 setLoading(false)
             }
         }
         fetchItems()
-    }, [checkupType, authenticatedFetch, isLoaded, isSignedIn]) // Add authentication dependencies
+    }, [checkupType, getToken, isLoaded, isSignedIn]) // Updated dependencies for JWT approach
 
     const handleStatusChange = async (itemId: string, newStatus: 'used' | 'not_used' | 'donate') => {
         // Only update local UI state, don't make backend calls yet
@@ -121,7 +146,11 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                         updatePayload.lastUsedDate = new Date();
                     }
 
-                    const { data: updatedItem, error } = await updateItem(itemId, updatePayload, authenticatedFetch)
+                    // JWT approach - using updateItemJWT
+                    const { data: updatedItem, error } = await updateItemJWT(itemId, updatePayload, getToken)
+                    
+                    // CSRF approach (commented out)
+                    // const { data: updatedItem, error } = await updateItem(itemId, updatePayload, authenticatedFetch)
 
                     if (error) {
                         console.error(`Error updating item ${itemId}:`, error)
@@ -141,24 +170,43 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
             }
 
             // First, try to get existing checkup
-            const { data: existingCheckup } = await fetchCheckup(checkupType.toLowerCase(), authenticatedFetch)
+            // JWT approach - using fetchCheckupJWT
+            const { data: existingCheckup } = await fetchCheckupJWT(checkupType.toLowerCase(), getToken)
+            
+            // CSRF approach (commented out)
+            // const { data: existingCheckup } = await fetchCheckup(checkupType.toLowerCase(), authenticatedFetch)
 
             if (existingCheckup && Array.isArray(existingCheckup) && existingCheckup.length > 0) {
                 // If checkup exists, complete it
-                await completeCheckup(existingCheckup[0].id, authenticatedFetch)
+                // JWT approach - using completeCheckupJWT
+                await completeCheckupJWT(existingCheckup[0].id, getToken)
+                
+                // CSRF approach (commented out)
+                // await completeCheckup(existingCheckup[0].id, authenticatedFetch)
             } else {
                 // If no checkup exists, create and complete a new one
-                const { data: newCheckup, error } = await createCheckup({
+                // JWT approach - using createCheckupJWT
+                const { data: newCheckup, error } = await createCheckupJWT({
                     checkup_type: checkupType.toLowerCase(),
                     interval_months: interval
-                }, authenticatedFetch)
+                }, getToken)
+                
+                // CSRF approach (commented out)
+                // const { data: newCheckup, error } = await createCheckup({
+                //     checkup_type: checkupType.toLowerCase(),
+                //     interval_months: interval
+                // }, authenticatedFetch)
 
                 if (error) {
                     throw new Error(error)
                 }
 
                 if (newCheckup) {
-                    await completeCheckup(newCheckup.id, authenticatedFetch)
+                    // JWT approach - using completeCheckupJWT
+                    await completeCheckupJWT(newCheckup.id, getToken)
+                    
+                    // CSRF approach (commented out)
+                    // await completeCheckup(newCheckup.id, authenticatedFetch)
                 }
             }
 

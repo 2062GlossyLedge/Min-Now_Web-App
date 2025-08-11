@@ -17,6 +17,7 @@ from uuid import UUID
 from dotenv import load_dotenv
 import os
 import logging
+import json
 from .addItemAgent import run_agent
 from django.contrib.auth import authenticate
 from django.http import JsonResponse
@@ -29,6 +30,7 @@ from upstash_redis import Redis
 
 from django.views.decorators.http import require_http_methods
 from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from minNow.auth import jwt_required
 
 log = logging.getLogger(__name__)
@@ -287,7 +289,7 @@ def delete_item(request, item_id: UUID):
 
 # gets all items for the authenticated user
 # can filter by status and item_type
-#@method_decorator(jwt_required, name="dispatch")
+# @method_decorator(jwt_required, name="dispatch")
 @router.get("/items", response={200: List[OwnedItemSchema], 429: dict})
 def list_items(
     request, status: Optional[ItemStatus] = None, item_type: Optional[ItemType] = None
@@ -706,29 +708,22 @@ if not prod:
 
 
 # New Django-based JWT authenticated endpoints (alternative approach)
-# These endpoints demonstrate an alternative to the Django Ninja approach above
-# Key differences:
-# 1. Uses Django views instead of Ninja API
-# 2. Uses JwtAuthBackend for authentication instead of ClerkAuth
-# 3. No CSRF tokens required - just JWT Authorization header
-# 4. Can be called from frontend with: Authorization: Bearer <clerk_jwt_token>
-
-from django.views.decorators.http import require_http_methods
-from django.utils.decorators import method_decorator
-from minNow.auth import jwt_required
-import json
 
 
 @jwt_required
 def clerk_jwt_test(request):
     """
     Test endpoint to verify JWT authentication is working.
-    Returns the user ID from the authenticated request.
+    Returns the user ID from the authenticated request along with a CSRF token.
     """
+    # Get CSRF token for use in subsequent requests
+    csrf_token = get_token(request)
+
     data = {
         "userId": request.user.clerk_id,
         "username": request.user.username,
         "email": request.user.email,
+        "csrf_token": csrf_token,  # Include CSRF token for frontend use
     }
     return JsonResponse(data)
 
@@ -766,7 +761,7 @@ def list_items_django(request):
 
         # Convert to OwnedItemSchema format (same as list_items ninja endpoint)
         items_schemas = [OwnedItemSchema.from_orm(item) for item in items]
-        
+
         # Convert schemas to dictionaries for JSON serialization
         items_data = [schema.dict() for schema in items_schemas]
 
@@ -775,3 +770,552 @@ def list_items_django(request):
     except Exception as e:
         log.error(f"Error in list_items_django: {str(e)}")
         return JsonResponse({"error": "Internal server error"}, status=500)
+
+
+@jwt_required
+@require_http_methods(["POST"])
+def create_item_django(request):
+    """
+    Django view version of create_item endpoint using JWT authentication.
+    Alternative to the ninja-based endpoint.
+    """
+    try:
+        # Parse JSON payload
+        data = json.loads(request.body)
+
+        # Validate required fields
+        required_fields = [
+            "name",
+            "picture_url",
+            "item_type",
+            "item_received_date",
+            "last_used",
+        ]
+        for field in required_fields:
+            if field not in data:
+                return JsonResponse(
+                    {"error": f"Missing required field: {field}"}, status=400
+                )
+
+        # Convert string parameters to enum values
+        try:
+            item_type = ItemType(data["item_type"])
+        except ValueError:
+            return JsonResponse({"error": "Invalid item_type value"}, status=400)
+
+        status = ItemStatus.KEEP  # Default status
+        if "status" in data:
+            try:
+                status = ItemStatus(data["status"])
+            except ValueError:
+                return JsonResponse({"error": "Invalid status value"}, status=400)
+
+        # Parse datetime fields
+        try:
+            item_received_date = datetime.fromisoformat(
+                data["item_received_date"].replace("Z", "+00:00")
+            )
+            last_used = datetime.fromisoformat(data["last_used"].replace("Z", "+00:00"))
+        except ValueError as e:
+            return JsonResponse(
+                {"error": f"Invalid datetime format: {str(e)}"}, status=400
+            )
+
+        # Create the item
+        user = request.user
+        item = ItemService.create_item(
+            user=user,
+            name=data["name"],
+            picture_url=data["picture_url"],
+            item_type=item_type,
+            status=status,
+            item_received_date=item_received_date,
+            last_used=last_used,
+        )
+
+        # Convert to schema format
+        item_schema = OwnedItemSchema.from_orm(item)
+        return JsonResponse(item_schema.dict(), status=201)
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
+    except Exception as e:
+        log.error(f"Error in create_item_django: {str(e)}")
+        return JsonResponse({"error": "Internal server error"}, status=500)
+
+
+@jwt_required
+@require_http_methods(["GET"])
+def get_item_django(request, item_id):
+    """
+    Django view version of get_item endpoint using JWT authentication.
+    Alternative to the ninja-based endpoint.
+    """
+    try:
+        # Convert string UUID to UUID object
+        try:
+            item_uuid = UUID(item_id)
+        except ValueError:
+            return JsonResponse({"error": "Invalid UUID format"}, status=400)
+
+        # Get the item
+        item = ItemService.get_item(item_uuid)
+        if not item:
+            return JsonResponse({"error": "Item not found"}, status=404)
+
+        # Convert to schema format
+        item_schema = OwnedItemSchema.from_orm(item)
+        return JsonResponse(item_schema.dict())
+
+    except Exception as e:
+        log.error(f"Error in get_item_django: {str(e)}")
+        return JsonResponse({"error": "Internal server error"}, status=500)
+
+
+@jwt_required
+@require_http_methods(["PUT"])
+def update_item_django(request, item_id):
+    """
+    Django view version of update_item endpoint using JWT authentication.
+    Alternative to the ninja-based endpoint.
+    """
+    try:
+        # Convert string UUID to UUID object
+        try:
+            item_uuid = UUID(item_id)
+        except ValueError:
+            return JsonResponse({"error": "Invalid UUID format"}, status=400)
+
+        # Parse JSON payload
+        data = json.loads(request.body)
+
+        # Convert enum fields if provided
+        update_data = {}
+        for key, value in data.items():
+            if key == "item_type" and value is not None:
+                try:
+                    update_data[key] = ItemType(value)
+                except ValueError:
+                    return JsonResponse(
+                        {"error": "Invalid item_type value"}, status=400
+                    )
+            elif key == "status" and value is not None:
+                try:
+                    update_data[key] = ItemStatus(value)
+                except ValueError:
+                    return JsonResponse({"error": "Invalid status value"}, status=400)
+            elif key in ["item_received_date", "last_used"] and value is not None:
+                try:
+                    update_data[key] = datetime.fromisoformat(
+                        value.replace("Z", "+00:00")
+                    )
+                except ValueError:
+                    return JsonResponse(
+                        {"error": f"Invalid datetime format for {key}"}, status=400
+                    )
+            else:
+                update_data[key] = value
+
+        # Update the item
+        item = ItemService.update_item(item_uuid, **update_data)
+        if not item:
+            return JsonResponse({"error": "Item not found"}, status=404)
+
+        # Convert to schema format
+        item_schema = OwnedItemSchema.from_orm(item)
+        return JsonResponse(item_schema.dict())
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
+    except Exception as e:
+        log.error(f"Error in update_item_django: {str(e)}")
+        return JsonResponse({"error": "Internal server error"}, status=500)
+
+
+@jwt_required
+@require_http_methods(["DELETE"])
+def delete_item_django(request, item_id):
+    """
+    Django view version of delete_item endpoint using JWT authentication.
+    Alternative to the ninja-based endpoint.
+    """
+    try:
+        # Convert string UUID to UUID object
+        try:
+            item_uuid = UUID(item_id)
+        except ValueError:
+            return JsonResponse({"error": "Invalid UUID format"}, status=400)
+
+        # Delete the item
+        success = ItemService.delete_item(item_uuid)
+        if not success:
+            return JsonResponse({"error": "Item not found"}, status=404)
+
+        return JsonResponse({"detail": "Item deleted successfully"})
+
+    except Exception as e:
+        log.error(f"Error in delete_item_django: {str(e)}")
+        return JsonResponse({"error": "Internal server error"}, status=500)
+
+
+@jwt_required
+@require_http_methods(["GET"])
+def get_donated_badges_django(request):
+    """
+    Django view version of get_donated_badges endpoint using JWT authentication.
+    Alternative to the ninja-based endpoint.
+    """
+    try:
+        user = request.user
+        donated_badges = OwnedItem.donated_badge_progress(user)
+        return JsonResponse(donated_badges)
+
+    except Exception as e:
+        log.error(f"Error in get_donated_badges_django: {str(e)}")
+        return JsonResponse({"error": "Internal server error"}, status=500)
+
+
+@jwt_required
+@require_http_methods(["POST"])
+def create_checkup_django(request):
+    """
+    Django view version of create_checkup endpoint using JWT authentication.
+    Alternative to the ninja-based endpoint.
+    """
+    try:
+        # Parse JSON payload
+        data = json.loads(request.body)
+
+        # Validate required fields
+        if "checkup_type" not in data:
+            return JsonResponse(
+                {"error": "Missing required field: checkup_type"}, status=400
+            )
+
+        interval_months = data.get("interval_months", 1)
+        checkup_type = data["checkup_type"]
+
+        # Check if user already has a checkup of this type
+        existing_checkup = CheckupService.get_checkups_by_type(
+            request.user, checkup_type
+        ).first()
+        if existing_checkup:
+            return JsonResponse(
+                {"error": f"User already has a {checkup_type} checkup"}, status=400
+            )
+
+        # Create the checkup
+        checkup = CheckupService.create_checkup(
+            user=request.user,
+            interval_months=interval_months,
+            checkup_type=checkup_type,
+        )
+
+        # Convert to dictionary (assuming CheckupService returns a model instance with the required fields)
+        checkup_data = {
+            "id": checkup.id,
+            "last_checkup_date": checkup.last_checkup_date.isoformat(),
+            "checkup_interval_months": checkup.checkup_interval_months,
+            "is_checkup_due": checkup.is_checkup_due,
+        }
+
+        return JsonResponse(checkup_data, status=201)
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
+    except Exception as e:
+        log.error(f"Error in create_checkup_django: {str(e)}")
+        return JsonResponse({"error": "Internal server error"}, status=500)
+
+
+@jwt_required
+@require_http_methods(["GET"])
+def get_checkup_django(request, checkup_id):
+    """
+    Django view version of get_checkup endpoint using JWT authentication.
+    Alternative to the ninja-based endpoint.
+    """
+    try:
+        # Convert string ID to int
+        try:
+            checkup_id_int = int(checkup_id)
+        except ValueError:
+            return JsonResponse({"error": "Invalid checkup ID format"}, status=400)
+
+        # Get the checkup
+        checkup = CheckupService.get_checkup(checkup_id_int)
+        if not checkup or checkup.user != request.user:
+            return JsonResponse({"error": "Checkup not found"}, status=404)
+
+        # Convert to dictionary
+        checkup_data = {
+            "id": checkup.id,
+            "last_checkup_date": checkup.last_checkup_date.isoformat(),
+            "checkup_interval_months": checkup.checkup_interval_months,
+            "is_checkup_due": checkup.is_checkup_due,
+        }
+
+        return JsonResponse(checkup_data)
+
+    except Exception as e:
+        log.error(f"Error in get_checkup_django: {str(e)}")
+        return JsonResponse({"error": "Internal server error"}, status=500)
+
+
+@jwt_required
+@require_http_methods(["PUT"])
+def update_checkup_interval_django(request, checkup_id):
+    """
+    Django view version of update_checkup_interval endpoint using JWT authentication.
+    Alternative to the ninja-based endpoint.
+    """
+    try:
+        # Convert string ID to int
+        try:
+            checkup_id_int = int(checkup_id)
+        except ValueError:
+            return JsonResponse({"error": "Invalid checkup ID format"}, status=400)
+
+        # Parse JSON payload
+        data = json.loads(request.body)
+
+        if "interval_months" not in data:
+            return JsonResponse(
+                {"error": "Missing required field: interval_months"}, status=400
+            )
+
+        # Get the checkup and verify ownership
+        checkup = CheckupService.get_checkup(checkup_id_int)
+        if not checkup or checkup.user != request.user:
+            return JsonResponse({"error": "Checkup not found"}, status=404)
+
+        # Update the checkup
+        checkup = CheckupService.update_checkup_interval(
+            checkup_id_int, data["interval_months"]
+        )
+
+        # Convert to dictionary
+        checkup_data = {
+            "id": checkup.id,
+            "last_checkup_date": checkup.last_checkup_date.isoformat(),
+            "checkup_interval_months": checkup.checkup_interval_months,
+            "is_checkup_due": checkup.is_checkup_due,
+        }
+
+        return JsonResponse(checkup_data)
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
+    except Exception as e:
+        log.error(f"Error in update_checkup_interval_django: {str(e)}")
+        return JsonResponse({"error": "Internal server error"}, status=500)
+
+
+@jwt_required
+@require_http_methods(["POST"])
+def complete_checkup_django(request, checkup_id):
+    """
+    Django view version of complete_checkup endpoint using JWT authentication.
+    Alternative to the ninja-based endpoint.
+    """
+    try:
+        # Convert string ID to int
+        try:
+            checkup_id_int = int(checkup_id)
+        except ValueError:
+            return JsonResponse({"error": "Invalid checkup ID format"}, status=400)
+
+        # Get the checkup and verify ownership
+        checkup = CheckupService.get_checkup(checkup_id_int)
+        if not checkup or checkup.user != request.user:
+            return JsonResponse({"error": "Checkup not found"}, status=404)
+
+        # Complete the checkup
+        checkup = CheckupService.complete_checkup(checkup_id_int)
+
+        # Convert to dictionary
+        checkup_data = {
+            "id": checkup.id,
+            "last_checkup_date": checkup.last_checkup_date.isoformat(),
+            "checkup_interval_months": checkup.checkup_interval_months,
+            "is_checkup_due": checkup.is_checkup_due,
+        }
+
+        return JsonResponse(checkup_data)
+
+    except Exception as e:
+        log.error(f"Error in complete_checkup_django: {str(e)}")
+        return JsonResponse({"error": "Internal server error"}, status=500)
+
+
+@jwt_required
+@require_http_methods(["GET"])
+def list_checkups_django(request):
+    """
+    Django view version of list_checkups endpoint using JWT authentication.
+    Alternative to the ninja-based endpoint.
+    """
+    try:
+        # Parse query parameters
+        checkup_type = request.GET.get("type")
+
+        # Get checkups for the authenticated user
+        if checkup_type:
+            checkups = CheckupService.get_checkups_by_type(
+                user=request.user, checkup_type=checkup_type
+            )
+        else:
+            checkups = CheckupService.get_all_checkups(user=request.user)
+
+        # Convert to list of dictionaries
+        checkups_data = []
+        for checkup in checkups:
+            checkup_data = {
+                "id": checkup.id,
+                "last_checkup_date": checkup.last_checkup_date.isoformat(),
+                "checkup_interval_months": checkup.checkup_interval_months,
+                "is_checkup_due": checkup.is_checkup_due,
+            }
+            checkups_data.append(checkup_data)
+
+        return JsonResponse(checkups_data, safe=False)
+
+    except Exception as e:
+        log.error(f"Error in list_checkups_django: {str(e)}")
+        return JsonResponse({"error": "Internal server error"}, status=500)
+
+
+@jwt_required
+@require_http_methods(["POST"])
+def send_test_checkup_email_django(request):
+    """
+    Django view version of send_test_checkup_email endpoint using JWT authentication.
+    Alternative to the ninja-based endpoint.
+    """
+    try:
+        user = request.user
+        results = CheckupService.check_and_send_due_emails(user)
+
+        # Convert results to proper format
+        email_results = []
+        for result in results:
+            email_data = {
+                "checkup_type": result["checkup_type"],
+                "status": result["status"],
+                "recipient_email": result["recipient_email"],
+                "recipient_username": result["recipient_username"],
+            }
+            email_results.append(email_data)
+
+        return JsonResponse(email_results, safe=False)
+
+    except Exception as e:
+        log.error(f"Error in send_test_checkup_email_django: {str(e)}")
+        return JsonResponse({"error": "Internal server error"}, status=500)
+
+
+@jwt_required
+@require_http_methods(["POST"])
+def agent_add_item_django(request):
+    """
+    Django view version of agent_add_item endpoint using JWT authentication.
+    Alternative to the ninja-based endpoint.
+    """
+    try:
+        # Parse JSON payload
+        data = json.loads(request.body)
+
+        if "prompt" not in data:
+            return JsonResponse({"error": "Missing required field: prompt"}, status=400)
+
+        # Get JWT token from Authorization header
+        auth_header = request.META.get("HTTP_AUTHORIZATION")
+        jwt_token = None
+        if auth_header and auth_header.startswith("Bearer "):
+            jwt_token = auth_header.split(" ")[1]
+
+        # Convert prompt to expected format if it's a string
+        prompt_data = data["prompt"]
+        if isinstance(prompt_data, str):
+            prompt_data = {"prompt": prompt_data}
+
+        # Run the agent
+        result = run_agent(prompt_data, jwt_token)
+        return JsonResponse(result)
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
+    except Exception as e:
+        log.error(f"Error in agent_add_item_django: {str(e)}")
+        return JsonResponse({"error": "Internal server error"}, status=500)
+
+
+@jwt_required
+@require_http_methods(["POST"])
+def agent_add_item_batch_django(request):
+    """
+    Django view version of agent_add_item_batch endpoint using JWT authentication.
+    Alternative to the ninja-based endpoint.
+    """
+    try:
+        # Parse JSON payload
+        data = json.loads(request.body)
+
+        if "prompts" not in data:
+            return JsonResponse(
+                {"error": "Missing required field: prompts"}, status=400
+            )
+
+        # Get JWT token from Authorization header
+        auth_header = request.META.get("HTTP_AUTHORIZATION")
+        jwt_token = None
+        if auth_header and auth_header.startswith("Bearer "):
+            jwt_token = auth_header.split(" ")[1]
+
+        # Run the agent with batch prompts
+        results = {}
+        run_agent(data["prompts"], jwt_token)
+        return JsonResponse(results)
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
+    except Exception as e:
+        log.error(f"Error in agent_add_item_batch_django: {str(e)}")
+        return JsonResponse({"error": "Internal server error"}, status=500)
+
+
+"""
+Django JWT Authenticated Endpoints Summary
+==========================================
+
+All the Django-based endpoints above provide an alternative to the Django-Ninja routes.
+These endpoints use JWT authentication via the @jwt_required decorator instead of ClerkAuth().
+
+Available endpoints under /django-api/:
+- GET    /items                    - List items with optional status/item_type filters
+- POST   /items/create             - Create a new item
+- GET    /items/<item_id>          - Get specific item by UUID
+- PUT    /items/<item_id>/update   - Update specific item
+- DELETE /items/<item_id>/delete   - Delete specific item
+- GET    /badges/donated           - Get donated badges progress
+- GET    /checkups                 - List checkups with optional type filter
+- POST   /checkups/create          - Create a new checkup
+- GET    /checkups/<checkup_id>    - Get specific checkup
+- PUT    /checkups/<checkup_id>/interval - Update checkup interval
+- POST   /checkups/<checkup_id>/complete - Complete a checkup
+- POST   /send-test-email          - Send test checkup email (dev/testing)
+- POST   /agent-add-item           - AI agent item creation
+- POST   /agent-add-item-batch     - Batch AI agent item creation
+
+Usage:
+------
+All endpoints require JWT authentication via Authorization header:
+Authorization: Bearer <clerk_jwt_token>
+
+Content-Type: application/json (for POST/PUT requests)
+
+Example:
+curl -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \\
+     -d '{"name":"Item Name","picture_url":"url","item_type":"clothing",...}' \\
+     http://localhost:8000/django-api/items/create
+"""

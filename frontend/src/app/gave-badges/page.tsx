@@ -1,9 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch"
+// CSRF-based API imports (commented out - using JWT approach)
+// import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch"
+
+// JWT-based API imports (new approach)
+import { fetchDonatedBadgesJWT, testClerkJWT } from "@/utils/api"
 import AuthMessage from "@/components/AuthMessage"
-import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
+import { SignedIn, SignedOut, useUser, useAuth } from '@clerk/nextjs'
 
 // Emoji map for item types (no question marks, fallback to 🏷️)
 const itemTypeEmojis: Record<string, string> = {
@@ -95,7 +99,8 @@ const GaveBadgesPage = () => {
     const [badgeGroups, setBadgeGroups] = useState<BadgeGroups>({}) // State to store fetched badge data
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const { authenticatedFetch } = useAuthenticatedFetch()
+    // const { authenticatedFetch } = useAuthenticatedFetch() // CSRF approach - commented out
+    const { getToken } = useAuth() // JWT approach - get token from Clerk
     const { isSignedIn, isLoaded } = useUser() // Get user authentication status
 
     // Separate effect to handle authentication state changes
@@ -118,13 +123,25 @@ const GaveBadgesPage = () => {
             setLoading(true)
             setError(null)
             try {
-                // Fetch donated badges from the backend endpoint
-                const response = await authenticatedFetch(`/api/badges/donated`)
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`)
+                // Test JWT authentication first
+                const jwtTest = await testClerkJWT(getToken)
+                console.log('GaveBadges JWT Test Result:', jwtTest)
+
+                // JWT approach - using fetchDonatedBadgesJWT
+                const { data, error: apiError } = await fetchDonatedBadgesJWT(getToken)
+                
+                // CSRF approach (commented out)
+                // const response = await authenticatedFetch(`/api/badges/donated`)
+                // if (!response.ok) {
+                //     throw new Error(`HTTP error! status: ${response.status}`)
+                // }
+                // const data: BadgeGroups = await response.json()
+                
+                if (apiError) {
+                    throw new Error(apiError)
                 }
-                const data: BadgeGroups = await response.json()
-                setBadgeGroups(data)
+                
+                setBadgeGroups(data || {})
             } catch (err) {
                 console.error("Failed to fetch gave badges:", err)
                 setError("Failed to load gave badges.")
@@ -134,7 +151,7 @@ const GaveBadgesPage = () => {
         }
 
         fetchGaveBadges()
-    }, [authenticatedFetch, isLoaded, isSignedIn])
+    }, [getToken, isLoaded, isSignedIn]) // Updated dependencies for JWT approach
 
     return (
         <div className="container mx-auto py-8 px-4">

@@ -5,11 +5,15 @@ import ItemCard from '../../components/ItemCard'
 import FilterBar from '../../components/FilterBar'
 import CheckupManager from '../../components/CheckupManager'
 import AuthMessage from '../../components/AuthMessage'
-import { updateItem, deleteItem, fetchItemsByStatus, createHandleEdit } from '@/utils/api'
+// CSRF-based API imports (commented out - using JWT approach)
+// import { updateItem, deleteItem, fetchItemsByStatus, createHandleEdit } from '@/utils/api'
+
+// JWT-based API imports (new approach)
+import { updateItemJWT, deleteItemJWT, fetchItemsByStatusJWT, createHandleEditJWT, testClerkJWT } from '@/utils/api'
 import { Item } from '@/types/item'
 import { useCheckupStatus } from '@/hooks/useCheckupStatus'
-import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
-import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
+import { SignedIn, SignedOut, useUser, useAuth } from '@clerk/nextjs'
+// import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch' // Not needed for JWT approach
 import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 
 export default function GiveView() {
@@ -20,7 +24,8 @@ export default function GiveView() {
     const [selectedType, setSelectedType] = useState<string | null>(null)
     const [showFilters, setShowFilters] = useState(false)
     const isCheckupDue = useCheckupStatus('give')
-    const { authenticatedFetch } = useAuthenticatedFetch()
+    // const { authenticatedFetch } = useAuthenticatedFetch() // CSRF approach - commented out
+    const { getToken } = useAuth() // JWT approach - get token from Clerk
     const { refreshTrigger, clearUpdatedItems } = useItemUpdate()
     const { isSignedIn, isLoaded } = useUser() // Get user authentication status
     const [deletingItemId, setDeletingItemId] = useState<string | null>(null) // Track which item is being deleted
@@ -45,7 +50,16 @@ export default function GiveView() {
             setLoading(true)
             setError(null)
             try {
-                const { data, error } = await fetchItemsByStatus('Give', authenticatedFetch)
+                // Test JWT authentication first
+                const jwtTest = await testClerkJWT(getToken)
+                console.log('JWT Test Result:', jwtTest)
+
+                // JWT approach - using fetchItemsByStatusJWT
+                const { data, error } = await fetchItemsByStatusJWT('Give', getToken)
+                
+                // CSRF approach (commented out)
+                // const { data, error } = await fetchItemsByStatus('Give', authenticatedFetch)
+                
                 if (error) {
                     console.error(error)
                     setError(error)
@@ -68,10 +82,14 @@ export default function GiveView() {
         if (refreshTrigger > 0) {
             clearUpdatedItems()
         }
-    }, [authenticatedFetch, refreshTrigger, isLoaded, isSignedIn]) // Add authentication dependencies
+    }, [getToken, refreshTrigger, isLoaded, isSignedIn]) // Updated dependencies for JWT approach
 
     const handleStatusChange = async (id: string, newStatus: string) => {
-        const { data: updatedItem, error } = await updateItem(id, { status: newStatus }, authenticatedFetch)
+        // JWT approach - using updateItemJWT
+        const { data: updatedItem, error } = await updateItemJWT(id, { status: newStatus }, getToken)
+        
+        // CSRF approach (commented out)
+        // const { data: updatedItem, error } = await updateItem(id, { status: newStatus }, authenticatedFetch)
 
         if (error) {
             console.error(error)
@@ -90,13 +108,20 @@ export default function GiveView() {
         setSelectedType(type)
     }
 
-    // Use shared handleEdit function to eliminate code duplication
-    const handleEdit = createHandleEdit('Give', setItems, authenticatedFetch)
+    // JWT approach - using createHandleEditJWT
+    const handleEdit = createHandleEditJWT('Give', setItems, getToken)
+    
+    // CSRF approach (commented out)
+    // const handleEdit = createHandleEdit('Give', setItems, authenticatedFetch)
 
     const handleDelete = async (id: string) => {
         setDeletingItemId(id) // Set which item is being deleted
         try {
-            const { error } = await deleteItem(id, authenticatedFetch)
+            // JWT approach - using deleteItemJWT
+            const { error } = await deleteItemJWT(id, getToken)
+            
+            // CSRF approach (commented out)
+            // const { error } = await deleteItem(id, authenticatedFetch)
 
             if (error) {
                 console.error(error)

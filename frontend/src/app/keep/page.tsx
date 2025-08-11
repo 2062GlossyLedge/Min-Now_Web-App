@@ -6,11 +6,15 @@ import AddItemForm from '../../components/AddItemForm'
 import FilterBar from '../../components/FilterBar'
 import CheckupManager from '../../components/CheckupManager'
 import AuthMessage from '../../components/AuthMessage'
-import { updateItem, deleteItem, fetchItemsByStatus, createItem, sendTestCheckupEmail, agentAddItem, createHandleEdit, fetchItemsByStatusJWT, testClerkJWT } from '@/utils/api'
+// CSRF-based API imports (commented out - using JWT approach)
+// import { updateItem, deleteItem, fetchItemsByStatus, createItem, sendTestCheckupEmail, agentAddItem, createHandleEdit } from '@/utils/api'
+
+// JWT-based API imports (new approach) 
+import { updateItemJWT, deleteItemJWT, fetchItemsByStatusJWT, createItemJWT, sendTestCheckupEmailJWT, agentAddItemJWT, createHandleEditJWT, testClerkJWT } from '@/utils/api'
 import { Item } from '@/types/item'
 import { useCheckupStatus } from '@/hooks/useCheckupStatus'
 import { SignedIn, SignedOut, useUser, useAuth } from '@clerk/nextjs'
-import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
+// import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch' // Not needed for JWT approach
 import { useRouter } from 'next/navigation'
 import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 
@@ -23,9 +27,9 @@ export default function KeepView() {
     const [selectedType, setSelectedType] = useState<string | null>(null)
     const isCheckupDue = useCheckupStatus('keep')
     const [showFilters, setShowFilters] = useState(false)
-    const { authenticatedFetch } = useAuthenticatedFetch()
+    // const { authenticatedFetch } = useAuthenticatedFetch() // CSRF approach - commented out
     const { isSignedIn, isLoaded } = useUser() // Get user authentication status
-    const { getToken } = useAuth() // New JWT authentication approach
+    const { getToken } = useAuth() // JWT approach - get token from Clerk
     const router = useRouter()
     const [emailStatus, setEmailStatus] = useState<string | null>(null)
     const { refreshTrigger, clearUpdatedItems } = useItemUpdate()
@@ -143,7 +147,12 @@ export default function KeepView() {
 
     const handleStatusChange = async (id: string, newStatus: string) => {
         try {
-            const { error } = await updateItem(id, { status: newStatus }, authenticatedFetch)
+            // JWT approach - using updateItemJWT
+            const { error } = await updateItemJWT(id, { status: newStatus }, getToken)
+            
+            // CSRF approach (commented out)
+            // const { error } = await updateItem(id, { status: newStatus }, authenticatedFetch)
+            
             if (error) {
                 console.error('Error updating item status:', error)
                 return
@@ -160,13 +169,21 @@ export default function KeepView() {
         setSelectedType(type)
     }
 
-    // Use shared handleEdit function to eliminate code duplication
-    const handleEdit = createHandleEdit('Keep', setItems, authenticatedFetch)
+    // JWT approach - using createHandleEditJWT
+    const handleEdit = createHandleEditJWT('Keep', setItems, getToken)
+    
+    // CSRF approach (commented out)
+    // const handleEdit = createHandleEdit('Keep', setItems, authenticatedFetch)
 
     const handleDelete = async (id: string) => {
         setDeletingItemId(id) // Set which item is being deleted
         try {
-            const { error } = await deleteItem(id, authenticatedFetch)
+            // JWT approach - using deleteItemJWT
+            const { error } = await deleteItemJWT(id, getToken)
+            
+            // CSRF approach (commented out)
+            // const { error } = await deleteItem(id, authenticatedFetch)
+            
             if (error) {
                 console.error('Error deleting item:', error)
                 return
@@ -199,7 +216,12 @@ export default function KeepView() {
     const handleSendTestEmail = async () => {
         setEmailStatus(null)
         try {
-            const result = await sendTestCheckupEmail(authenticatedFetch)
+            // JWT approach - using sendTestCheckupEmailJWT
+            const result = await sendTestCheckupEmailJWT(getToken)
+            
+            // CSRF approach (commented out)
+            // const result = await sendTestCheckupEmail(authenticatedFetch)
+            
             if (result.data) {
                 setEmailStatus('Test checkup email sent successfully!')
             } else {
@@ -215,10 +237,22 @@ export default function KeepView() {
         setEmailStatus(null)
         try {
             const prompt = "Add a new item to keep: name 'Jacket', received Dec 2020, last used Dec 2024"
-            const result = await agentAddItem(prompt, authenticatedFetch)
+            
+            // JWT approach - using agentAddItemJWT
+            const result = await agentAddItemJWT(prompt, getToken)
+            
+            // CSRF approach (commented out)
+            // const result = await agentAddItem(prompt, authenticatedFetch)
+            
             if (result.data) {
                 setEmailStatus('Item added successfully via AI agent!')
-                const { data, error } = await fetchItemsByStatus('Keep', authenticatedFetch)
+                
+                // Refresh items list with JWT approach
+                const { data, error } = await fetchItemsByStatusJWT('Keep', getToken)
+                
+                // CSRF approach (commented out)
+                // const { data, error } = await fetchItemsByStatus('Keep', authenticatedFetch)
+                
                 if (!error && data) setItems(data)
             } else {
                 setEmailStatus(result.error || 'Failed to add item via AI agent')
@@ -337,7 +371,11 @@ export default function KeepView() {
                                                 last_used: new Date(testItem.last_used).toLocaleString()
                                             });
 
-                                            const { data, error } = await createItem(testItem, authenticatedFetch);
+                                            // JWT approach - using createItemJWT
+                                            const { data, error } = await createItemJWT(testItem, getToken);
+                                            
+                                            // CSRF approach (commented out)
+                                            // const { data, error } = await createItem(testItem, authenticatedFetch);
                                             if (error) {
                                                 console.error('Error creating test item:', error);
                                             } else {

@@ -32,7 +32,23 @@ import os
 from ninja import Schema
 
 # Import new Django views
-from items.api import clerk_jwt_test, list_items_django
+from items.api import (
+    clerk_jwt_test,
+    list_items_django,
+    create_item_django,
+    get_item_django,
+    update_item_django,
+    delete_item_django,
+    get_donated_badges_django,
+    create_checkup_django,
+    get_checkup_django,
+    update_checkup_interval_django,
+    complete_checkup_django,
+    list_checkups_django,
+    send_test_checkup_email_django,
+    agent_add_item_django,
+    agent_add_item_batch_django,
+)
 
 load_dotenv()
 prod = os.getenv("PROD") == "True"
@@ -76,5 +92,61 @@ urlpatterns = [
     # These demonstrate an alternative to ninja-based auth using JwtAuthBackend
     # Test with: curl -H "Authorization: Bearer <clerk_jwt>" http://localhost:8000/django-api/clerk_jwt
     path("django-api/clerk_jwt", clerk_jwt_test, name="clerk_jwt_test"),
+    # Items endpoints
     path("django-api/items", list_items_django, name="list_items_django"),
+    path("django-api/items/create", create_item_django, name="create_item_django"),
+    path("django-api/items/<str:item_id>", get_item_django, name="get_item_django"),
+    path(
+        "django-api/items/<str:item_id>/update",
+        update_item_django,
+        name="update_item_django",
+    ),
+    path(
+        "django-api/items/<str:item_id>/delete",
+        delete_item_django,
+        name="delete_item_django",
+    ),
+    # Badges endpoints
+    path(
+        "django-api/badges/donated",
+        get_donated_badges_django,
+        name="get_donated_badges_django",
+    ),
+    # Checkups endpoints
+    path("django-api/checkups", list_checkups_django, name="list_checkups_django"),
+    path(
+        "django-api/checkups/create",
+        create_checkup_django,
+        name="create_checkup_django",
+    ),
+    path(
+        "django-api/checkups/<str:checkup_id>",
+        get_checkup_django,
+        name="get_checkup_django",
+    ),
+    path(
+        "django-api/checkups/<str:checkup_id>/interval",
+        update_checkup_interval_django,
+        name="update_checkup_interval_django",
+    ),
+    path(
+        "django-api/checkups/<str:checkup_id>/complete",
+        complete_checkup_django,
+        name="complete_checkup_django",
+    ),
+    # Development/testing endpoints
+    path(
+        "django-api/send-test-email",
+        send_test_checkup_email_django,
+        name="send_test_checkup_email_django",
+    ),
+    # Agent endpoints
+    path(
+        "django-api/agent-add-item", agent_add_item_django, name="agent_add_item_django"
+    ),
+    path(
+        "django-api/agent-add-item-batch",
+        agent_add_item_batch_django,
+        name="agent_add_item_batch_django",
+    ),
 ]

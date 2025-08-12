@@ -136,6 +136,7 @@ if prod:
     CSRF_COOKIE_SAMESITE = "Lax"
 
     CSRF_HTTPONLY = True  # Prevents CSRF cookie from being accessed via JavaScript
+    COOKIE_HTTPONLY = True  # Prevents cookies from being accessed via JavaScript
 
 
 else:

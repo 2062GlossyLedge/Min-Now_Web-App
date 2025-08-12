@@ -56,10 +56,10 @@ export default function GiveView() {
 
                 // JWT approach - using fetchItemsByStatusJWT
                 const { data, error } = await fetchItemsByStatusJWT('Give', getToken)
-                
+
                 // CSRF approach (commented out)
                 // const { data, error } = await fetchItemsByStatus('Give', authenticatedFetch)
-                
+
                 if (error) {
                     console.error(error)
                     setError(error)
@@ -87,7 +87,7 @@ export default function GiveView() {
     const handleStatusChange = async (id: string, newStatus: string) => {
         // JWT approach - using updateItemJWT
         const { data: updatedItem, error } = await updateItemJWT(id, { status: newStatus }, getToken)
-        
+
         // CSRF approach (commented out)
         // const { data: updatedItem, error } = await updateItem(id, { status: newStatus }, authenticatedFetch)
 
@@ -110,7 +110,7 @@ export default function GiveView() {
 
     // JWT approach - using createHandleEditJWT
     const handleEdit = createHandleEditJWT('Give', setItems, getToken)
-    
+
     // CSRF approach (commented out)
     // const handleEdit = createHandleEdit('Give', setItems, authenticatedFetch)
 
@@ -119,7 +119,7 @@ export default function GiveView() {
         try {
             // JWT approach - using deleteItemJWT
             const { error } = await deleteItemJWT(id, getToken)
-            
+
             // CSRF approach (commented out)
             // const { error } = await deleteItem(id, authenticatedFetch)
 

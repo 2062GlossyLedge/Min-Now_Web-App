@@ -549,7 +549,7 @@ export const createItemJWT = async (
 
         // Get CSRF token for this POST request
         const csrfToken = await getCSRFTokenFromJWT(getToken)
-        
+
         const response = await fetchWithJWTAndCSRF(
             `${process.env.NEXT_PUBLIC_API_URL}/django-api/items/create`,
             token,

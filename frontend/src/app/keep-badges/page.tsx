@@ -145,21 +145,21 @@ const KeepBadgesPage = () => {
 
                 // JWT approach - using fetchItemsByStatusJWT
                 const { data: items, error: apiError } = await fetchItemsByStatusJWT('Keep', getToken)
-                
+
                 // CSRF approach (commented out)
                 // const response = await authenticatedFetch(`/api/items?status=Keep`)
                 // if (!response.ok) {
                 //     throw new Error(`HTTP error! status: ${response.status}`)
                 // }
                 // const items: OwnedItem[] = await response.json()
-                
+
                 if (apiError) {
                     throw new Error(apiError)
                 }
-                
+
                 const consolidatedBadges: BadgeGroups = {}
                 const itemsArray = (items || []) as (OwnedItem[] & typeof items)
-                
+
                 itemsArray.forEach(item => {
                     if (item.item_type && item.keep_badge_progress) {
                         if (!consolidatedBadges[item.item_type]) {

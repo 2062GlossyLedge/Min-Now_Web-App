@@ -149,10 +149,10 @@ export default function KeepView() {
         try {
             // JWT approach - using updateItemJWT
             const { error } = await updateItemJWT(id, { status: newStatus }, getToken)
-            
+
             // CSRF approach (commented out)
             // const { error } = await updateItem(id, { status: newStatus }, authenticatedFetch)
-            
+
             if (error) {
                 console.error('Error updating item status:', error)
                 return
@@ -171,7 +171,7 @@ export default function KeepView() {
 
     // JWT approach - using createHandleEditJWT
     const handleEdit = createHandleEditJWT('Keep', setItems, getToken)
-    
+
     // CSRF approach (commented out)
     // const handleEdit = createHandleEdit('Keep', setItems, authenticatedFetch)
 
@@ -180,10 +180,10 @@ export default function KeepView() {
         try {
             // JWT approach - using deleteItemJWT
             const { error } = await deleteItemJWT(id, getToken)
-            
+
             // CSRF approach (commented out)
             // const { error } = await deleteItem(id, authenticatedFetch)
-            
+
             if (error) {
                 console.error('Error deleting item:', error)
                 return
@@ -218,10 +218,10 @@ export default function KeepView() {
         try {
             // JWT approach - using sendTestCheckupEmailJWT
             const result = await sendTestCheckupEmailJWT(getToken)
-            
+
             // CSRF approach (commented out)
             // const result = await sendTestCheckupEmail(authenticatedFetch)
-            
+
             if (result.data) {
                 setEmailStatus('Test checkup email sent successfully!')
             } else {
@@ -237,22 +237,22 @@ export default function KeepView() {
         setEmailStatus(null)
         try {
             const prompt = "Add a new item to keep: name 'Jacket', received Dec 2020, last used Dec 2024"
-            
+
             // JWT approach - using agentAddItemJWT
             const result = await agentAddItemJWT(prompt, getToken)
-            
+
             // CSRF approach (commented out)
             // const result = await agentAddItem(prompt, authenticatedFetch)
-            
+
             if (result.data) {
                 setEmailStatus('Item added successfully via AI agent!')
-                
+
                 // Refresh items list with JWT approach
                 const { data, error } = await fetchItemsByStatusJWT('Keep', getToken)
-                
+
                 // CSRF approach (commented out)
                 // const { data, error } = await fetchItemsByStatus('Keep', authenticatedFetch)
-                
+
                 if (!error && data) setItems(data)
             } else {
                 setEmailStatus(result.error || 'Failed to add item via AI agent')
@@ -373,7 +373,7 @@ export default function KeepView() {
 
                                             // JWT approach - using createItemJWT
                                             const { data, error } = await createItemJWT(testItem, getToken);
-                                            
+
                                             // CSRF approach (commented out)
                                             // const { data, error } = await createItem(testItem, authenticatedFetch);
                                             if (error) {

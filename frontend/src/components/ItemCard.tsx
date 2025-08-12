@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
-import { format } from 'date-fns'
+import { format, set } from 'date-fns'
 import { CalendarIcon, Edit2, X, Trash2, ChevronDown, ImageIcon, SmileIcon } from 'lucide-react'
 import Image from 'next/image'
 import { UploadButton } from '@uploadthing/react'
@@ -87,6 +87,9 @@ export default function ItemCard({
     // This allows immediate display of changes after saving, before parent component updates
     const [currentPictureUrl, setCurrentPictureUrl] = useState(pictureUrl)
 
+    // State to track number of keys pressed for emoji input
+    const [numOfKeysPressed, setNumOfKeysPressed] = useState<number>(0)
+
     // Update local state when props change
     useEffect(() => {
         setEditedName(name)
@@ -130,6 +133,8 @@ export default function ItemCard({
 
             // Update local state immediately to reflect changes
             setCurrentPictureUrl(finalPictureUrl);
+
+            setNumOfKeysPressed(0); // Reset key pressed count after saving
 
             onEdit(id, {
                 name: editedName,
@@ -265,13 +270,19 @@ export default function ItemCard({
                     </div>
                     <div>
                         {isEditing ? (
-                            <input
-                                type="text"
-                                value={editedName}
-                                onChange={(e) => setEditedName(e.target.value)}
-                                className="text-lg font-semibold bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-teal-500 dark:focus:border-teal-400"
-                                onClick={(e) => e.stopPropagation()}
-                            />
+                            <div>
+                                <input
+                                    type="text"
+                                    value={editedName}
+                                    onChange={(e) => setEditedName(e.target.value)}
+                                    maxLength={50}
+                                    className="text-lg font-semibold bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-teal-500 dark:focus:border-teal-400"
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    {editedName ? editedName.length : 0}/50 characters
+                                </p>
+                            </div>
                         ) : (
                             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">{name}</h3>
                         )}
@@ -453,19 +464,36 @@ export default function ItemCard({
                                                 onChange={(e) => {
                                                     e.stopPropagation();
                                                     const input = e.target.value;
-                                                    const lastChar = input.slice(-1);
-                                                    if (lastChar.length > 1) {
-                                                        setEditedPictureEmoji(lastChar);
-                                                    } else {
+
+                                                    // Limit input to 4 emojis
+
+                                                    //if input is not backspace or delete, increase key pressed count
+                                                    const inputEvent = e.nativeEvent as InputEvent;
+                                                    if (inputEvent.inputType !== 'deleteContentBackward' && inputEvent.inputType !== 'deleteContentForward' && numOfKeysPressed < 4) {
+                                                        setNumOfKeysPressed(numOfKeysPressed + 1);
+                                                        console.log('Key pressed count:', numOfKeysPressed);
+                                                    } else if (inputEvent.inputType === 'deleteContentBackward' || inputEvent.inputType === 'deleteContentForward') {
+                                                        setNumOfKeysPressed(numOfKeysPressed > 0 ? numOfKeysPressed - 1 : 0);
+                                                        console.log('Key pressed count:', numOfKeysPressed);
+
                                                         setEditedPictureEmoji(input);
+                                                        return;
+
                                                     }
+
+
+
+                                                    if (numOfKeysPressed > 3) {
+                                                        return;
+                                                    }
+                                                    setEditedPictureEmoji(input);
                                                 }}
                                                 className="block w-[240px] rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"
                                                 placeholder="Enter an emoji"
                                                 onClick={(e) => e.stopPropagation()}
                                             />
                                             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                                Tip: Windows key + . (period) for emoji picker
+                                                {editedPictureEmoji ? editedPictureEmoji.length : 0}/4 characters
                                             </p>
                                         </div>
                                     ) : (

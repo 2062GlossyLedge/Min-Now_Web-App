@@ -129,18 +129,18 @@ const GaveBadgesPage = () => {
 
                 // JWT approach - using fetchDonatedBadgesJWT
                 const { data, error: apiError } = await fetchDonatedBadgesJWT(getToken)
-                
+
                 // CSRF approach (commented out)
                 // const response = await authenticatedFetch(`/api/badges/donated`)
                 // if (!response.ok) {
                 //     throw new Error(`HTTP error! status: ${response.status}`)
                 // }
                 // const data: BadgeGroups = await response.json()
-                
+
                 if (apiError) {
                     throw new Error(apiError)
                 }
-                
+
                 setBadgeGroups(data || {})
             } catch (err) {
                 console.error("Failed to fetch gave badges:", err)

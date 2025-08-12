@@ -54,10 +54,10 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
 
                 // JWT approach - using fetchCheckupJWT
                 const { error } = await fetchCheckupJWT(checkupType.toLowerCase(), getToken)
-                
+
                 // CSRF approach (commented out)
                 // const { error } = await fetchCheckup(checkupType.toLowerCase(), authenticatedFetch)
-                
+
                 if (error) {
                     console.error('Error fetching checkup info:', error)
                     return
@@ -81,11 +81,11 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
             try {
                 // JWT approach - using fetchItemsByStatusJWT
                 const { data, error } = await fetchItemsByStatusJWT(checkupType, getToken)
-                
+
                 // CSRF approach (commented out)
                 // const response = await authenticatedFetch(`/api/items?status=${checkupType}`)
                 // const data = await response.json()
-                
+
                 if (error) {
                     console.error('Error fetching items:', error)
                     setItems([])
@@ -148,7 +148,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
 
                     // JWT approach - using updateItemJWT
                     const { data: updatedItem, error } = await updateItemJWT(itemId, updatePayload, getToken)
-                    
+
                     // CSRF approach (commented out)
                     // const { data: updatedItem, error } = await updateItem(itemId, updatePayload, authenticatedFetch)
 
@@ -172,7 +172,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
             // First, try to get existing checkup
             // JWT approach - using fetchCheckupJWT
             const { data: existingCheckup } = await fetchCheckupJWT(checkupType.toLowerCase(), getToken)
-            
+
             // CSRF approach (commented out)
             // const { data: existingCheckup } = await fetchCheckup(checkupType.toLowerCase(), authenticatedFetch)
 
@@ -180,7 +180,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                 // If checkup exists, complete it
                 // JWT approach - using completeCheckupJWT
                 await completeCheckupJWT(existingCheckup[0].id, getToken)
-                
+
                 // CSRF approach (commented out)
                 // await completeCheckup(existingCheckup[0].id, authenticatedFetch)
             } else {
@@ -190,7 +190,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                     checkup_type: checkupType.toLowerCase(),
                     interval_months: interval
                 }, getToken)
-                
+
                 // CSRF approach (commented out)
                 // const { data: newCheckup, error } = await createCheckup({
                 //     checkup_type: checkupType.toLowerCase(),
@@ -204,7 +204,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                 if (newCheckup) {
                     // JWT approach - using completeCheckupJWT
                     await completeCheckupJWT(newCheckup.id, getToken)
-                    
+
                     // CSRF approach (commented out)
                     // await completeCheckup(newCheckup.id, authenticatedFetch)
                 }

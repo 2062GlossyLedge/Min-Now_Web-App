@@ -51,10 +51,10 @@ export default function DonatedView() {
 
                 // JWT approach - using fetchItemsByStatusJWT
                 const { data, error } = await fetchItemsByStatusJWT('Donate', getToken)
-                
+
                 // CSRF approach (commented out)
                 // const { data, error } = await fetchItemsByStatus('Donate', authenticatedFetch)
-                
+
                 if (error) {
                     console.error(error)
                     setError(error)
@@ -82,7 +82,7 @@ export default function DonatedView() {
     const handleStatusChange = async (id: string, newStatus: string) => {
         // JWT approach - using updateItemJWT
         const { data: updatedItem, error } = await updateItemJWT(id, { status: newStatus }, getToken)
-        
+
         // CSRF approach (commented out)
         // const { data: updatedItem, error } = await updateItem(id, { status: newStatus }, authenticatedFetch)
 
@@ -101,7 +101,7 @@ export default function DonatedView() {
 
     // JWT approach - using createHandleEditJWT
     const handleEdit = createHandleEditJWT('Donate', setItems, getToken)
-    
+
     // CSRF approach (commented out)
     // const handleEdit = createHandleEdit('Donate', setItems, authenticatedFetch)
 
@@ -110,7 +110,7 @@ export default function DonatedView() {
         try {
             // JWT approach - using deleteItemJWT
             const { error } = await deleteItemJWT(id, getToken)
-            
+
             // CSRF approach (commented out)
             // const { error } = await deleteItem(id, authenticatedFetch)
 

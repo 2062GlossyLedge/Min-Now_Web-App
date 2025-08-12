@@ -70,6 +70,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const [endYear, setEndYear] = useState<string>('')
     const [manualAddError, setManualAddError] = useState<string | null>(null)
     const [quickBatchError, setQuickBatchError] = useState<string | null>(null)
+    const [numOfKeysPressed, setNumOfKeysPressed] = useState<number>(1)
 
     const itemTypes = [
         'Clothing & Accessories',
@@ -88,6 +89,28 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
         'Miscellaneous',
         'Other'
     ]
+
+    // Map display names to database values to match backend ItemType choices
+    const itemTypeToDbValue = (displayName: string): string => {
+        const mapping: Record<string, string> = {
+            'Clothing & Accessories': 'Clothing_Accessories',
+            'Technology': 'Technology',
+            'Furniture & Appliances': 'Furniture_Appliances',
+            'Books & Media': 'Books_Media',
+            'Vehicles': 'Vehicles',
+            'Personal Care Items': 'Personal_Care_Items',
+            'Decor & Art': 'Decor_Art',
+            'Tools & Equipment': 'Tools_Equipment',
+            'Toys & Games': 'Toys_Games',
+            'Outdoor Gear': 'Outdoor_Gear',
+            'Fitness Equipment': 'Fitness_Equipment',
+            'Pet Supplies': 'Pet_Supplies',
+            'Subscriptions & Licenses': 'Subscriptions_Licenses',
+            'Miscellaneous': 'Miscellaneous',
+            'Other': 'Other'
+        }
+        return mapping[displayName] || displayName
+    }
 
     // Helper function to calculate received date based on selection mode
     const calculateReceivedDate = (): Date | undefined => {
@@ -174,6 +197,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
         e.preventDefault()
         setIsSubmitting(true)
         setManualAddError(null) // Clear any previous errors
+        setNumOfKeysPressed(0);
 
         const calculatedDate = calculateReceivedDate()
         if (!calculatedDate) {
@@ -200,7 +224,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
             const { data, error } = await createItemJWT({
                 name,
                 picture_url: pictureUrl,
-                item_type: itemType,
+                item_type: itemTypeToDbValue(itemType), // Convert display name to database value
                 status: 'Keep',
                 item_received_date: localDate.toISOString(),
                 last_used: localDate.toISOString(),
@@ -381,9 +405,13 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                     type="text"
                                     value={name || ""}
                                     onChange={(e) => setName(e.target.value)}
+                                    maxLength={50}
                                     className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                     required
                                 />
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                    {name ? name.length : 0}/50 characters
+                                </p>
                             </div>
                             <div>
                                 <div className="flex items-center space-x-4 mb-2">
@@ -417,20 +445,39 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                             type="text"
                                             value={pictureEmoji || ""}
                                             onChange={(e) => {
+
                                                 const input = e.target.value;
-                                                const lastChar = input.slice(-1);
-                                                if (lastChar.length > 1) {
-                                                    setPictureEmoji(lastChar);
-                                                } else {
+                                                // Limit input to 4 emojis
+
+                                                //if input is not backspace or delete, increase key pressed count
+                                                const inputEvent = e.nativeEvent as InputEvent;
+                                                if (inputEvent.inputType !== 'deleteContentBackward' && inputEvent.inputType !== 'deleteContentForward' && numOfKeysPressed < 4) {
+                                                    setNumOfKeysPressed(numOfKeysPressed + 1);
+                                                    console.log('Key pressed count:', numOfKeysPressed);
+                                                } else if (inputEvent.inputType === 'deleteContentBackward' || inputEvent.inputType === 'deleteContentForward') {
+                                                    setNumOfKeysPressed(numOfKeysPressed > 0 ? numOfKeysPressed - 1 : 0);
+                                                    console.log('Key pressed count:', numOfKeysPressed);
+
                                                     setPictureEmoji(input);
+                                                    return;
+
                                                 }
+
+
+
+                                                if (numOfKeysPressed > 3) {
+                                                    return;
+                                                }
+                                                setPictureEmoji(input);
+
                                             }}
+
                                             className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                             required={useEmoji}
                                             placeholder="Enter an emoji"
                                         />
                                         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                            Tip: You can use Windows key + . (period) to open the emoji picker
+                                            {pictureEmoji ? pictureEmoji.length : 0}/4 characters
                                         </p>
                                     </div>
                                 ) : (
@@ -724,9 +771,13 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                             type="text"
                                             value={quickItemName}
                                             onChange={e => setQuickItemName(e.target.value)}
+                                            maxLength={25}
                                             className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-purple-500 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                             required
                                         />
+                                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                            {quickItemName ? quickItemName.length : 0}/25 characters
+                                        </p>
                                     </div>
 
                                     {/* Date Selection Mode Options */}

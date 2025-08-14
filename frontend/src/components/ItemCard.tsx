@@ -241,6 +241,7 @@ export default function ItemCard({
                                             alt={editedName}
                                             fill
                                             className="object-cover"
+                                            sizes="64px"
                                         />
                                     </div>
                                 ) : (
@@ -259,6 +260,7 @@ export default function ItemCard({
                                         alt={name}
                                         fill
                                         className="object-cover"
+                                        sizes="64px"
                                     />
                                 </div>
                             ) : (
@@ -526,6 +528,7 @@ export default function ItemCard({
                                                         alt="Preview"
                                                         fill
                                                         className="object-cover rounded-md"
+                                                        sizes="64px"
                                                     />
                                                 </div>
                                             )}

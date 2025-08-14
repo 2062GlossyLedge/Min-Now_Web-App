@@ -33,6 +33,32 @@ interface EmailResponse {
     recipient_username: string;
 }
 
+// Helper function to delete files from uploadthing via API route
+const deleteUploadthingFile = async (fileKey: string): Promise<boolean> => {
+    try {
+        // Call the API route to delete the file on server component
+        const response = await fetch('/api/uploadthing/delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ fileKey }),
+        })
+
+        if (!response.ok) {
+            const errorData = await response.json()
+            console.error('Failed to delete file from uploadthing:', errorData.error)
+            return false
+        }
+
+        console.log('Successfully deleted file from uploadthing:', fileKey)
+        return true
+    } catch (error) {
+        console.error('Error calling uploadthing delete API:', error)
+        return false
+    }
+}
+
 // utility csrf fetching for put, post, delete reqs
 // to be called every request
 export const fetchWithCsrf = async (url: string, options: RequestInit = {}) => {
@@ -180,6 +206,28 @@ export const deleteItem = async (id: string, fetchFn: typeof fetchWithCsrf): Pro
     // Show submitting toast
     toast.loading('Deleting item...', { id: 'delete-item' })
     try {
+        // First, get the item to retrieve the picture_url for file deletion
+        const itemResult = await fetchItemById(id, fetchFn)
+        let fileKey: string | null = null
+
+        if (itemResult.data?.pictureUrl) {
+            // Extract file key from uploadthing URL
+            // UploadThing URLs typically look like: https://utfs.io/f/[FILE_KEY]
+            const urlMatch = itemResult.data.pictureUrl.match(/\/f\/([^/?]+)/)
+            if (urlMatch) {
+                fileKey = urlMatch[1]
+            }
+        }
+
+        // Delete the file from uploadthing if a file key exists
+        if (fileKey) {
+            const deleteSuccess = await deleteUploadthingFile(fileKey)
+            if (!deleteSuccess) {
+                console.warn('Failed to delete file from uploadthing, continuing with item deletion')
+                // Continue with item deletion even if file deletion fails
+            }
+        }
+
         await fetchFn(`/api/items/${id}`, {
             method: 'DELETE',
         })
@@ -697,6 +745,28 @@ export const deleteItemJWT = async (
         const token = await getToken()
         if (!token) {
             return { error: 'No authentication token available' }
+        }
+
+        // First, get the item to retrieve the picture_url for file deletion
+        const itemResult = await fetchItemByIdJWT(id, getToken)
+        let fileKey: string | null = null
+
+        if (itemResult.data?.pictureUrl) {
+            // Extract file key from uploadthing URL
+            // UploadThing URLs typically look like: https://utfs.io/f/[FILE_KEY]
+            const urlMatch = itemResult.data.pictureUrl.match(/\/f\/([^/?]+)/)
+            if (urlMatch) {
+                fileKey = urlMatch[1]
+            }
+        }
+
+        // Delete the file from uploadthing if a file key exists
+        if (fileKey) {
+            const deleteSuccess = await deleteUploadthingFile(fileKey)
+            if (!deleteSuccess) {
+                console.warn('Failed to delete file from uploadthing, continuing with item deletion')
+                // Continue with item deletion even if file deletion fails
+            }
         }
 
         // Get CSRF token for this DELETE request

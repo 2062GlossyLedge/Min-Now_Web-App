@@ -489,8 +489,9 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                                 endpoint="imageUploader"
                                                 config={{ cn: twMerge }}
                                                 onClientUploadComplete={(res: any) => {
-                                                    setUploadedImageUrl(res?.[0]?.url ?? res?.[0]?.fileUrl ?? null)
+                                                    setUploadedImageUrl(res?.[0]?.ufsUrl ?? res?.[0]?.fileUrl ?? null)
                                                     setIsUploading(false)
+
                                                 }}
                                                 onUploadError={(error: Error) => {
                                                     setIsUploading(false)
@@ -508,6 +509,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                                     alt="Preview"
                                                     fill
                                                     className="object-cover rounded-md"
+                                                    sizes='240px'
                                                 />
                                             </div>
                                         )}

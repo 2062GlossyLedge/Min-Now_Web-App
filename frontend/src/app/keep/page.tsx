@@ -247,13 +247,26 @@ export default function KeepView() {
             if (result.data) {
                 setEmailStatus('Item added successfully via AI agent!')
 
-                // Refresh items list with JWT approach
+                // Refresh items list to get the newly created item(s)
                 const { data, error } = await fetchItemsByStatusJWT('Keep', getToken)
 
                 // CSRF approach (commented out)
                 // const { data, error } = await fetchItemsByStatus('Keep', authenticatedFetch)
 
-                if (!error && data) setItems(data)
+                if (!error && data) {
+                    // Map API response to frontend format
+                    const mappedItems = (data || []).map((item: any) => ({
+                        ...item,
+                        // Map snake_case API fields to camelCase frontend fields
+                        itemType: item.item_type || item.itemType,
+                        pictureUrl: item.picture_url || item.pictureUrl,
+                        ownershipDuration: item.ownership_duration?.description || item.ownershipDuration || 'Not specified',
+                        lastUsedDuration: item.last_used_duration?.description || item.lastUsedDuration || 'N/A',
+                        ownershipDurationGoalMonths: item.ownership_duration_goal_months || item.ownershipDurationGoalMonths || 12,
+                        ownershipDurationGoalProgress: item.ownership_duration_goal_progress || item.ownershipDurationGoalProgress || 0,
+                    }))
+                    setItems(mappedItems)
+                }
             } else {
                 setEmailStatus(result.error || 'Failed to add item via AI agent')
             }
@@ -383,7 +396,23 @@ export default function KeepView() {
                                                     response: data,
                                                     originalRequest: testItem
                                                 });
-                                                router.refresh();
+                                                
+                                                // Directly add the new item to the current list instead of router.refresh()
+                                                if (data) {
+                                                    // Map backend fields to frontend interface
+                                                    const mappedItem = {
+                                                        ...data,
+                                                        itemType: data.item_type || data.itemType,
+                                                        pictureUrl: data.picture_url || data.pictureUrl,
+                                                        ownershipDuration: data.ownership_duration?.description || 'Not specified',
+                                                        lastUsedDuration: 'N/A', // Calculate this if needed
+                                                        ownershipDurationGoalMonths: data.ownership_duration_goal_months || data.ownershipDurationGoalMonths || 12,
+                                                        ownershipDurationGoalProgress: data.ownership_duration_goal_progress || data.ownershipDurationGoalProgress || 0,
+                                                    };
+                                                    
+                                                    // Add the new item to the existing items list
+                                                    setItems(prevItems => [...prevItems, mappedItem]);
+                                                }
                                             }
                                         } catch (error) {
                                             console.error('Error creating test item:', {

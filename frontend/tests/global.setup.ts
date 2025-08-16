@@ -26,7 +26,7 @@ setup("global setup", async () => {
 const authFile = path.join(__dirname, "../playwright/.clerk/user.json");
 
 setup("authenticate", async ({ page }) => {
-    await page.goto("/");
+    await page.goto(process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000");
     await clerk.signIn({
         page,
         signInParams: {

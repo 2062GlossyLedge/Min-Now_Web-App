@@ -445,40 +445,20 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                             type="text"
                                             value={pictureEmoji || ""}
                                             onChange={(e) => {
-
                                                 const input = e.target.value;
-                                                // Limit input to 4 emojis
-
-                                                //if input is not backspace or delete, increase key pressed count
-                                                const inputEvent = e.nativeEvent as InputEvent;
-                                                if (inputEvent.inputType !== 'deleteContentBackward' && inputEvent.inputType !== 'deleteContentForward' && numOfKeysPressed < 4) {
-                                                    setNumOfKeysPressed(numOfKeysPressed + 1);
-                                                    console.log('Key pressed count:', numOfKeysPressed);
-                                                } else if (inputEvent.inputType === 'deleteContentBackward' || inputEvent.inputType === 'deleteContentForward') {
-                                                    setNumOfKeysPressed(numOfKeysPressed > 0 ? numOfKeysPressed - 1 : 0);
-                                                    console.log('Key pressed count:', numOfKeysPressed);
-
+                                                // Limit input to 50 characters
+                                                if (input.length <= 50) {
                                                     setPictureEmoji(input);
-                                                    return;
-
                                                 }
-
-
-
-                                                if (numOfKeysPressed > 3) {
-                                                    return;
-                                                }
-                                                setPictureEmoji(input);
-
                                             }}
-
+                                            maxLength={50}
                                             className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                             required={useEmoji}
-                                            placeholder="Enter an emoji"
+                                            placeholder="Enter emoji(s)"
                                         />
-                                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                            {pictureEmoji ? pictureEmoji.length : 0}/4 characters
-                                        </p>
+                                        {/* <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                            {pictureEmoji ? pictureEmoji.length : 0}/50 characters
+                                        </p> */}
                                     </div>
                                 ) : (
                                     <div>

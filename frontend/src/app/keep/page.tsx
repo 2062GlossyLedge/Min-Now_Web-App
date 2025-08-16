@@ -396,7 +396,7 @@ export default function KeepView() {
                                                     response: data,
                                                     originalRequest: testItem
                                                 });
-                                                
+
                                                 // Directly add the new item to the current list instead of router.refresh()
                                                 if (data) {
                                                     // Map backend fields to frontend interface
@@ -409,7 +409,7 @@ export default function KeepView() {
                                                         ownershipDurationGoalMonths: data.ownership_duration_goal_months || data.ownershipDurationGoalMonths || 12,
                                                         ownershipDurationGoalProgress: data.ownership_duration_goal_progress || data.ownershipDurationGoalProgress || 0,
                                                     };
-                                                    
+
                                                     // Add the new item to the existing items list
                                                     setItems(prevItems => [...prevItems, mappedItem]);
                                                 }

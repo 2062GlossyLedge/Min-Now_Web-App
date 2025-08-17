@@ -37,6 +37,7 @@ from items.api import (
     list_items_django,
     create_item_django,
     get_item_django,
+    get_user_item_stats_django,
     update_item_django,
     delete_item_django,
     get_donated_badges_django,
@@ -95,6 +96,7 @@ urlpatterns = [
     # Items endpoints
     path("django-api/items", list_items_django, name="list_items_django"),
     path("django-api/items/create", create_item_django, name="create_item_django"),
+    path("django-api/items/stats", get_user_item_stats_django, name="get_user_item_stats_django"),
     path("django-api/items/<str:item_id>", get_item_django, name="get_item_django"),
     path(
         "django-api/items/<str:item_id>/update",

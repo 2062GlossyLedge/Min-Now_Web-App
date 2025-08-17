@@ -3,6 +3,11 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 import uuid
 from django.conf import settings
+from django.core.exceptions import ValidationError
+
+
+# Constants for item limits
+MAX_ITEMS_PER_USER = 9
 
 
 class ItemType(models.TextChoices):
@@ -157,6 +162,13 @@ class OwnedItem(models.Model):
     )
     ownership_duration_goal_months = models.IntegerField(default=12)  # Default 1 year
 
+    def save(self, *args, **kwargs):
+        """Override save to validate item limits on creation."""
+        # Only validate on creation (when pk is None)
+        if not self.pk:
+            self.validate_item_limit(self.user, count=1)
+        super().save(*args, **kwargs)
+
     @property
     def ownership_duration(self):
         return TimeSpan.from_dates(self.item_received_date, timezone.now())
@@ -182,6 +194,34 @@ class OwnedItem(models.Model):
     def __str__(self):
         return f"{self.name} ({self.get_status_display()})"
 
+    @classmethod
+    def get_user_item_count(cls, user):
+        """Get the current number of items for a user."""
+        return cls.objects.filter(user=user).count()
+
+    @classmethod
+    def get_remaining_item_slots(cls, user):
+        """Get the number of remaining item slots for a user."""
+        current_count = cls.get_user_item_count(user)
+        return max(0, MAX_ITEMS_PER_USER - current_count)
+
+    @classmethod
+    def can_add_items(cls, user, count=1):
+        """Check if a user can add the specified number of items."""
+        remaining_slots = cls.get_remaining_item_slots(user)
+        return remaining_slots >= count
+
+    @classmethod
+    def validate_item_limit(cls, user, count=1):
+        """Validate that adding items won't exceed the limit."""
+        if not cls.can_add_items(user, count):
+            current_count = cls.get_user_item_count(user)
+            remaining = cls.get_remaining_item_slots(user)
+            raise ValidationError(
+                f"Cannot add {count} item(s). You have {current_count}/{MAX_ITEMS_PER_USER} items. "
+                f"Only {remaining} slot(s) remaining."
+            )
+
     @staticmethod
     def create_item(
         user,
@@ -193,6 +233,9 @@ class OwnedItem(models.Model):
         last_used=None,
         ownership_duration_goal_months=12,
     ):
+        # Validate item limit before creating
+        OwnedItem.validate_item_limit(user, count=1)
+
         return OwnedItem.objects.create(
             user=user,
             name=name,

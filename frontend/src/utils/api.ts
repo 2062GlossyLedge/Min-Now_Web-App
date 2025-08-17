@@ -246,6 +246,42 @@ export const createItemJWT = async (
     }
 }
 
+// Get user item stats (count, limit, remaining slots) using JWT authentication
+export const fetchUserItemStatsJWT = async (
+    getToken: () => Promise<string | null>
+): Promise<ApiResponse<{
+    current_count: number;
+    max_items: number;
+    remaining_slots: number;
+    can_add_items: boolean;
+}>> => {
+    try {
+        const token = await getToken()
+        if (!token) {
+            return { error: 'No authentication token available' }
+        }
+
+        const response = await fetchWithJWT(
+            `${process.env.NEXT_PUBLIC_API_URL}/django-api/items/stats`,
+            token,
+            {
+                method: 'GET',
+            }
+        )
+
+        if (!response.ok) {
+            const errorText = await response.text()
+            return { error: `HTTP ${response.status}: ${errorText}` }
+        }
+
+        const data = await response.json()
+        return { data }
+    } catch (error) {
+        console.error('Error fetching user item stats with JWT:', error)
+        return { error: 'Failed to fetch user item stats' }
+    }
+}
+
 // Get item by ID using JWT authentication (alternative to fetchItemById)
 export const fetchItemByIdJWT = async (
     id: string,

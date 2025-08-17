@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -11,7 +11,7 @@ import { ChevronDownIcon, ImageIcon, SmileIcon } from 'lucide-react'
 // import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
 
 // JWT-based API imports (new approach)
-import { createItemJWT } from '@/utils/api'
+import { createItemJWT, fetchUserItemStatsJWT } from '@/utils/api'
 import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 import { Item } from '@/types/item'
 import Image from 'next/image'
@@ -71,6 +71,15 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const [manualAddError, setManualAddError] = useState<string | null>(null)
     const [quickBatchError, setQuickBatchError] = useState<string | null>(null)
     const [numOfKeysPressed, setNumOfKeysPressed] = useState<number>(1)
+
+    // Item limit state
+    const [itemStats, setItemStats] = useState<{
+        current_count: number;
+        max_items: number;
+        remaining_slots: number;
+        can_add_items: boolean;
+    } | null>(null)
+    const [itemStatsLoading, setItemStatsLoading] = useState(true)
 
     const itemTypes = [
         'Clothing & Accessories',
@@ -193,11 +202,87 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
         return ownershipGoalUnit === 'years' ? ownershipGoalValue * 12 : ownershipGoalValue
     }
 
+    // Fetch user item stats on component mount
+    useEffect(() => {
+        const fetchItemStats = async () => {
+            setItemStatsLoading(true)
+            try {
+                const { data, error } = await fetchUserItemStatsJWT(getToken)
+                if (error) {
+                    console.error('Error fetching item stats:', error)
+                } else if (data) {
+                    setItemStats(data)
+                }
+            } catch (error) {
+                console.error('Error fetching item stats:', error)
+            } finally {
+                setItemStatsLoading(false)
+            }
+        }
+
+        fetchItemStats()
+    }, [getToken])
+
+    // Helper function to check if user can add more items
+    const canAddMoreItems = (additionalCount = 1): boolean => {
+        if (!itemStats) return true // Allow if stats not loaded yet
+        return itemStats.remaining_slots >= additionalCount
+    }
+
+    // Helper function to get remaining slots message with dynamic updates
+    const getRemainingMessage = (): string => {
+        if (!itemStats) return ''
+
+        // Calculate current items including those in the quick add list
+        const itemsInQuickAdd = quickItemsToAdd.length
+        const totalItemsAfterAdding = itemStats.current_count + itemsInQuickAdd
+        const remainingSlots = itemStats.max_items - totalItemsAfterAdding
+
+        if (remainingSlots <= 0) {
+            return `You have reached the limit of ${itemStats.max_items} items. Delete items to add more. Wait for future updates to increase this limit.`
+        }
+        return `${totalItemsAfterAdding}/${itemStats.max_items} items added. ${remainingSlots} ${remainingSlots > 1 ? 'items' : 'item'} remaining`
+    }
+
+    // Helper function to check if user can add more items to the quick add list
+    const canAddToQuickList = (): boolean => {
+        if (!itemStats) return true // Allow if stats not loaded yet
+        const itemsInQuickAdd = quickItemsToAdd.length
+        const totalItemsAfterAdding = itemStats.current_count + itemsInQuickAdd + 1
+        return totalItemsAfterAdding <= itemStats.max_items
+    }
+
+    // Helper function to remove item from quick add list
+    const removeQuickItem = (indexToRemove: number) => {
+        setQuickItemsToAdd(prev => prev.filter((_, idx) => idx !== indexToRemove))
+        setQuickPromptsDict(prev => {
+            const newDict = { ...prev }
+            delete newDict[indexToRemove]
+            // Re-index the remaining items
+            const reindexedDict: Record<string, string> = {}
+            Object.entries(newDict).forEach(([key, value], newIndex) => {
+                if (parseInt(key) > indexToRemove) {
+                    reindexedDict[newIndex.toString()] = value
+                } else {
+                    reindexedDict[key] = value
+                }
+            })
+            return reindexedDict
+        })
+    }
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setIsSubmitting(true)
         setManualAddError(null) // Clear any previous errors
         setNumOfKeysPressed(0);
+
+        // Check item limit before proceeding
+        if (!canAddMoreItems(1)) {
+            setManualAddError(getRemainingMessage())
+            setIsSubmitting(false)
+            return
+        }
 
         const calculatedDate = calculateReceivedDate()
         if (!calculatedDate) {
@@ -236,6 +321,11 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
             }
 
             if (data) {
+                // Refresh item stats after successful creation
+                const { data: newStats } = await fetchUserItemStatsJWT(getToken)
+                if (newStats) {
+                    setItemStats(newStats)
+                }
                 onItemAdded(data)
                 onClose()
             }
@@ -254,11 +344,18 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
             setQuickFormError('All fields are required.')
             return
         }
+
+        // Check if user can add more items to the quick add list
+        if (!canAddToQuickList()) {
+            setQuickFormError('Cannot add more items. You have reached the limit.')
+            return
+        }
+
         setQuickFormLoading(true)
         try {
             const dateString = getQuickDateString()
             // Compose prompt for agent_add_item
-            const prompt = `Add a new item to keep: name '${quickItemName}', received ${dateString}`
+            const prompt = `Add a new item to keep: name '${quickItemName}', received ${dateString} `
 
             // Create new item object
             const newItem = {
@@ -325,7 +422,12 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                 quickPromptsDict,
                 getToken, // JWT approach - using getToken from Clerk
                 {
-                    onSuccess: () => {
+                    onSuccess: async () => {
+                        // Refresh item stats after successful batch creation
+                        const { data: newStats } = await fetchUserItemStatsJWT(getToken)
+                        if (newStats) {
+                            setItemStats(newStats)
+                        }
                         triggerRefresh()
                         quickItemsToAdd.forEach((item) => {
                             onItemAdded({
@@ -356,7 +458,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
     ]
-    const years = Array.from({ length: 21 }, (_, i) => `${2024 - i}`)
+    const years = Array.from({ length: 21 }, (_, i) => `${2024 - i} `)
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
@@ -389,6 +491,15 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                 {activeTab === 'manual' && (
                     <>
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Add New Item</h2>
+
+                        {/* Item Limit Status */}
+                        {!itemStatsLoading && itemStats && (
+                            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                <p className="text-sm text-blue-800 dark:text-blue-200">
+                                    {getRemainingMessage()}
+                                </p>
+                            </div>
+                        )}
 
                         {/* Manual Add Error Display */}
                         {manualAddError && (
@@ -713,10 +824,10 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={isSubmitting || !name || (useEmoji ? !pictureEmoji : !uploadedImageUrl) || !isDateValid()}
+                                    disabled={isSubmitting || !name || (useEmoji ? !pictureEmoji : !uploadedImageUrl) || !isDateValid() || !canAddMoreItems(1)}
                                     className="px-4 py-2 text-sm font-medium text-white bg-teal-600 border border-transparent rounded-md hover:bg-teal-700 disabled:opacity-50"
                                 >
-                                    {isSubmitting ? 'Adding...' : 'Add Item'}
+                                    {isSubmitting ? 'Adding...' : !canAddMoreItems(1) ? 'Limit Reached' : 'Add Item'}
                                 </button>
                             </div>
                         </form>
@@ -725,6 +836,15 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
 
                 {activeTab === 'quick' && (
                     <>
+                        {/* Item Limit Status */}
+                        {!itemStatsLoading && itemStats && (
+                            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                <p className="text-sm text-blue-800 dark:text-blue-200">
+                                    {getRemainingMessage()}
+                                </p>
+                            </div>
+                        )}
+
                         {/* Quick Add Error Display */}
                         {quickBatchError && (
                             <p className="text-center text-red-500 dark:text-red-400 mb-4">Error</p>
@@ -739,9 +859,10 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                             <button
                                 className="mb-4 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition disabled:opacity-50"
                                 onClick={() => setShowQuickAddForm(v => !v)}
+                                disabled={!showQuickAddForm && !canAddToQuickList()}
                                 type="button"
                             >
-                                {showQuickAddForm ? 'Cancel' : 'Quick Add Item'}
+                                {showQuickAddForm ? 'Cancel' : canAddToQuickList() ? 'Quick Add Item' : 'Limit Reached'}
                             </button>
                             {/* Quick Add Item Form */}
                             {showQuickAddForm && (
@@ -875,39 +996,60 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                     <button
                                         type="submit"
                                         className="w-full py-2 px-4 rounded bg-purple-600 text-white hover:bg-purple-700 transition disabled:opacity-50"
-                                        disabled={quickFormLoading}
+                                        disabled={quickFormLoading || !canAddToQuickList()}
                                     >
-                                        {quickFormLoading ? 'Adding...' : 'Add to Items to Add'}
+                                        {quickFormLoading ? 'Adding...' : canAddToQuickList() ? 'Add to Items to Add' : 'Limit Reached'}
                                     </button>
                                 </form>
                             )}
                             {/* Items to Add List */}
                             <div>
-                                <h3 className="text-lg font-semibold mb-2">Items to add</h3>
+                                <div className="flex justify-between items-center mb-2">
+                                    <h3 className="text-lg font-semibold">Items to add</h3>
+                                    {itemStats && (
+                                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                                            {itemStats.current_count + quickItemsToAdd.length}/{itemStats.max_items} items
+                                        </span>
+                                    )}
+                                </div>
                                 {quickItemsToAdd.length === 0 ? (
-                                    <div className="text-gray-500 text-sm">No items added yet.</div>
+                                    <div className="text-gray-500 text-sm">
+                                        {itemStats && !canAddToQuickList() ?
+                                            `No items added yet.You have reached the limit of ${itemStats.max_items} items.` :
+                                            'No items added yet.'
+                                        }
+                                    </div>
                                 ) : (
                                     <div className="space-y-2">
                                         {quickItemsToAdd.map((item, idx) => {
                                             let dateDisplay = ''
                                             if (item.dateMode === 'monthYear') {
-                                                dateDisplay = `${item.month} ${item.year}`
+                                                dateDisplay = `${item.month} ${item.year} `
                                             } else if (item.dateMode === 'year') {
-                                                dateDisplay = `January ${item.year}`
+                                                dateDisplay = `January ${item.year} `
                                             } else if (item.dateMode === 'yearRange') {
                                                 const start = parseInt(item.startYear || '0')
                                                 const end = parseInt(item.endYear || '0')
                                                 const middleYear = Math.floor((start + end) / 2)
-                                                dateDisplay = `June ${middleYear} (${item.startYear}-${item.endYear} range)`
+                                                dateDisplay = `June ${middleYear} (${item.startYear} -${item.endYear} range)`
                                             }
 
                                             return (
-                                                <div key={idx} className="bg-white dark:bg-gray-800 rounded shadow p-3 flex flex-col">
-                                                    {/* Card for each item */}
-                                                    <div className="font-medium">{item.name}</div>
-                                                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                                                        Received: {dateDisplay}
+                                                <div key={idx} className="bg-white dark:bg-gray-800 rounded shadow p-3 flex justify-between items-start">
+                                                    <div className="flex-1">
+                                                        {/* Card for each item */}
+                                                        <div className="font-medium">{item.name}</div>
+                                                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                                                            Received: {dateDisplay}
+                                                        </div>
                                                     </div>
+                                                    <button
+                                                        onClick={() => removeQuickItem(idx)}
+                                                        className="ml-2 px-2 py-1 text-xs bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-600 dark:text-red-400 rounded"
+                                                        type="button"
+                                                    >
+                                                        Remove
+                                                    </button>
                                                 </div>
                                             )
                                         })}

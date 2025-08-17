@@ -21,6 +21,7 @@ import json
 from .addItemAgent import run_agent
 from django.contrib.auth import authenticate
 from django.http import JsonResponse
+from django.core.exceptions import ValidationError
 import jwt
 from django.conf import settings
 from datetime import datetime, timedelta
@@ -561,15 +562,18 @@ def create_item_django(request):
 
         # Create the item
         user = request.user
-        item = ItemService.create_item(
-            user=user,
-            name=data["name"],
-            picture_url=data["picture_url"],
-            item_type=item_type,
-            status=status,
-            item_received_date=item_received_date,
-            last_used=last_used,
-        )
+        try:
+            item = ItemService.create_item(
+                user=user,
+                name=data["name"],
+                picture_url=data["picture_url"],
+                item_type=item_type,
+                status=status,
+                item_received_date=item_received_date,
+                last_used=last_used,
+            )
+        except ValidationError as e:
+            return JsonResponse({"error": str(e)}, status=400)
 
         # Convert to schema format
         item_schema = OwnedItemSchema.from_orm(item)
@@ -607,6 +611,22 @@ def get_item_django(request, item_id):
 
     except Exception as e:
         log.error(f"Error in get_item_django: {str(e)}")
+        return JsonResponse({"error": "Internal server error"}, status=500)
+
+
+@jwt_required
+@require_http_methods(["GET"])
+def get_user_item_stats_django(request):
+    """
+    Django view to get user item statistics including limits.
+    """
+    try:
+        user = request.user
+        stats = ItemService.get_user_item_stats(user)
+        return JsonResponse(stats)
+    
+    except Exception as e:
+        log.error(f"Error in get_user_item_stats_django: {str(e)}")
         return JsonResponse({"error": "Internal server error"}, status=500)
 
 
@@ -1003,6 +1023,15 @@ def agent_add_item_batch_django(request):
             return JsonResponse(
                 {"error": "Missing required field: prompts"}, status=400
             )
+
+        # Validate item limits before processing batch
+        user = request.user
+        num_items_to_add = len(data["prompts"])
+        
+        try:
+            OwnedItem.validate_item_limit(user, count=num_items_to_add)
+        except ValidationError as e:
+            return JsonResponse({"error": str(e)}, status=400)
 
         # Get JWT token from Authorization header
         auth_header = request.META.get("HTTP_AUTHORIZATION")

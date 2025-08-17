@@ -351,7 +351,11 @@ def run_agent(batch_prompts: dict, jwt_token: str = None):
     global llm_with_tools
     log.info("Initializing LLM with tools...")
     llm_with_tools = ChatOpenAI(
-        model="gpt-4.1", temperature=1, request_timeout=120, max_completion_tokens=200
+        model="gpt-4.1",
+        temperature=1,
+        request_timeout=120,
+        max_completion_tokens=200,
+        max_retries=3,
     ).bind_tools([tool])
     log.info("LLM with tools initialized successfully")
 

@@ -68,14 +68,14 @@ class ItemService:
         """Get item statistics for a user including limits."""
         current_count = OwnedItem.get_user_item_count(user)
         remaining_slots = OwnedItem.get_remaining_item_slots(user)
-        max_items = OwnedItem._meta.get_field('user').related_model._meta.app_label
+        max_items = OwnedItem._meta.get_field("user").related_model._meta.app_label
         from .models import MAX_ITEMS_PER_USER
-        
+
         return {
-            'current_count': current_count,
-            'max_items': MAX_ITEMS_PER_USER,
-            'remaining_slots': remaining_slots,
-            'can_add_items': remaining_slots > 0
+            "current_count": current_count,
+            "max_items": MAX_ITEMS_PER_USER,
+            "remaining_slots": remaining_slots,
+            "can_add_items": remaining_slots > 0,
         }
 
 

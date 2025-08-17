@@ -1,3 +1,5 @@
+import 'server-only'
+
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";

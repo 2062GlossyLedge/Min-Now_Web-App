@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 
 
 # Constants for item limits
-MAX_ITEMS_PER_USER = 9
+MAX_ITEMS_PER_USER = 10
 
 
 class ItemType(models.TextChoices):

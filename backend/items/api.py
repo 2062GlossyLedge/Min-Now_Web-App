@@ -624,7 +624,7 @@ def get_user_item_stats_django(request):
         user = request.user
         stats = ItemService.get_user_item_stats(user)
         return JsonResponse(stats)
-    
+
     except Exception as e:
         log.error(f"Error in get_user_item_stats_django: {str(e)}")
         return JsonResponse({"error": "Internal server error"}, status=500)
@@ -1027,7 +1027,7 @@ def agent_add_item_batch_django(request):
         # Validate item limits before processing batch
         user = request.user
         num_items_to_add = len(data["prompts"])
-        
+
         try:
             OwnedItem.validate_item_limit(user, count=num_items_to_add)
         except ValidationError as e:

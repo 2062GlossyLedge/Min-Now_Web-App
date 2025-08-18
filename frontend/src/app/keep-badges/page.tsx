@@ -1,9 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch"
+// CSRF-based API imports (commented out - using JWT approach)
+// import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch"
+
+// JWT-based API imports (new approach)
+import { fetchItemsByStatusJWT, testClerkJWT } from "@/utils/api"
 import AuthMessage from "@/components/AuthMessage"
-import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
+import { SignedIn, SignedOut, useUser, useAuth } from '@clerk/nextjs'
 
 // Emoji map for item types (no question marks, fallback to 🏷️)
 const itemTypeEmojis: Record<string, string> = {
@@ -111,7 +115,8 @@ const KeepBadgesPage = () => {
     const [badgeGroups, setBadgeGroups] = useState<BadgeGroups>({}) // State to store fetched badge data
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const { authenticatedFetch } = useAuthenticatedFetch()
+    // const { authenticatedFetch } = useAuthenticatedFetch() // CSRF approach - commented out
+    const { getToken } = useAuth() // JWT approach - get token from Clerk
     const { isSignedIn, isLoaded } = useUser() // Get user authentication status
 
     // Separate effect to handle authentication state changes
@@ -134,15 +139,29 @@ const KeepBadgesPage = () => {
             setLoading(true)
             setError(null)
             try {
-                // Fetch all owned items and consolidate keep badge progress
-                const response = await authenticatedFetch(`/api/items?status=Keep`)
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`)
+                // Test JWT authentication first
+                const jwtTest = await testClerkJWT(getToken)
+                console.log('KeepBadges JWT Test Result:', jwtTest)
+
+                // JWT approach - using fetchItemsByStatusJWT
+                const { data: items, error: apiError } = await fetchItemsByStatusJWT('Keep', getToken)
+
+                // CSRF approach (commented out)
+                // const response = await authenticatedFetch(`/api/items?status=Keep`)
+                // if (!response.ok) {
+                //     throw new Error(`HTTP error! status: ${response.status}`)
+                // }
+                // const items: OwnedItem[] = await response.json()
+
+                if (apiError) {
+                    throw new Error(apiError)
                 }
-                const items: OwnedItem[] = await response.json()
+
                 const consolidatedBadges: BadgeGroups = {}
-                items.forEach(item => {
-                    if (item.item_type) {
+                const itemsArray = (items || []) as (OwnedItem[] & typeof items)
+
+                itemsArray.forEach(item => {
+                    if (item.item_type && item.keep_badge_progress) {
                         if (!consolidatedBadges[item.item_type]) {
                             consolidatedBadges[item.item_type] = []
                         }
@@ -152,9 +171,9 @@ const KeepBadgesPage = () => {
                         // or combine progress. For this request, we'll display all relevant badge types.
                         item.keep_badge_progress.forEach(badge => {
                             // Check if badge already exists for this tier/name to avoid duplicates if multiple items contribute
-                            const existingBadge = consolidatedBadges[item.item_type].find(b => b.name === badge.name && b.tier === badge.tier)
+                            const existingBadge = consolidatedBadges[item.item_type!].find(b => b.name === badge.name && b.tier === badge.tier)
                             if (!existingBadge) {
-                                consolidatedBadges[item.item_type].push(badge)
+                                consolidatedBadges[item.item_type!].push(badge)
                             } else {
                                 // If a badge already exists, update its progress if the new item's progress is higher
                                 if (badge.progress > existingBadge.progress) {
@@ -175,7 +194,7 @@ const KeepBadgesPage = () => {
         }
 
         fetchKeepBadges()
-    }, [authenticatedFetch, isLoaded, isSignedIn])
+    }, [getToken, isLoaded, isSignedIn]) // Updated dependencies for JWT approach
 
     return (
         <div className="container mx-auto py-8 px-4">
@@ -190,7 +209,10 @@ const KeepBadgesPage = () => {
                 </div>
 
                 {loading && <p className="text-center text-gray-500 dark:text-gray-400">Loading keep badges...</p>}
-                {process.env.DEBUG === 'true' && error && (
+                {error && (
+                    <p className="text-center text-red-500 dark:text-red-400">Error</p>
+                )}
+                {process.env.NEXT_PUBLIC_DEBUG === 'true' && error && (
                     <p className="text-center text-red-500 dark:text-red-400">Error: {error}</p>
                 )}
                 {!loading && !error && Object.keys(badgeGroups).length === 0 && (

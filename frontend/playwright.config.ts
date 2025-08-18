@@ -34,5 +34,6 @@ export default defineConfig({
     webServer: {
         command: 'npm run dev',
         url: 'http://localhost:3000',
+        reuseExistingServer: true, // This allows tests to run with existing dev server
     },
 }); 

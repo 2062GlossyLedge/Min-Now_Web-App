@@ -3,6 +3,7 @@ from .models import OwnedItem, Checkup, ItemStatus, ItemType
 from datetime import timedelta
 from django.core.mail import send_mail
 from django.conf import settings
+from django.core.exceptions import ValidationError
 import logging
 from mailersend import emails as mailersend_emails
 import os
@@ -11,7 +12,12 @@ import os
 class ItemService:
     @staticmethod
     def create_item(user, **kwargs):
-        return OwnedItem.objects.create(user=user, **kwargs)
+        """Create an item with validation for user item limits."""
+        try:
+            return OwnedItem.objects.create(user=user, **kwargs)
+        except ValidationError as e:
+            # Re-raise validation errors to be handled by the API
+            raise e
 
     @staticmethod
     def get_item(item_id):
@@ -56,6 +62,21 @@ class ItemService:
         if item_type:
             qs = qs.filter(item_type=item_type)
         return qs
+
+    @staticmethod
+    def get_user_item_stats(user):
+        """Get item statistics for a user including limits."""
+        current_count = OwnedItem.get_user_item_count(user)
+        remaining_slots = OwnedItem.get_remaining_item_slots(user)
+        max_items = OwnedItem._meta.get_field("user").related_model._meta.app_label
+        from .models import MAX_ITEMS_PER_USER
+
+        return {
+            "current_count": current_count,
+            "max_items": MAX_ITEMS_PER_USER,
+            "remaining_slots": remaining_slots,
+            "can_add_items": remaining_slots > 0,
+        }
 
 
 class CheckupService:

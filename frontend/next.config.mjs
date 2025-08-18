@@ -22,18 +22,23 @@ const config = {
             },
         ],
     },
-    typescript: {
-        ignoreBuildErrors: true,
-    },
-    eslint: {
-        ignoreDuringBuilds: true,
-    },
+    // typescript: {
+    //     ignoreBuildErrors: true,
+    // },
+    // eslint: {
+    //     ignoreDuringBuilds: true,
+    // },
     async rewrites() {
         return [
             {
                 source: '/api/:slug*',
                 destination: `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/:slug*`,
             },
+            {
+                source: '/django-api/:slug*',
+                destination: `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/django-api/:slug*`,
+            },
+
         ]
     },
     async headers() {
@@ -66,6 +71,7 @@ const config = {
                         key: 'Referrer-Policy',
                         value: 'origin-when-cross-origin'
                     },
+
 
 
 

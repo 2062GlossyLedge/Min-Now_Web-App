@@ -21,10 +21,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             setTheme(savedTheme)
             if (savedTheme === 'dark') {
                 document.documentElement.classList.add('dark')
-                console.log('dark on load')
+                //console.log('dark on load')
             } else {
                 document.documentElement.classList.remove('dark')
-                console.log('light on load')
+                //console.log('light on load')
             }
         } else {
             // Check system preference

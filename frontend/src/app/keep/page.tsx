@@ -6,11 +6,15 @@ import AddItemForm from '../../components/AddItemForm'
 import FilterBar from '../../components/FilterBar'
 import CheckupManager from '../../components/CheckupManager'
 import AuthMessage from '../../components/AuthMessage'
-import { updateItem, deleteItem, fetchItemsByStatus, createItem, sendTestCheckupEmail, agentAddItem, createHandleEdit } from '@/utils/api'
+// CSRF-based API imports (commented out - using JWT approach)
+// import { updateItem, deleteItem, fetchItemsByStatus, createItem, sendTestCheckupEmail, agentAddItem, createHandleEdit } from '@/utils/api'
+
+// JWT-based API imports (new approach) 
+import { updateItemJWT, deleteItemJWT, fetchItemsByStatusJWT, createItemJWT, sendTestCheckupEmailJWT, agentAddItemJWT, createHandleEditJWT, testClerkJWT } from '@/utils/api'
 import { Item } from '@/types/item'
 import { useCheckupStatus } from '@/hooks/useCheckupStatus'
-import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
-import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
+import { SignedIn, SignedOut, useUser, useAuth } from '@clerk/nextjs'
+// import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch' // Not needed for JWT approach
 import { useRouter } from 'next/navigation'
 import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 
@@ -23,8 +27,9 @@ export default function KeepView() {
     const [selectedType, setSelectedType] = useState<string | null>(null)
     const isCheckupDue = useCheckupStatus('keep')
     const [showFilters, setShowFilters] = useState(false)
-    const { authenticatedFetch } = useAuthenticatedFetch()
+    // const { authenticatedFetch } = useAuthenticatedFetch() // CSRF approach - commented out
     const { isSignedIn, isLoaded } = useUser() // Get user authentication status
+    const { getToken } = useAuth() // JWT approach - get token from Clerk
     const router = useRouter()
     const [emailStatus, setEmailStatus] = useState<string | null>(null)
     const { refreshTrigger, clearUpdatedItems } = useItemUpdate()
@@ -39,8 +44,54 @@ export default function KeepView() {
         }
     }, [isLoaded, isSignedIn])
 
+    // useEffect(() => {
+    //     const fetchItems = async () => {
+    //         // Only fetch items if user is signed in and Clerk has loaded
+    //         if (!isLoaded || !isSignedIn) {
+    //             setLoading(false)
+    //             return
+    //         }
+
+    //         setLoading(true)
+    //         setError(null)
+    //         try {
+    //             const { data, error } = await fetchItemsByStatus('Keep', authenticatedFetch)
+    //             if (error) {
+    //                 console.error(error)
+    //                 setError(error)
+    //                 setItems([])
+    //             } else {
+    //                 setItems(data || [])
+    //             }
+    //         } catch (error) {
+    //             console.error('Error fetching items:', error)
+    //             setError('Failed to load items.')
+    //             setItems([])
+    //         } finally {
+    //             setLoading(false)
+    //         }
+    //     }
+
+    //     fetchItems()
+
+    //     // Clear updated items after refresh
+    //     if (refreshTrigger > 0) {
+    //         clearUpdatedItems()
+    //     }
+    // }, [authenticatedFetch, refreshTrigger, isLoaded, isSignedIn]) // Add authentication dependencies
+
+    // ALTERNATIVE JWT AUTHENTICATION APPROACH (COMMENTED OUT FOR TESTING)
+    // This approach uses Clerk's getToken() directly without CSRF tokens
+    // 
+    // TO USE THE NEW JWT APPROACH:
+    // 1. Comment out the current useEffect above that uses fetchItemsByStatus
+    // 2. Uncomment the useEffect below that uses fetchItemsByStatusJWT  
+    // 3. The new approach fetches from /django-api/items instead of /api/items
+    // 4. It uses JWT tokens from Clerk directly instead of CSRF tokens
+    // 5. No additional authenticated fetch wrapper is needed
+
     useEffect(() => {
-        const fetchItems = async () => {
+        const fetchItemsWithJWT = async () => {
             // Only fetch items if user is signed in and Clerk has loaded
             if (!isLoaded || !isSignedIn) {
                 setLoading(false)
@@ -50,34 +101,58 @@ export default function KeepView() {
             setLoading(true)
             setError(null)
             try {
-                const { data, error } = await fetchItemsByStatus('Keep', authenticatedFetch)
+                // Test JWT authentication first
+                const jwtTest = await testClerkJWT(getToken)
+                console.log('JWT Test Result:', jwtTest)
+
+                // Fetch items using JWT
+                const { data, error } = await fetchItemsByStatusJWT('Keep', getToken)
                 if (error) {
-                    console.error(error)
+                    console.error('JWT Fetch Error:', error)
                     setError(error)
                     setItems([])
                 } else {
-                    setItems(data || [])
+                    console.log('JWT Fetch Success:', data)
+                    // Map API response to frontend format
+                    const mappedItems = (data || []).map((item: any) => ({
+                        ...item,
+                        // Map snake_case API fields to camelCase frontend fields
+                        itemType: item.item_type || item.itemType,
+                        pictureUrl: item.picture_url || item.pictureUrl,
+                        ownershipDuration: item.ownership_duration?.description || item.ownershipDuration || 'Not specified',
+                        lastUsedDuration: item.last_used_duration?.description || item.lastUsedDuration || 'N/A',
+                        receivedDate: item.item_received_date || item.receivedDate,
+                        ownershipDurationGoalMonths: item.ownership_duration_goal_months || item.ownershipDurationGoalMonths || 12,
+                        ownershipDurationGoalProgress: item.ownership_duration_goal_progress || item.ownershipDurationGoalProgress || 0,
+                    }))
+                    setItems(mappedItems)
                 }
             } catch (error) {
-                console.error('Error fetching items:', error)
-                setError('Failed to load items.')
+                console.error('Error fetching items with JWT:', error)
+                setError('Failed to load items with JWT.')
                 setItems([])
             } finally {
                 setLoading(false)
             }
         }
 
-        fetchItems()
+        fetchItemsWithJWT()
 
         // Clear updated items after refresh
         if (refreshTrigger > 0) {
             clearUpdatedItems()
         }
-    }, [authenticatedFetch, refreshTrigger, isLoaded, isSignedIn]) // Add authentication dependencies
+    }, [getToken, refreshTrigger, isLoaded, isSignedIn])
+
 
     const handleStatusChange = async (id: string, newStatus: string) => {
         try {
-            const { error } = await updateItem(id, { status: newStatus }, authenticatedFetch)
+            // JWT approach - using updateItemJWT
+            const { error } = await updateItemJWT(id, { status: newStatus }, getToken)
+
+            // CSRF approach (commented out)
+            // const { error } = await updateItem(id, { status: newStatus }, authenticatedFetch)
+
             if (error) {
                 console.error('Error updating item status:', error)
                 return
@@ -94,13 +169,21 @@ export default function KeepView() {
         setSelectedType(type)
     }
 
-    // Use shared handleEdit function to eliminate code duplication
-    const handleEdit = createHandleEdit('Keep', setItems, authenticatedFetch)
+    // JWT approach - using createHandleEditJWT
+    const handleEdit = createHandleEditJWT('Keep', setItems, getToken)
+
+    // CSRF approach (commented out)
+    // const handleEdit = createHandleEdit('Keep', setItems, authenticatedFetch)
 
     const handleDelete = async (id: string) => {
         setDeletingItemId(id) // Set which item is being deleted
         try {
-            const { error } = await deleteItem(id, authenticatedFetch)
+            // JWT approach - using deleteItemJWT
+            const { error } = await deleteItemJWT(id, getToken)
+
+            // CSRF approach (commented out)
+            // const { error } = await deleteItem(id, authenticatedFetch)
+
             if (error) {
                 console.error('Error deleting item:', error)
                 return
@@ -133,7 +216,12 @@ export default function KeepView() {
     const handleSendTestEmail = async () => {
         setEmailStatus(null)
         try {
-            const result = await sendTestCheckupEmail(authenticatedFetch)
+            // JWT approach - using sendTestCheckupEmailJWT
+            const result = await sendTestCheckupEmailJWT(getToken)
+
+            // CSRF approach (commented out)
+            // const result = await sendTestCheckupEmail(authenticatedFetch)
+
             if (result.data) {
                 setEmailStatus('Test checkup email sent successfully!')
             } else {
@@ -149,11 +237,36 @@ export default function KeepView() {
         setEmailStatus(null)
         try {
             const prompt = "Add a new item to keep: name 'Jacket', received Dec 2020, last used Dec 2024"
-            const result = await agentAddItem(prompt, authenticatedFetch)
+
+            // JWT approach - using agentAddItemJWT
+            const result = await agentAddItemJWT(prompt, getToken)
+
+            // CSRF approach (commented out)
+            // const result = await agentAddItem(prompt, authenticatedFetch)
+
             if (result.data) {
                 setEmailStatus('Item added successfully via AI agent!')
-                const { data, error } = await fetchItemsByStatus('Keep', authenticatedFetch)
-                if (!error && data) setItems(data)
+
+                // Refresh items list to get the newly created item(s)
+                const { data, error } = await fetchItemsByStatusJWT('Keep', getToken)
+
+                // CSRF approach (commented out)
+                // const { data, error } = await fetchItemsByStatus('Keep', authenticatedFetch)
+
+                if (!error && data) {
+                    // Map API response to frontend format
+                    const mappedItems = (data || []).map((item: any) => ({
+                        ...item,
+                        // Map snake_case API fields to camelCase frontend fields
+                        itemType: item.item_type || item.itemType,
+                        pictureUrl: item.picture_url || item.pictureUrl,
+                        ownershipDuration: item.ownership_duration?.description || item.ownershipDuration || 'Not specified',
+                        lastUsedDuration: item.last_used_duration?.description || item.lastUsedDuration || 'N/A',
+                        ownershipDurationGoalMonths: item.ownership_duration_goal_months || item.ownershipDurationGoalMonths || 12,
+                        ownershipDurationGoalProgress: item.ownership_duration_goal_progress || item.ownershipDurationGoalProgress || 0,
+                    }))
+                    setItems(mappedItems)
+                }
             } else {
                 setEmailStatus(result.error || 'Failed to add item via AI agent')
             }
@@ -271,7 +384,11 @@ export default function KeepView() {
                                                 last_used: new Date(testItem.last_used).toLocaleString()
                                             });
 
-                                            const { data, error } = await createItem(testItem, authenticatedFetch);
+                                            // JWT approach - using createItemJWT
+                                            const { data, error } = await createItemJWT(testItem, getToken);
+
+                                            // CSRF approach (commented out)
+                                            // const { data, error } = await createItem(testItem, authenticatedFetch);
                                             if (error) {
                                                 console.error('Error creating test item:', error);
                                             } else {
@@ -279,7 +396,23 @@ export default function KeepView() {
                                                     response: data,
                                                     originalRequest: testItem
                                                 });
-                                                router.refresh();
+
+                                                // Directly add the new item to the current list instead of router.refresh()
+                                                if (data) {
+                                                    // Map backend fields to frontend interface
+                                                    const mappedItem = {
+                                                        ...data,
+                                                        itemType: data.item_type || data.itemType,
+                                                        pictureUrl: data.picture_url || data.pictureUrl,
+                                                        ownershipDuration: data.ownership_duration?.description || 'Not specified',
+                                                        lastUsedDuration: 'N/A', // Calculate this if needed
+                                                        ownershipDurationGoalMonths: data.ownership_duration_goal_months || data.ownershipDurationGoalMonths || 12,
+                                                        ownershipDurationGoalProgress: data.ownership_duration_goal_progress || data.ownershipDurationGoalProgress || 0,
+                                                    };
+
+                                                    // Add the new item to the existing items list
+                                                    setItems(prevItems => [...prevItems, mappedItem]);
+                                                }
                                             }
                                         } catch (error) {
                                             console.error('Error creating test item:', {
@@ -316,7 +449,10 @@ export default function KeepView() {
                 )}
 
                 {loading && <p className="text-center text-gray-500 dark:text-gray-400">Loading items...</p>}
-                {process.env.DEBUG === 'true' && error && (
+                {error && (
+                    <p className="text-center text-red-500 dark:text-red-400">Error</p>
+                )}
+                {process.env.NEXT_PUBLIC_DEBUG === 'true' && error && (
                     <p className="text-center text-red-500 dark:text-red-400">Error: {error}</p>
                 )}
 

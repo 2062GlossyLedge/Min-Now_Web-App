@@ -32,6 +32,12 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@server/*": [
+        "src/server/*"
+      ],
+      "~ratelimit": [
+        "src/server/ratelimit.ts"
       ]
     }
   },

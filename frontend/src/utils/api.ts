@@ -5,13 +5,6 @@ interface ApiResponse<T> {
     error?: string
 }
 
-// Legacy CSRF function for backward compatibility (not actively used)
-// This prevents import errors in useAuthenticatedFetch.ts
-export const fetchWithCsrf = async (url: string, options: RequestInit = {}) => {
-    // This is a stub function - all components now use JWT approach
-    console.warn('fetchWithCsrf is deprecated - use JWT functions instead. Attempted to call:', url, options)
-    throw new Error('fetchWithCsrf is deprecated - use JWT functions instead')
-}
 // Add these interfaces at the top with other interfaces
 interface Checkup {
     id: number;
@@ -76,6 +69,13 @@ type AgentAddItemsBatchHandlers = {
     onError?: (error: string) => void
 }
 
+// Legacy CSRF function for backward compatibility (not actively used)
+// This prevents import errors in useAuthenticatedFetch.ts
+export const fetchWithCsrf = async (url: string, options: RequestInit = {}) => {
+    // This is a stub function - all components now use JWT approach
+    console.warn('fetchWithCsrf is deprecated - use JWT functions instead. Attempted to call:', url, options)
+    throw new Error('fetchWithCsrf is deprecated - use JWT functions instead')
+}
 
 // New JWT-based authentication functions (alternative approach)
 // These functions use Clerk's getToken() directly without CSRF tokens

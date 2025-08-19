@@ -4,6 +4,14 @@ interface ApiResponse<T> {
     data?: T
     error?: string
 }
+
+// Legacy CSRF function for backward compatibility (not actively used)
+// This prevents import errors in useAuthenticatedFetch.ts
+export const fetchWithCsrf = async (url: string, options: RequestInit = {}) => {
+    // This is a stub function - all components now use JWT approach
+    console.warn('fetchWithCsrf is deprecated - use JWT functions instead. Attempted to call:', url, options)
+    throw new Error('fetchWithCsrf is deprecated - use JWT functions instead')
+}
 // Add these interfaces at the top with other interfaces
 interface Checkup {
     id: number;

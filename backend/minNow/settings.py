@@ -138,6 +138,12 @@ if prod:
     CSRF_HTTPONLY = True  # Prevents CSRF cookie from being accessed via JavaScript
     COOKIE_HTTPONLY = True  # Prevents cookies from being accessed via JavaScript
 
+    # Set permissions policy to enable microphone and browsing topics only
+    PERMISSIONS_POLICY = {
+        "microphone": "self",  # Enable microphone access for same-origin
+        "browsing-topics": "self",  # Enable browsing topics for same-origin
+    }
+
 
 else:
     # Build paths inside the project like this: BASE_DIR / 'subdir'.

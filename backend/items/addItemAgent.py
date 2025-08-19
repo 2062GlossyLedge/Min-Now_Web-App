@@ -150,61 +150,6 @@ def create_item_directly(user_id: str, item_data: Dict[str, Any]) -> Dict[str, A
         raise
 
 
-# def generate_csrf_token():
-#     """Generate CSRF token directly using Django's get_token function - DEPRECATED for direct DB access"""
-#     log.warning("CSRF token generation is deprecated when using direct database access")
-#     log.info("Generating CSRF token directly from Django")
-#     try:
-#         # Create a mock request object for CSRF token generation
-#         request = HttpRequest()
-#         request.META["SERVER_NAME"] = "localhost"
-#         request.META["SERVER_PORT"] = "8000"
-
-#         csrf_token = get_token(request)
-#         log.info("CSRF token generated successfully")
-#         log.debug(f"CSRF token length: {len(csrf_token)}")
-#         return csrf_token
-#     except Exception as e:
-#         log.error(f"Error generating CSRF token: {type(e).__name__} - {str(e)}")
-#         raise
-
-
-# def get_csrf_token(client, api_url):
-#     """Get CSRF token from the API with detailed logging - DEPRECATED, use generate_csrf_token instead"""
-#     log.warning(
-#         "Using deprecated HTTP-based CSRF token retrieval. Consider using generate_csrf_token() instead."
-#     )
-#     log.info(f"Requesting CSRF token from: {api_url}/api/csrf-token")
-#     try:
-#         log.debug("About to make GET request for CSRF token...")
-#         # Use the same timeout configuration as the client
-#         resp = client.get(f"{api_url}/api/csrf-token", follow_redirects=True)
-#         log.debug("GET request completed, processing response...")
-#         log.debug(f"CSRF request status code: {resp.status_code}")
-#         log.debug(f"CSRF response headers: {dict(resp.headers)}")
-#         log.debug("About to call raise_for_status()...")
-#         resp.raise_for_status()
-#         log.debug("Status check passed, parsing JSON...")
-#         token_data = resp.json()
-#         log.info("CSRF token retrieved successfully")
-#         log.debug(f"CSRF token data keys: {list(token_data.keys())}")
-#         return token_data["token"]
-#     except httpx.TimeoutException as e:
-#         log.error(f"Timeout error getting CSRF token: {type(e).__name__} - {str(e)}")
-#         raise
-#     except httpx.HTTPStatusError as e:
-#         log.error(
-#             f"HTTP error getting CSRF token: {e.response.status_code} - {e.response.text}"
-#         )
-#         raise
-#     except httpx.RequestError as e:
-#         log.error(f"Request error getting CSRF token: {type(e).__name__} - {str(e)}")
-#         raise
-#     except Exception as e:
-#         log.error(f"Unexpected error getting CSRF token: {type(e).__name__} - {str(e)}")
-#         raise
-
-
 def route_tools(state: State):
     """
     Route to the ToolNode if there are more prompts to process, else END.

@@ -8,7 +8,8 @@ applyTo: '*.py'
 
 - Don't create another settings.py file. 
 - Do not delete or overwrite any comments. 
-- Ask before running any terminal commands
+- do not suggest or execute commands in the terminal
+
 
 ### Key Principles
 - Write clear, technical responses with precise Django-Ninja examples.

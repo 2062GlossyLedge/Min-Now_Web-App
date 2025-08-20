@@ -19,7 +19,7 @@ import { UploadButton } from '@uploadthing/react'
 import type { OurFileRouter } from '@/app/api/uploadthing/core'
 import { twMerge } from 'tailwind-merge'
 import "@uploadthing/react/styles.css";
-import { useAuth } from '@clerk/nextjs'
+import { useAuth, useUser } from '@clerk/nextjs'
 
 
 
@@ -41,6 +41,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const [isUploading, setIsUploading] = useState(false)
     // const { authenticatedFetch } = useAuthenticatedFetch() // CSRF approach - commented out
     const { getToken } = useAuth() // JWT approach - get token from Clerk
+    const { user } = useUser() // Get user data from Clerk to check admin status
     const [open, setOpen] = useState(false)
     const [activeTab, setActiveTab] = useState<'manual' | 'quick'>('manual')
     const [showQuickAddForm, setShowQuickAddForm] = useState(false)
@@ -223,14 +224,27 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
         fetchItemStats()
     }, [getToken])
 
+    // Helper function to check if user is admin
+    const isUserAdmin = (): boolean => {
+        console.log(user?.publicMetadata)
+        return (user as any)?.publicMetadata?.['is-admin'] === true
+    }
+
     // Helper function to check if user can add more items
     const canAddMoreItems = (additionalCount = 1): boolean => {
+        // Admin users bypass item limits
+        if (isUserAdmin()) return true
         if (!itemStats) return true // Allow if stats not loaded yet
         return itemStats.remaining_slots >= additionalCount
     }
 
     // Helper function to get remaining slots message with dynamic updates
     const getRemainingMessage = (): string => {
+        // Admin users don't have limits
+        if (isUserAdmin()) {
+            return 'Admin user: No item limits enforced'
+        }
+
         if (!itemStats) return ''
 
         // Calculate current items including those in the quick add list
@@ -246,6 +260,8 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
 
     // Helper function to check if user can add more items to the quick add list
     const canAddToQuickList = (): boolean => {
+        // Admin users bypass item limits
+        if (isUserAdmin()) return true
         if (!itemStats) return true // Allow if stats not loaded yet
         const itemsInQuickAdd = quickItemsToAdd.length
         const totalItemsAfterAdding = itemStats.current_count + itemsInQuickAdd + 1
@@ -493,13 +509,13 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Add New Item</h2>
 
                         {/* Item Limit Status */}
-                        {!itemStatsLoading && itemStats && (
-                            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                                <p className="text-sm text-blue-800 dark:text-blue-200">
+                        {(!itemStatsLoading && itemStats) || isUserAdmin() ? (
+                            <div className={`mb-4 p-3 rounded-lg border ${isUserAdmin() ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'}`}>
+                                <p className={`text-sm ${isUserAdmin() ? 'text-green-800 dark:text-green-200' : 'text-blue-800 dark:text-blue-200'}`}>
                                     {getRemainingMessage()}
                                 </p>
                             </div>
-                        )}
+                        ) : null}
 
                         {/* Manual Add Error Display */}
                         {manualAddError && (
@@ -837,13 +853,13 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                 {activeTab === 'quick' && (
                     <>
                         {/* Item Limit Status */}
-                        {!itemStatsLoading && itemStats && (
-                            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                                <p className="text-sm text-blue-800 dark:text-blue-200">
+                        {(!itemStatsLoading && itemStats) || isUserAdmin() ? (
+                            <div className={`mb-4 p-3 rounded-lg border ${isUserAdmin() ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'}`}>
+                                <p className={`text-sm ${isUserAdmin() ? 'text-green-800 dark:text-green-200' : 'text-blue-800 dark:text-blue-200'}`}>
                                     {getRemainingMessage()}
                                 </p>
                             </div>
-                        )}
+                        ) : null}
 
                         {/* Quick Add Error Display */}
                         {quickBatchError && (
@@ -1008,7 +1024,10 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                     <h3 className="text-lg font-semibold">Items to add</h3>
                                     {itemStats && (
                                         <span className="text-sm text-gray-600 dark:text-gray-400">
-                                            {itemStats.current_count + quickItemsToAdd.length}/{itemStats.max_items} items
+                                            {isUserAdmin() ?
+                                                `${itemStats.current_count + quickItemsToAdd.length} items (Admin: No limit)` :
+                                                `${itemStats.current_count + quickItemsToAdd.length}/${itemStats.max_items} items`
+                                            }
                                         </span>
                                     )}
                                 </div>

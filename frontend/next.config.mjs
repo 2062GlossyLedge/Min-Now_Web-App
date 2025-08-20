@@ -61,7 +61,7 @@ const config = {
                     },
                     {
                         key: 'Permissions-Policy',
-                        value: 'microphone=(), browsing-topics=()'
+                        value: ''
                     },
                     {
                         key: 'X-Content-Type-Options',

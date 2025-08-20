@@ -138,12 +138,24 @@ if prod:
     CSRF_HTTPONLY = True  # Prevents CSRF cookie from being accessed via JavaScript
     COOKIE_HTTPONLY = True  # Prevents cookies from being accessed via JavaScript
 
-    # Set permissions policy to enable microphone and browsing topics only
+    # enable microphone for accessibility?
     PERMISSIONS_POLICY = {
-        "microphone": "self",  # Enable microphone access for same-origin
-        "browsing-topics": "self",  # Enable browsing topics for same-origin
+        "accelerometer": [],
+        "ambient-light-sensor": [],
+        "autoplay": [],
+        "camera": [],
+        "display-capture": [],
+        "encrypted-media": [],
+        "fullscreen": [],
+        "geolocation": [],
+        "gyroscope": [],
+        "interest-cohort": [],
+        "magnetometer": [],
+        "microphone": [],
+        "midi": [],
+        "payment": [],
+        "usb": [],
     }
-
 
 else:
     # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -199,6 +211,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "django_permissions_policy.PermissionsPolicyMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",

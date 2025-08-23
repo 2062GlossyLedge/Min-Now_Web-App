@@ -152,7 +152,7 @@ export default function GiveView() {
         <div className="container mx-auto px-4 py-8">
             <div className="flex justify-between items-center mb-6">
                 <SignedIn>
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Give Items</h1>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Items to Give</h1>
                     <div className="flex items-center space-x-4">
                         <button
                             onClick={() => setShowCheckupManager(true)}

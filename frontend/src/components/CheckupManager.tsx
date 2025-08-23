@@ -183,13 +183,14 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
 
                 // CSRF approach (commented out)
                 // await completeCheckup(existingCheckup[0].id, authenticatedFetch)
-            } else {
-                // If no checkup exists, create and complete a new one
-                // JWT approach - using createCheckupJWT
-                const { data: newCheckup, error } = await createCheckupJWT({
-                    checkup_type: checkupType.toLowerCase(),
-                    interval_months: interval
-                }, getToken)
+                // A user will always have a checkup, so we don't need to create a new one
+                // } else {
+                //     // If no checkup exists, create and complete a new one
+                //     // JWT approach - using createCheckupJWT
+                //     const { data: newCheckup, error } = await createCheckupJWT({
+                //         checkup_type: checkupType.toLowerCase(),
+                //         interval_months: interval
+                //     }, getToken)
 
                 // CSRF approach (commented out)
                 // const { data: newCheckup, error } = await createCheckup({
@@ -197,17 +198,17 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                 //     interval_months: interval
                 // }, authenticatedFetch)
 
-                if (error) {
-                    throw new Error(error)
-                }
+                // if (error) {
+                //     throw new Error(error)
+                // }
 
-                if (newCheckup) {
-                    // JWT approach - using completeCheckupJWT
-                    await completeCheckupJWT(newCheckup.id, getToken)
+                // if (newCheckup) {
+                //     // JWT approach - using completeCheckupJWT
+                //     await completeCheckupJWT(newCheckup.id, getToken)
 
-                    // CSRF approach (commented out)
-                    // await completeCheckup(newCheckup.id, authenticatedFetch)
-                }
+                //     // CSRF approach (commented out)
+                //     // await completeCheckup(newCheckup.id, authenticatedFetch)
+                // }
             }
 
             setShowConfirmation(true)

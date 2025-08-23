@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 import uuid
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 
 # Constants for item limits
@@ -73,9 +75,8 @@ class Checkup(models.Model):
     last_checkup_date = models.DateTimeField(default=timezone.now)
     checkup_interval_months = models.IntegerField(default=1)
 
-    # only one checkup per type per user
-    # class Meta:
-    #     unique_together = ("user", "checkup_type")
+    class Meta:
+        unique_together = ("user", "checkup_type")
 
     @property
     def is_checkup_due(self):
@@ -92,6 +93,34 @@ class Checkup(models.Model):
     def change_checkup_interval(self, months):
         self.checkup_interval_months = months
         self.save()
+
+
+# Signal to create default checkups when a user is created
+@receiver(post_save, sender=settings.AUTH_USER_MODEL)
+def create_default_checkups(sender, instance, created, **kwargs):
+    """
+    Automatically create 'keep' and 'give' checkups when a user is created.
+    """
+    if created:
+        # Create keep checkup
+        Checkup.objects.get_or_create(
+            user=instance,
+            checkup_type=CheckupType.KEEP,
+            defaults={
+                "last_checkup_date": timezone.now(),
+                "checkup_interval_months": 1,
+            },
+        )
+
+        # Create give checkup
+        Checkup.objects.get_or_create(
+            user=instance,
+            checkup_type=CheckupType.GIVE,
+            defaults={
+                "last_checkup_date": timezone.now(),
+                "checkup_interval_months": 1,
+            },
+        )
 
 
 # --- BADGE TIERS (should match frontend logic) ---

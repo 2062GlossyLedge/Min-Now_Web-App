@@ -94,6 +94,17 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     } | null>(null)
     const [itemStatsLoading, setItemStatsLoading] = useState(true)
 
+    // Disable body scroll when modal is open
+    useEffect(() => {
+        // Add overflow hidden to body when component mounts
+        document.body.style.overflow = 'hidden'
+        
+        // Cleanup function to restore scroll when component unmounts
+        return () => {
+            document.body.style.overflow = 'unset'
+        }
+    }, [])
+
     const itemTypes = [
         'Clothing & Accessories',
         'Technology',

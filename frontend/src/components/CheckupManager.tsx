@@ -13,6 +13,26 @@ import { updateItemJWT, fetchCheckupJWT, createCheckupJWT, completeCheckupJWT, t
 import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 import { useUser, useAuth } from '@clerk/nextjs'
 
+// Map database values to display names
+const itemTypeDisplayNames: Record<string, string> = {
+    'Clothing_Accessories': 'Clothing & Accessories',
+    'Technology': 'Technology',
+    'Furniture_Appliances': 'Furniture & Appliances',
+    'Kitchenware': 'Kitchenware',
+    'Books_Media': 'Books & Media',
+    'Vehicles': 'Vehicles',
+    'Personal_Care_Items': 'Personal Care Items',
+    'Decor_Art': 'Decor & Art',
+    'Tools_Equipment': 'Tools & Equipment',
+    'Toys_Games': 'Toys & Games',
+    'Outdoor_Gear': 'Outdoor Gear',
+    'Fitness_Equipment': 'Fitness Equipment',
+    'Pet_Supplies': 'Pet Supplies',
+    'Subscriptions_Licenses': 'Subscriptions & Licenses',
+    'Miscellaneous': 'Miscellaneous',
+    'Other': 'Other'
+}
+
 interface CheckupManagerProps {
     checkupType: 'Keep' | 'Give'
     onClose: () => void
@@ -31,6 +51,17 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
     const { getToken } = useAuth() // JWT approach - get token from Clerk
     const { addUpdatedItem, triggerRefresh } = useItemUpdate()
     const { isSignedIn, isLoaded } = useUser() // Get user authentication status
+
+    // Disable body scroll when modal is open
+    useEffect(() => {
+        // Add overflow hidden to body when component mounts
+        document.body.style.overflow = 'hidden'
+        
+        // Cleanup function to restore scroll when component unmounts
+        return () => {
+            document.body.style.overflow = 'unset'
+        }
+    }, [])
 
     // Separate effect to handle authentication state changes
     useEffect(() => {
@@ -364,7 +395,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
 
                                             <div>
                                                 <p className="font-medium text-gray-900 dark:text-gray-100">{item.name}</p>
-                                                <p className="text-sm text-gray-500 dark:text-gray-400">{item.itemType}</p>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">{itemTypeDisplayNames[item.itemType] || item.itemType}</p>
                                                 {/* Show how long since last used for each item */}
                                                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Last used: {formatLastUsedDuration(item.last_used ?? '')}</p>
                                                 {/* Show pending status change if any */}

@@ -41,7 +41,7 @@ from items.api import (
     update_item_django,
     delete_item_django,
     get_donated_badges_django,
-    create_checkup_django,
+    # create_checkup_django,
     get_checkup_django,
     update_checkup_interval_django,
     complete_checkup_django,
@@ -120,11 +120,11 @@ urlpatterns = [
     ),
     # Checkups endpoints
     path("django-api/checkups", list_checkups_django, name="list_checkups_django"),
-    path(
-        "django-api/checkups/create",
-        create_checkup_django,
-        name="create_checkup_django",
-    ),
+    # path(
+    #     "django-api/checkups/create",
+    #     create_checkup_django,
+    #     name="create_checkup_django",
+    # ),
     path(
         "django-api/checkups/<str:checkup_id>",
         get_checkup_django,

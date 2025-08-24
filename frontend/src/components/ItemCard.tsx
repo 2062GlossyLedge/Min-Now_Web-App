@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
-import { format, set } from 'date-fns'
-import { CalendarIcon, Edit2, X, Trash2, ChevronDown, ImageIcon, SmileIcon } from 'lucide-react'
+import { format } from 'date-fns'
+import { CalendarIcon, Edit2, Trash2, ChevronDown, ImageIcon, SmileIcon } from 'lucide-react'
 import Image from 'next/image'
 import { UploadButton } from '@uploadthing/react'
 import "@uploadthing/react/styles.css";
@@ -71,7 +71,19 @@ export default function ItemCard({
     const [editedName, setEditedName] = useState(name)
     const [editedItemType, setEditedItemType] = useState(itemType)
     const [editedStatus, setEditedStatus] = useState(status)
-    const [editedOwnershipDurationGoalMonths, setEditedOwnershipDurationGoalMonths] = useState(ownershipDurationGoalMonths)
+
+    // Initialize ownership duration goal unit and value correctly from the start
+    const [ownershipGoalUnit, setOwnershipGoalUnit] = useState<'months' | 'years'>(() => {
+        return (ownershipDurationGoalMonths >= 12 && ownershipDurationGoalMonths % 12 === 0) ? 'years' : 'months'
+    })
+    const [ownershipGoalValue, setOwnershipGoalValue] = useState<number>(() => {
+        if (ownershipDurationGoalMonths >= 12 && ownershipDurationGoalMonths % 12 === 0) {
+            return ownershipDurationGoalMonths / 12
+        } else {
+            return ownershipDurationGoalMonths
+        }
+    })
+
     const [receivedDate, setReceivedDate] = useState<Date | undefined>(
         initialReceivedDate ? new Date(initialReceivedDate) : undefined
     )
@@ -87,17 +99,22 @@ export default function ItemCard({
     // This allows immediate display of changes after saving, before parent component updates
     const [currentPictureUrl, setCurrentPictureUrl] = useState(pictureUrl)
 
-    // State to track number of keys pressed for emoji input
-    const [numOfKeysPressed, setNumOfKeysPressed] = useState<number>(0)
-
     // Update local state when props change
     useEffect(() => {
         setEditedName(name)
         setEditedItemType(itemType)
         setEditedStatus(status)
-        setEditedOwnershipDurationGoalMonths(ownershipDurationGoalMonths)
         setReceivedDate(initialReceivedDate ? new Date(initialReceivedDate) : undefined)
         setCurrentPictureUrl(pictureUrl)
+
+        // Update ownership duration goal unit and value when props change
+        if (ownershipDurationGoalMonths >= 12 && ownershipDurationGoalMonths % 12 === 0) {
+            setOwnershipGoalUnit('years')
+            setOwnershipGoalValue(ownershipDurationGoalMonths / 12)
+        } else {
+            setOwnershipGoalUnit('months')
+            setOwnershipGoalValue(ownershipDurationGoalMonths)
+        }
 
         // Initialize image editing states based on pictureUrl from props
         if (isImageUrl(pictureUrl)) {
@@ -110,6 +127,11 @@ export default function ItemCard({
             setEditedUploadedImageUrl(null)
         }
     }, [name, itemType, status, ownershipDurationGoalMonths, initialReceivedDate, pictureUrl])
+
+    // Helper function to calculate total ownership duration in months
+    const calculateOwnershipDurationMonths = (): number => {
+        return ownershipGoalUnit === 'years' ? ownershipGoalValue * 12 : ownershipGoalValue
+    }
 
     // Function to check if the pictureUrl is an emoji
     const isEmoji = (str: string) => {
@@ -124,7 +146,7 @@ export default function ItemCard({
     const handleSave = () => {
         if (onEdit) {
             // Determine the picture URL based on selected mode
-            let finalPictureUrl = pictureUrl; // fallback to current
+            let finalPictureUrl = currentPictureUrl; // fallback to current saved state
             if (useEmoji && editedPictureEmoji) {
                 finalPictureUrl = editedPictureEmoji;
             } else if (!useEmoji && editedUploadedImageUrl) {
@@ -134,14 +156,15 @@ export default function ItemCard({
             // Update local state immediately to reflect changes
             setCurrentPictureUrl(finalPictureUrl);
 
-            setNumOfKeysPressed(0); // Reset key pressed count after saving
+            // Calculate ownership duration in months based on unit selection
+            const calculatedOwnershipDurationMonths = calculateOwnershipDurationMonths();
 
             onEdit(id, {
                 name: editedName,
                 receivedDate,
                 itemType: editedItemType,
                 status: editedStatus,
-                ownershipDurationGoalMonths: editedOwnershipDurationGoalMonths,
+                ownershipDurationGoalMonths: calculatedOwnershipDurationMonths,
                 pictureUrl: finalPictureUrl
             })
         }
@@ -152,8 +175,16 @@ export default function ItemCard({
         setEditedName(name)
         setEditedItemType(itemType)
         setEditedStatus(status)
-        setEditedOwnershipDurationGoalMonths(ownershipDurationGoalMonths)
         setReceivedDate(initialReceivedDate ? new Date(initialReceivedDate) : undefined)
+
+        // Reset ownership duration goal unit and value
+        if (ownershipDurationGoalMonths >= 12 && ownershipDurationGoalMonths % 12 === 0) {
+            setOwnershipGoalUnit('years')
+            setOwnershipGoalValue(ownershipDurationGoalMonths / 12)
+        } else {
+            setOwnershipGoalUnit('months')
+            setOwnershipGoalValue(ownershipDurationGoalMonths)
+        }
 
         // Reset image editing states to current picture URL
         if (isImageUrl(currentPictureUrl)) {
@@ -294,19 +325,30 @@ export default function ItemCard({
                     </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                    {onEdit && (
+                    {onEdit && !isEditing && (
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setIsEditing(!isEditing);
                                 setIsExpanded(true);
+
+                                // Initialize editing states with current saved picture state
+                                if (isImageUrl(currentPictureUrl)) {
+                                    setUseEmoji(false);
+                                    setEditedUploadedImageUrl(currentPictureUrl);
+                                    setEditedPictureEmoji('');
+                                } else {
+                                    setUseEmoji(true);
+                                    setEditedPictureEmoji(currentPictureUrl);
+                                    setEditedUploadedImageUrl(null);
+                                }
                             }}
                             className="text-gray-500 dark:text-gray-400 hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
                         >
-                            {isEditing ? <X className="h-5 w-5" /> : <Edit2 className="h-5 w-5" />}
+                            <Edit2 className="h-5 w-5" />
                         </button>
                     )}
-                    {onDelete && (
+                    {onDelete && !isEditing && (
                         <button
                             onClick={handleDelete}
                             disabled={isAnyDeleting}
@@ -353,228 +395,224 @@ export default function ItemCard({
                 <div className="mt-4 space-y-2">
 
 
-                    {/* Edit mode layout with two columns */}
+                    {/* Edit mode layout - single column */}
                     {isEditing ? (
                         <div className="space-y-4">
-                            {/* First row: Item Received Date and Status */}
-                            <div className="flex justify-between items-start">
-                                <div className="flex flex-col space-y-2">
-                                    <span className="text-sm text-gray-500 dark:text-gray-400">Item Received Date:</span>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                className="w-[240px] justify-start text-left font-normal"
-                                                onClick={(e) => e.stopPropagation()}
-                                            >
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {receivedDate ? format(receivedDate, "PPP") : <span>Pick a date</span>}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-800" align="start">
-                                            <Calendar
-                                                mode="single"
-                                                selected={receivedDate}
-                                                onSelect={setReceivedDate}
-                                                initialFocus
-                                                captionLayout="dropdown"
-                                                showOutsideDays={true}
-                                                className="rounded-md border"
-                                            />
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
+                            {/* Item Received Date */}
+                            <div className="flex flex-col space-y-2">
+                                <span className="text-sm text-gray-500 dark:text-gray-400">Item Received Date:</span>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            className="w-[240px] justify-start text-left font-normal"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {receivedDate ? format(receivedDate, "PPP") : <span>Pick a date</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-800" align="start">
+                                        <Calendar
+                                            mode="single"
+                                            selected={receivedDate}
+                                            onSelect={setReceivedDate}
+                                            initialFocus
+                                            captionLayout="dropdown"
+                                            showOutsideDays={true}
+                                            className="rounded-md border"
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
 
-                                <div className="flex flex-col space-y-2">
-                                    <span className="text-sm text-gray-500 dark:text-gray-400">Item Status:</span>
-                                    <div className="flex space-x-2">
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setEditedStatus('Keep');
-                                            }}
-                                            className={`px-3 py-1 rounded text-sm ${editedStatus === 'Keep'
-                                                ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
-                                                : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-teal-100 dark:hover:bg-teal-900 hover:text-teal-700 dark:hover:text-teal-300'
-                                                }`}
-                                        >
-                                            Keep
-                                        </button>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setEditedStatus('Give');
-                                            }}
-                                            className={`px-3 py-1 rounded text-sm ${editedStatus === 'Give'
-                                                ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
-                                                : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-teal-100 dark:hover:bg-teal-900 hover:text-teal-700 dark:hover:text-teal-300'
-                                                }`}
-                                        >
-                                            Give
-                                        </button>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setEditedStatus('Donate');
-                                            }}
-                                            className={`px-3 py-1 rounded text-sm ${editedStatus === 'Donate'
-                                                ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
-                                                : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-teal-100 dark:hover:bg-teal-900 hover:text-teal-700 dark:hover:text-teal-300'
-                                                }`}
-                                        >
-                                            Donate
-                                        </button>
-                                    </div>
+                            {/* Item Status */}
+                            <div className="flex flex-col space-y-2">
+                                <span className="text-sm text-gray-500 dark:text-gray-400">Item Status:</span>
+                                <div className="flex space-x-2">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditedStatus('Keep');
+                                        }}
+                                        className={`px-3 py-1 rounded text-sm ${editedStatus === 'Keep'
+                                            ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                                            : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-teal-100 dark:hover:bg-teal-900 hover:text-teal-700 dark:hover:text-teal-300'
+                                            }`}
+                                    >
+                                        Keep
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditedStatus('Give');
+                                        }}
+                                        className={`px-3 py-1 rounded text-sm ${editedStatus === 'Give'
+                                            ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
+                                            : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-teal-100 dark:hover:bg-teal-900 hover:text-teal-700 dark:hover:text-teal-300'
+                                            }`}
+                                    >
+                                        Give
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditedStatus('Donate');
+                                        }}
+                                        className={`px-3 py-1 rounded text-sm ${editedStatus === 'Donate'
+                                            ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+                                            : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-teal-100 dark:hover:bg-teal-900 hover:text-teal-700 dark:hover:text-teal-300'
+                                            }`}
+                                    >
+                                        Donate
+                                    </button>
                                 </div>
                             </div>
 
-                            {/* Second row: Item Image/Emoji */}
-                            <div className="flex justify-between items-start">
-                                <div className="flex flex-col space-y-2">
-                                    <span className="text-sm text-gray-500 dark:text-gray-400">Item Image:</span>
-                                    <div className="flex items-center space-x-4 mb-2">
-                                        <button
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setUseEmoji(true);
-                                                setEditedUploadedImageUrl(null);
+                            {/* Item Image/Emoji */}
+                            <div className="flex flex-col space-y-2">
+                                <span className="text-sm text-gray-500 dark:text-gray-400">Item Image:</span>
+                                <div className="flex items-center space-x-4 mb-2">
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setUseEmoji(true);
+                                            setEditedUploadedImageUrl(null);
+                                        }}
+                                        className={`flex items-center space-x-2 px-3 py-2 rounded-md ${useEmoji ? 'bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300' : 'bg-gray-100 dark:bg-gray-700'}`}
+                                    >
+                                        <SmileIcon className="h-5 w-5" />
+                                        <span>Emoji</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setUseEmoji(false);
+                                            setEditedPictureEmoji('');
+                                        }}
+                                        className={`flex items-center space-x-2 px-3 py-2 rounded-md ${!useEmoji ? 'bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300' : 'bg-gray-100 dark:bg-gray-700'}`}
+                                    >
+                                        <ImageIcon className="h-5 w-5" />
+                                        <span>Image</span>
+                                    </button>
+                                </div>
+                                {useEmoji ? (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Item Emoji</label>
+                                        <input
+                                            type="text"
+                                            value={editedPictureEmoji || ""}
+                                            onChange={(e) => {
+                                                const input = e.target.value;
+                                                // Limit input to 50 characters
+                                                if (input.length <= 50) {
+                                                    setEditedPictureEmoji(input);
+                                                }
                                             }}
-                                            className={`flex items-center space-x-2 px-3 py-2 rounded-md ${useEmoji ? 'bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300' : 'bg-gray-100 dark:bg-gray-700'}`}
-                                        >
-                                            <SmileIcon className="h-5 w-5" />
-                                            <span>Emoji</span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setUseEmoji(false);
-                                                setEditedPictureEmoji('');
-                                            }}
-                                            className={`flex items-center space-x-2 px-3 py-2 rounded-md ${!useEmoji ? 'bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300' : 'bg-gray-100 dark:bg-gray-700'}`}
-                                        >
-                                            <ImageIcon className="h-5 w-5" />
-                                            <span>Image</span>
-                                        </button>
+                                            maxLength={50}
+                                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                            required={useEmoji}
+                                            placeholder="Enter emoji(s)"
+                                        />
+                                        {/* <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                            {editedPictureEmoji ? editedPictureEmoji.length : 0}/50 characters
+                                        </p> */}
                                     </div>
-                                    {useEmoji ? (
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Item Emoji</label>
-                                            <input
-                                                type="text"
-                                                value={editedPictureEmoji || ""}
-                                                onChange={(e) => {
-                                                    const input = e.target.value;
-                                                    // Limit input to 50 characters
-                                                    if (input.length <= 50) {
-                                                        setEditedPictureEmoji(input);
-                                                    }
-                                                }}
-                                                maxLength={50}
-                                                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                                                required={useEmoji}
-                                                placeholder="Enter emoji(s)"
-                                            />
-                                            {/* <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                                {editedPictureEmoji ? editedPictureEmoji.length : 0}/50 characters
-                                            </p> */}
-                                        </div>
-                                    ) : (
-                                        <div>
-                                            <div className="relative">
-                                                <UploadButton<OurFileRouter, "imageUploader">
-                                                    // issues applying ut styles, using default styles from C:\Min-Now_Web-App-1\frontend\node_modules\@uploadthing\react\dist\button-client-BLNyMUF0.js. see https://docs.uploadthing.com/concepts/theming#theming-with-tailwind-css
-                                                    className="mt-4 "
-                                                    config={{ cn: twMerge }}
-                                                    endpoint="imageUploader"
-                                                    onClientUploadComplete={(res: any) => {
-                                                        setEditedUploadedImageUrl(res?.[0]?.url ?? res?.[0]?.fileUrl ?? null)
-                                                        setIsUploading(false)
-                                                    }}
-                                                    onUploadError={(error: Error) => {
-                                                        setIsUploading(false)
-                                                        alert('Upload failed: ' + error.message)
-                                                    }}
-                                                    onUploadBegin={() => {
-                                                        setIsUploading(true)
-                                                    }}
+                                ) : (
+                                    <div>
+                                        <UploadButton<OurFileRouter, "imageUploader">
+                                            // issues applying ut styles, using default styles from C:\Min-Now_Web-App-1\frontend\node_modules\@uploadthing\react\dist\button-client-BLNyMUF0.js. see https://docs.uploadthing.com/concepts/theming#theming-with-tailwind-css
+                                            className="w-fit"
+                                            config={{ cn: twMerge }}
+                                            endpoint="imageUploader"
+                                            onClientUploadComplete={(res: any) => {
+                                                setEditedUploadedImageUrl(res?.[0]?.url ?? res?.[0]?.fileUrl ?? null)
+                                                setIsUploading(false)
+                                            }}
+                                            onUploadError={(error: Error) => {
+                                                setIsUploading(false)
+                                                alert('Upload failed: ' + error.message)
+                                            }}
+                                            onUploadBegin={() => {
+                                                setIsUploading(true)
+                                            }}
+                                        />
+                                        {editedUploadedImageUrl && (
+                                            <div className="mt-2 relative w-16 h-16">
+                                                <Image
+                                                    src={editedUploadedImageUrl}
+                                                    alt="Preview"
+                                                    fill
+                                                    className="object-cover rounded-md"
+                                                    sizes="64px"
                                                 />
                                             </div>
-                                            {editedUploadedImageUrl && (
-                                                <div className="mt-2 relative w-16 h-16">
-                                                    <Image
-                                                        src={editedUploadedImageUrl}
-                                                        alt="Preview"
-                                                        fill
-                                                        className="object-cover rounded-md"
-                                                        sizes="64px"
-                                                    />
-                                                </div>
-                                            )}
-                                            {isUploading && (
-                                                <div className="mt-2 text-sm text-teal-600">Uploading...</div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Third row: Item Type */}
-                            <div className="flex justify-between items-start">
-                                <div className="flex flex-col space-y-2">
-                                    <span className="text-sm text-gray-500 dark:text-gray-400">Item Type:</span>
-                                    <Popover open={isItemTypeDropdownOpen} onOpenChange={setIsItemTypeDropdownOpen}>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                className="w-[240px] justify-between text-left font-normal"
-                                                onClick={(e) => e.stopPropagation()}
-                                            >
-                                                {itemTypeDisplayNames[editedItemType] || editedItemType}
-                                                <ChevronDown className="h-4 w-4 opacity-50" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-[240px] p-0 bg-white dark:bg-gray-800" align="start">
-                                            <div className="max-h-[200px] overflow-y-auto">
-                                                {itemTypes.map((type) => (
-                                                    <button
-                                                        key={type}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setEditedItemType(type);
-                                                            setIsItemTypeDropdownOpen(false);
-                                                        }}
-                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none"
-                                                    >
-                                                        {itemTypeDisplayNames[type] || type}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                            </div>
-
-                            {/* Fourth row: Ownership Duration Goal */}
-                            <div className="flex justify-between items-start">
-                                <div className="flex flex-col space-y-2">
-                                    <span className="text-sm text-gray-500 dark:text-gray-400">Ownership Duration Goal:</span>
-                                    <div className="flex items-center space-x-3">
-                                        <input
-                                            type="number"
-                                            value={editedOwnershipDurationGoalMonths}
-                                            onChange={(e) => setEditedOwnershipDurationGoalMonths(Number(e.target.value))}
-                                            min="1"
-                                            max="120"
-                                            className="block w-24 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"
-                                            onClick={(e) => e.stopPropagation()}
-                                        />
-                                        <span className="text-sm text-gray-500 dark:text-gray-400">months</span>
-                                        <span className="text-xs text-gray-400 dark:text-gray-500">
-                                            ({Math.floor(editedOwnershipDurationGoalMonths / 12)}y {editedOwnershipDurationGoalMonths % 12}m)
-                                        </span>
+                                        )}
+                                        {isUploading && (
+                                            <div className="mt-2 text-sm text-teal-600">Uploading...</div>
+                                        )}
                                     </div>
+                                )}
+                            </div>
+
+                            {/* Item Type */}
+                            <div className="flex flex-col space-y-2">
+                                <span className="text-sm text-gray-500 dark:text-gray-400">Item Type:</span>
+                                <Popover open={isItemTypeDropdownOpen} onOpenChange={setIsItemTypeDropdownOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            className="w-[240px] justify-between text-left font-normal"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            {itemTypeDisplayNames[editedItemType] || editedItemType}
+                                            <ChevronDown className="h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[240px] p-0 bg-white dark:bg-gray-800" align="start">
+                                        <div className="max-h-[200px] overflow-y-auto">
+                                            {itemTypes.map((type) => (
+                                                <button
+                                                    key={type}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setEditedItemType(type);
+                                                        setIsItemTypeDropdownOpen(false);
+                                                    }}
+                                                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none"
+                                                >
+                                                    {itemTypeDisplayNames[type] || type}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+
+                            {/* Ownership Duration Goal */}
+                            <div className="flex flex-col space-y-2">
+                                <span className="text-sm text-gray-500 dark:text-gray-400">Ownership Duration Goal:</span>
+                                <div className="flex items-center space-x-3">
+                                    <input
+                                        type="number"
+                                        value={ownershipGoalValue}
+                                        onChange={(e) => setOwnershipGoalValue(Number(e.target.value))}
+                                        min="1"
+                                        max={ownershipGoalUnit === 'years' ? 10 : 120}
+                                        className="block w-24 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                    <select
+                                        value={ownershipGoalUnit}
+                                        onChange={(e) => setOwnershipGoalUnit(e.target.value as 'months' | 'years')}
+                                        className="rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <option value="months">months</option>
+                                        <option value="years">years</option>
+                                    </select>
                                 </div>
                             </div>
 

@@ -338,7 +338,8 @@ export const updateItemJWT = async (
         status?: string,
         itemType?: string,
         receivedDate?: Date,
-        ownershipDurationGoalMonths?: number
+        ownershipDurationGoalMonths?: number,
+        pictureUrl?: string
     },
     getToken: () => Promise<string | null>
 ): Promise<ApiResponse<Item>> => {
@@ -358,6 +359,7 @@ export const updateItemJWT = async (
             status: updates.status,
             item_type: updates.itemType,
             ownership_duration_goal_months: updates.ownershipDurationGoalMonths,
+            picture_url: updates.pictureUrl,
         }
 
         const response = await fetchWithJWTAndCSRF(

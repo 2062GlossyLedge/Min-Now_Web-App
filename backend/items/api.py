@@ -560,6 +560,9 @@ def create_item_django(request):
                 {"error": f"Invalid datetime format: {str(e)}"}, status=400
             )
 
+        # Extract ownership duration goal (with default of 12 months)
+        ownership_duration_goal_months = data.get("ownership_duration_goal_months", 12)
+
         # Create the item
         user = request.user
         try:
@@ -571,6 +574,7 @@ def create_item_django(request):
                 status=status,
                 item_received_date=item_received_date,
                 last_used=last_used,
+                ownership_duration_goal_months=ownership_duration_goal_months,
             )
         except ValidationError as e:
             return JsonResponse({"error": str(e)}, status=400)
@@ -733,57 +737,57 @@ def get_donated_badges_django(request):
         return JsonResponse({"error": "Internal server error"}, status=500)
 
 
-@jwt_required
-@require_http_methods(["POST"])
-def create_checkup_django(request):
-    """
-    Django view version of create_checkup endpoint using JWT authentication.
-    Alternative to the ninja-based endpoint.
-    """
-    try:
-        # Parse JSON payload
-        data = json.loads(request.body)
+# @jwt_required
+# @require_http_methods(["POST"])
+# def create_checkup_django(request):
+#     """
+#     Django view version of create_checkup endpoint using JWT authentication.
+#     Alternative to the ninja-based endpoint.
+#     """
+#     try:
+#         # Parse JSON payload
+#         data = json.loads(request.body)
 
-        # Validate required fields
-        if "checkup_type" not in data:
-            return JsonResponse(
-                {"error": "Missing required field: checkup_type"}, status=400
-            )
+#         # Validate required fields
+#         if "checkup_type" not in data:
+#             return JsonResponse(
+#                 {"error": "Missing required field: checkup_type"}, status=400
+#             )
 
-        interval_months = data.get("interval_months", 1)
-        checkup_type = data["checkup_type"]
+#         interval_months = data.get("interval_months", 1)
+#         checkup_type = data["checkup_type"]
 
-        # Check if user already has a checkup of this type
-        existing_checkup = CheckupService.get_checkups_by_type(
-            request.user, checkup_type
-        ).first()
-        if existing_checkup:
-            return JsonResponse(
-                {"error": f"User already has a {checkup_type} checkup"}, status=400
-            )
+#         # Check if user already has a checkup of this type
+#         existing_checkup = CheckupService.get_checkups_by_type(
+#             request.user, checkup_type
+#         ).first()
+#         if existing_checkup:
+#             return JsonResponse(
+#                 {"error": f"User already has a {checkup_type} checkup"}, status=400
+#             )
 
-        # Create the checkup
-        checkup = CheckupService.create_checkup(
-            user=request.user,
-            interval_months=interval_months,
-            checkup_type=checkup_type,
-        )
+#         # Create the checkup
+#         checkup = CheckupService.create_checkup(
+#             user=request.user,
+#             interval_months=interval_months,
+#             checkup_type=checkup_type,
+#         )
 
-        # Convert to dictionary (assuming CheckupService returns a model instance with the required fields)
-        checkup_data = {
-            "id": checkup.id,
-            "last_checkup_date": checkup.last_checkup_date.isoformat(),
-            "checkup_interval_months": checkup.checkup_interval_months,
-            "is_checkup_due": checkup.is_checkup_due,
-        }
+#         # Convert to dictionary (assuming CheckupService returns a model instance with the required fields)
+#         checkup_data = {
+#             "id": checkup.id,
+#             "last_checkup_date": checkup.last_checkup_date.isoformat(),
+#             "checkup_interval_months": checkup.checkup_interval_months,
+#             "is_checkup_due": checkup.is_checkup_due,
+#         }
 
-        return JsonResponse(checkup_data, status=201)
+#         return JsonResponse(checkup_data, status=201)
 
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
-    except Exception as e:
-        log.error(f"Error in create_checkup_django: {str(e)}")
-        return JsonResponse({"error": "Internal server error"}, status=500)
+#     except json.JSONDecodeError:
+#         return JsonResponse({"error": "Invalid JSON payload"}, status=400)
+#     except Exception as e:
+#         log.error(f"Error in create_checkup_django: {str(e)}")
+#         return JsonResponse({"error": "Internal server error"}, status=500)
 
 
 @jwt_required

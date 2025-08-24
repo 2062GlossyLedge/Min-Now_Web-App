@@ -10,6 +10,7 @@ import "@uploadthing/react/styles.css";
 import { twMerge } from 'tailwind-merge'
 import DatePickerComponent from '@/components/DatePickerComponent'
 import { DatePickerState, calculateReceivedDate, initializeDatePickerState } from '@/utils/datePickerHelpers'
+import { validateImageFile, isIOS } from '@/utils/api'
 
 import type { OurFileRouter } from '@/app/api/uploadthing/core'
 
@@ -562,6 +563,17 @@ export default function ItemCard({
                                             className="w-fit"
                                             config={{ cn: twMerge }}
                                             endpoint="imageUploader"
+                                            onBeforeUploadBegin={(files) => {
+                                                // Validate each file before upload begins
+                                                for (const file of files) {
+                                                    const validation = validateImageFile(file);
+                                                    if (!validation.isValid) {
+                                                        alert(`Upload failed: ${validation.errorMessage}`);
+                                                        return []; // Return empty array to prevent upload
+                                                    }
+                                                }
+                                                return files; // Return files to proceed with upload
+                                            }}
                                             onClientUploadComplete={(res: any) => {
                                                 setEditedUploadedImageUrl(res?.[0]?.url ?? res?.[0]?.fileUrl ?? null)
                                                 setIsUploading(false)
@@ -574,6 +586,9 @@ export default function ItemCard({
                                                 setIsUploading(true)
                                             }}
                                         />
+                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            Supported formats: JPEG, PNG, GIF, WebP{isIOS() ? ', HEIC' : ''} (max 4MB)
+                                        </p>
                                         {editedUploadedImageUrl && (
                                             <div className="mt-2 relative w-16 h-16">
                                                 <Image

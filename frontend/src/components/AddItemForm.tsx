@@ -8,7 +8,7 @@ import { ImageIcon, SmileIcon } from 'lucide-react'
 // import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
 
 // JWT-based API imports (new approach)
-import { createItemJWT, fetchUserItemStatsJWT } from '@/utils/api'
+import { createItemJWT, fetchUserItemStatsJWT, validateImageFile, isIOS } from '@/utils/api'
 import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 import { Item } from '@/types/item'
 import Image from 'next/image'
@@ -629,6 +629,17 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                                 className="mt-4 flex flex-row justify-start gap-3"
                                                 endpoint="imageUploader"
                                                 config={{ cn: twMerge }}
+                                                onBeforeUploadBegin={(files) => {
+                                                    // Validate each file before upload begins
+                                                    for (const file of files) {
+                                                        const validation = validateImageFile(file);
+                                                        if (!validation.isValid) {
+                                                            alert(`Upload failed: ${validation.errorMessage}`);
+                                                            return []; // Return empty array to prevent upload
+                                                        }
+                                                    }
+                                                    return files; // Return files to proceed with upload
+                                                }}
                                                 onClientUploadComplete={(res: any) => {
                                                     setUploadedImageUrl(res?.[0]?.ufsUrl ?? res?.[0]?.fileUrl ?? null)
                                                     setIsUploading(false)
@@ -643,6 +654,9 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                                 }}
                                             />
                                         </div>
+                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            Supported formats: JPEG, PNG, GIF, WebP{isIOS() ? ', HEIC' : ''} (max 4MB)
+                                        </p>
                                         {uploadedImageUrl && (
                                             <div className="mt-2 relative w-24 h-24">
                                                 <Image

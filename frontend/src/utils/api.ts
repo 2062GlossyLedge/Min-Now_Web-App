@@ -862,3 +862,54 @@ const { data, error } = await fetchItemsByStatus('owned', authenticatedFetch)
 const { data, error } = await fetchItemsByStatusJWT('owned', getToken)
 */
 
+// File validation utilities for upload components
+export const isIOS = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    return /iPad|iPhone|iPod/.test(navigator.userAgent);
+};
+
+export const isBrowserSupportedImageFormat = (file: File): boolean => {
+    const supportedTypes = [
+        'image/jpeg',
+        'image/jpg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'image/svg+xml'
+    ];
+    return supportedTypes.includes(file.type);
+};
+
+export const isHEIC = (file: File): boolean => {
+    // Check MIME type first
+    if (file.type === 'image/heic' || file.type === 'image/heif') {
+        return true;
+    }
+    
+    // Check file extension as fallback (some browsers don't set MIME type for HEIC)
+    const fileName = file.name.toLowerCase();
+    return fileName.endsWith('.heic') || fileName.endsWith('.heif');
+};export const validateImageFile = (file: File): { isValid: boolean; errorMessage?: string } => {
+    // Always allow browser-supported formats
+    if (isBrowserSupportedImageFormat(file)) {
+        return { isValid: true };
+    }
+    
+    // Allow HEIC only on iOS devices
+    if (isHEIC(file)) {
+        if (isIOS()) {
+            return { isValid: true };
+        } else {
+            return { 
+                isValid: false, 
+                errorMessage: 'HEIC files are only supported on iOS devices. Please convert to JPEG or use another supported format (PNG, GIF, WebP, SVG) for other devices.' 
+            };
+        }
+    }
+    
+    // Reject other unsupported formats
+    return { 
+        isValid: false, 
+        errorMessage: `File format "${file.type || 'unknown'}" is not supported. Please use JPEG, PNG, GIF, WebP, or SVG formats.` 
+    };
+};

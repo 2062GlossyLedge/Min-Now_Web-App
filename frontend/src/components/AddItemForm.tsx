@@ -522,8 +522,8 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const years = Array.from({ length: 21 }, (_, i) => `${2024 - i} `)
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-3 sm:p-6 w-full max-w-xs sm:max-w-md relative max-h-[95vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 w-full max-w-sm max-h-[90vh] overflow-y-auto">
                 <div className="flex mb-4">
                     <button
                         className={`px-4 py-2 rounded-tl-lg border-b-2 font-semibold focus:outline-none ${activeTab === 'manual' ? 'border-teal-500 text-teal-600 dark:text-teal-300' : 'border-transparent text-gray-500 dark:text-gray-400'}`}

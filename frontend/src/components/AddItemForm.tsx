@@ -2,10 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Calendar } from '@/components/ui/calendar'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Button } from '@/components/ui/button'
-import { ChevronDownIcon, ImageIcon, SmileIcon } from 'lucide-react'
+import { ImageIcon, SmileIcon } from 'lucide-react'
 // CSRF-based API imports (commented out - using JWT approach)
 // import { createItem } from '@/utils/api'
 // import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
@@ -20,6 +17,8 @@ import type { OurFileRouter } from '@/app/api/uploadthing/core'
 import { twMerge } from 'tailwind-merge'
 import "@uploadthing/react/styles.css";
 import { useAuth, useUser } from '@clerk/nextjs'
+import DatePickerComponent from '@/components/DatePickerComponent'
+import { DatePickerState, calculateReceivedDate, isDateValid, initializeDatePickerState } from '@/utils/datePickerHelpers'
 
 
 
@@ -35,7 +34,6 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const [pictureEmoji, setPictureEmoji] = useState('')
     const [itemType, setItemType] = useState('Clothing & Accessories')
     const [isSubmitting, setIsSubmitting] = useState(false)
-    const [receivedDate, setReceivedDate] = useState<Date | undefined>(new Date())
     const [useEmoji, setUseEmoji] = useState(true)
     const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null)
     const [isUploading, setIsUploading] = useState(false)
@@ -64,6 +62,20 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const [quickPromptsDict, setQuickPromptsDict] = useState<Record<string, string>>({})
     const [ownershipGoalUnit, setOwnershipGoalUnit] = useState<'months' | 'years'>('years')
     const [ownershipGoalValue, setOwnershipGoalValue] = useState<number>(1)
+
+    // Main date picker state for manual add
+    const [datePickerState, setDatePickerState] = useState<DatePickerState>(() => ({
+        ...initializeDatePickerState(new Date()),
+        dateSelectionMode: 'full',
+        selectedMonth: '',
+        selectedYear: '',
+        startYear: '',
+        endYear: ''
+    }))
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
+
+    // Legacy state variables for compatibility (will be removed)
+    const [receivedDate, setReceivedDate] = useState<Date | undefined>(new Date())
     const [dateSelectionMode, setDateSelectionMode] = useState<'full' | 'monthYear' | 'year' | 'yearRange'>('full')
     const [selectedMonth, setSelectedMonth] = useState<string>('')
     const [selectedYear, setSelectedYear] = useState<string>('')
@@ -123,7 +135,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     }
 
     // Helper function to calculate received date based on selection mode
-    const calculateReceivedDate = (): Date | undefined => {
+    const calculateReceivedDateFromLegacyState = (): Date | undefined => {
         switch (dateSelectionMode) {
             case 'full':
                 return receivedDate
@@ -151,8 +163,18 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
         }
     }
 
+    // Handle date picker state changes for manual add
+    const handleDatePickerStateChange = (updates: Partial<DatePickerState>) => {
+        const newState = { ...datePickerState, ...updates }
+        setDatePickerState(newState)
+
+        // Calculate and update the received date based on the current selection mode
+        const calculatedDate = calculateReceivedDate(newState)
+        setReceivedDate(calculatedDate)
+    }
+
     // Helper function to check if date is valid based on selection mode
-    const isDateValid = (): boolean => {
+    const isDateValidLegacy = (): boolean => {
         switch (dateSelectionMode) {
             case 'full':
                 return !!receivedDate
@@ -201,6 +223,18 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     // Helper function to calculate total ownership duration in months
     const calculateOwnershipDurationMonths = (): number => {
         return ownershipGoalUnit === 'years' ? ownershipGoalValue * 12 : ownershipGoalValue
+    }
+
+    // Helper function to format ownership goal value input (max 3 digits, remove leading zeros when >= 2 digits)
+    const formatOwnershipGoalValue = (value: string): number => {
+        // Remove non-numeric characters and limit to 3 digits
+        const numericValue = value.replace(/\D/g, '').slice(0, 3)
+
+        // Convert to number and remove leading zeros for values >= 10
+        const parsedValue = parseInt(numericValue || '0', 10)
+
+        // Ensure minimum value of 1
+        return Math.max(1, parsedValue)
     }
 
     // Fetch user item stats on component mount
@@ -300,7 +334,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
             return
         }
 
-        const calculatedDate = calculateReceivedDate()
+        const calculatedDate = calculateReceivedDate(datePickerState)
         if (!calculatedDate) {
             console.error('Received date is required')
             setManualAddError('Received date is required')
@@ -532,12 +566,12 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                     type="text"
                                     value={name || ""}
                                     onChange={(e) => setName(e.target.value)}
-                                    maxLength={50}
+                                    maxLength={25}
                                     className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                     required
                                 />
                                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                    {name ? name.length : 0}/50 characters
+                                    {name ? name.length : 0}/25 characters
                                 </p>
                             </div>
                             <div>
@@ -641,161 +675,15 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                 </select>
                             </div>
                             <div>
-                                <div className="flex flex-col gap-3">
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Item Received Date</label>
-
-                                    {/* Date Selection Mode Options */}
-                                    <div className="flex flex-wrap gap-2 mb-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => setDateSelectionMode('full')}
-                                            className={`px-3 py-1 text-sm rounded-md ${dateSelectionMode === 'full' ? 'bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300' : 'bg-gray-100 dark:bg-gray-700'}`}
-                                        >
-                                            Full Date
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setDateSelectionMode('monthYear')}
-                                            className={`px-3 py-1 text-sm rounded-md ${dateSelectionMode === 'monthYear' ? 'bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300' : 'bg-gray-100 dark:bg-gray-700'}`}
-                                        >
-                                            Month & Year
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setDateSelectionMode('year')}
-                                            className={`px-3 py-1 text-sm rounded-md ${dateSelectionMode === 'year' ? 'bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300' : 'bg-gray-100 dark:bg-gray-700'}`}
-                                        >
-                                            Year Only
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setDateSelectionMode('yearRange')}
-                                            className={`px-3 py-1 text-sm rounded-md ${dateSelectionMode === 'yearRange' ? 'bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300' : 'bg-gray-100 dark:bg-gray-700'}`}
-                                        >
-                                            Year Range
-                                        </button>
-                                    </div>
-
-                                    {/* Full Date Picker */}
-                                    {dateSelectionMode === 'full' && (
-                                        <Popover open={open} onOpenChange={setOpen}>
-                                            <PopoverTrigger asChild>
-                                                <Button
-                                                    variant="outline"
-                                                    id="date"
-                                                    className="w-48 justify-between font-normal"
-                                                >
-                                                    {receivedDate ? receivedDate.toLocaleDateString() : "Select date"}
-                                                    <ChevronDownIcon />
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto overflow-hidden p-0" align="start">
-                                                <Calendar
-                                                    mode="single"
-                                                    selected={receivedDate}
-                                                    captionLayout="dropdown"
-                                                    onSelect={(date) => {
-                                                        setReceivedDate(date)
-                                                        setOpen(false)
-                                                    }}
-                                                />
-                                            </PopoverContent>
-                                        </Popover>
-                                    )}
-
-                                    {/* Month & Year Selection */}
-                                    {dateSelectionMode === 'monthYear' && (
-                                        <div className="flex gap-3">
-                                            <div className="flex-1">
-                                                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Month</label>
-                                                <select
-                                                    value={selectedMonth}
-                                                    onChange={(e) => setSelectedMonth(e.target.value)}
-                                                    className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"
-                                                    required
-                                                >
-                                                    <option value="">Select month</option>
-                                                    {months.map(month => (
-                                                        <option key={month} value={month}>{month}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div className="flex-1">
-                                                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Year</label>
-                                                <select
-                                                    value={selectedYear}
-                                                    onChange={(e) => setSelectedYear(e.target.value)}
-                                                    className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"
-                                                    required
-                                                >
-                                                    <option value="">Select year</option>
-                                                    {years.map(year => (
-                                                        <option key={year} value={year}>{year}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Year Only Selection */}
-                                    {dateSelectionMode === 'year' && (
-                                        <div>
-                                            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Year (defaults to January 1st)</label>
-                                            <select
-                                                value={selectedYear}
-                                                onChange={(e) => setSelectedYear(e.target.value)}
-                                                className="w-48 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"
-                                                required
-                                            >
-                                                <option value="">Select year</option>
-                                                {years.map(year => (
-                                                    <option key={year} value={year}>{year}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    )}
-
-                                    {/* Year Range Selection */}
-                                    {dateSelectionMode === 'yearRange' && (
-                                        <div className="flex gap-3">
-                                            <div className="flex-1">
-                                                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Start Year</label>
-                                                <select
-                                                    value={startYear}
-                                                    onChange={(e) => setStartYear(e.target.value)}
-                                                    className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"
-                                                    required
-                                                >
-                                                    <option value="">Start year</option>
-                                                    {years.map(year => (
-                                                        <option key={year} value={year}>{year}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div className="flex-1">
-                                                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">End Year</label>
-                                                <select
-                                                    value={endYear}
-                                                    onChange={(e) => setEndYear(e.target.value)}
-                                                    className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"
-                                                    required
-                                                >
-                                                    <option value="">End year</option>
-                                                    {years.map(year => (
-                                                        <option key={year} value={year}>{year}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Display calculated date */}
-                                    {dateSelectionMode !== 'full' && calculateReceivedDate() && (
-                                        <div className="text-sm text-gray-600 dark:text-gray-400">
-                                            Selected date: {calculateReceivedDate()?.toLocaleDateString()}
-                                        </div>
-                                    )}
-                                </div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Item Received Date</label>
+                                <DatePickerComponent
+                                    state={datePickerState}
+                                    onStateChange={handleDatePickerStateChange}
+                                    onDateChange={setReceivedDate}
+                                    isPopoverOpen={isDatePickerOpen}
+                                    onPopoverOpenChange={setIsDatePickerOpen}
+                                    required={true}
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Ownership Duration Goal</label>
@@ -803,9 +691,9 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                     <input
                                         type="number"
                                         value={ownershipGoalValue}
-                                        onChange={(e) => setOwnershipGoalValue(Number(e.target.value))}
+                                        onChange={(e) => setOwnershipGoalValue(formatOwnershipGoalValue(e.target.value))}
                                         min="1"
-                                        max={ownershipGoalUnit === 'years' ? 10 : 120}
+                                        max={ownershipGoalUnit === 'years' ? 999 : 999}
                                         className="block w-24 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"
                                     />
                                     <select
@@ -813,11 +701,13 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                         onChange={(e) => {
                                             const newUnit = e.target.value as 'months' | 'years'
                                             setOwnershipGoalUnit(newUnit)
-                                            // Convert current value to new unit
+                                            // Convert current value to new unit with 3-digit limit
                                             if (newUnit === 'years' && ownershipGoalUnit === 'months') {
-                                                setOwnershipGoalValue(Math.max(1, Math.round(ownershipGoalValue / 12)))
+                                                const convertedValue = Math.max(1, Math.round(ownershipGoalValue / 12))
+                                                setOwnershipGoalValue(Math.min(999, convertedValue))
                                             } else if (newUnit === 'months' && ownershipGoalUnit === 'years') {
-                                                setOwnershipGoalValue(ownershipGoalValue * 12)
+                                                const convertedValue = ownershipGoalValue * 12
+                                                setOwnershipGoalValue(Math.min(999, convertedValue))
                                             }
                                         }}
                                         className="rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"
@@ -840,7 +730,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={isSubmitting || !name || (useEmoji ? !pictureEmoji : !uploadedImageUrl) || !isDateValid() || !canAddMoreItems(1)}
+                                    disabled={isSubmitting || !name || (useEmoji ? !pictureEmoji : !uploadedImageUrl) || !isDateValid(datePickerState) || !canAddMoreItems(1)}
                                     className="px-4 py-2 text-sm font-medium text-white bg-teal-600 border border-transparent rounded-md hover:bg-teal-700 disabled:opacity-50"
                                 >
                                     {isSubmitting ? 'Adding...' : !canAddMoreItems(1) ? 'Limit Reached' : 'Add Item'}

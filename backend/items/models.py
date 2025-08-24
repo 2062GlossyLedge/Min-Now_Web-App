@@ -6,10 +6,38 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+import os
+from clerk_backend_api import Clerk
+import logging
+
+logger = logging.getLogger("minNow")
 
 
 # Constants for item limits
 MAX_ITEMS_PER_USER = 10
+
+
+def is_user_admin(user) -> bool:
+    """
+    Check if a user is an admin by fetching their Clerk metadata.
+    Returns True if user has admin privileges, False otherwise.
+    """
+    try:
+        if not user or not hasattr(user, "clerk_id") or not user.clerk_id:
+            return False
+
+        sdk = Clerk(bearer_auth=os.getenv("CLERK_SECRET_KEY"))
+        user_obj = sdk.users.get(user_id=user.clerk_id)
+
+        # Check if user has admin status in public metadata
+        public_metadata = getattr(user_obj, "public_metadata", {})
+        return public_metadata.get("is-admin") == True
+
+    except Exception as e:
+        logger.warning(
+            f"Error checking admin status for user {user.clerk_id if user else 'None'}: {str(e)}"
+        )
+        return False
 
 
 class ItemType(models.TextChoices):
@@ -237,12 +265,20 @@ class OwnedItem(models.Model):
     @classmethod
     def can_add_items(cls, user, count=1):
         """Check if a user can add the specified number of items."""
+        # Admin users can always add items
+        if is_user_admin(user):
+            return True
+
         remaining_slots = cls.get_remaining_item_slots(user)
         return remaining_slots >= count
 
     @classmethod
     def validate_item_limit(cls, user, count=1):
         """Validate that adding items won't exceed the limit."""
+        # Skip validation for admin users
+        if is_user_admin(user):
+            return
+
         if not cls.can_add_items(user, count):
             current_count = cls.get_user_item_count(user)
             remaining = cls.get_remaining_item_slots(user)

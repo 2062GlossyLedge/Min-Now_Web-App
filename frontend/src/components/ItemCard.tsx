@@ -1,15 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
-import { format } from 'date-fns'
-import { CalendarIcon, Edit2, Trash2, ChevronDown, ImageIcon, SmileIcon } from 'lucide-react'
+import { Edit2, Trash2, ChevronDown, ImageIcon, SmileIcon } from 'lucide-react'
 import Image from 'next/image'
 import { UploadButton } from '@uploadthing/react'
 import "@uploadthing/react/styles.css";
 import { twMerge } from 'tailwind-merge'
+import DatePickerComponent from '@/components/DatePickerComponent'
+import { DatePickerState, calculateReceivedDate, initializeDatePickerState } from '@/utils/datePickerHelpers'
 
 import type { OurFileRouter } from '@/app/api/uploadthing/core'
 
@@ -89,6 +89,17 @@ export default function ItemCard({
     )
     const [isItemTypeDropdownOpen, setIsItemTypeDropdownOpen] = useState(false)
 
+    // Date picker state
+    const [datePickerState, setDatePickerState] = useState<DatePickerState>(() => ({
+        ...initializeDatePickerState(initialReceivedDate ? new Date(initialReceivedDate) : undefined),
+        dateSelectionMode: 'full',
+        selectedMonth: '',
+        selectedYear: '',
+        startYear: '',
+        endYear: ''
+    }))
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
+
     // Image editing states
     const [useEmoji, setUseEmoji] = useState(true)
     const [editedPictureEmoji, setEditedPictureEmoji] = useState('')
@@ -104,8 +115,16 @@ export default function ItemCard({
         setEditedName(name)
         setEditedItemType(itemType)
         setEditedStatus(status)
-        setReceivedDate(initialReceivedDate ? new Date(initialReceivedDate) : undefined)
+        const newReceivedDate = initialReceivedDate ? new Date(initialReceivedDate) : undefined
+        setReceivedDate(newReceivedDate)
         setCurrentPictureUrl(pictureUrl)
+
+        // Update date picker state when receivedDate changes
+        setDatePickerState(prev => ({
+            ...prev,
+            ...initializeDatePickerState(newReceivedDate),
+            receivedDate: newReceivedDate
+        }))
 
         // Update ownership duration goal unit and value when props change
         if (ownershipDurationGoalMonths >= 12 && ownershipDurationGoalMonths % 12 === 0) {
@@ -133,7 +152,27 @@ export default function ItemCard({
         return ownershipGoalUnit === 'years' ? ownershipGoalValue * 12 : ownershipGoalValue
     }
 
-    // Function to check if the pictureUrl is an emoji
+    // Helper function to format ownership goal value input (max 3 digits, remove leading zeros when >= 2 digits)
+    const formatOwnershipGoalValue = (value: string): number => {
+        // Remove non-numeric characters and limit to 3 digits
+        const numericValue = value.replace(/\D/g, '').slice(0, 3)
+
+        // Convert to number and remove leading zeros for values >= 10
+        const parsedValue = parseInt(numericValue || '0', 10)
+
+        // Ensure minimum value of 1
+        return Math.max(1, parsedValue)
+    }
+
+    // Handle date picker state changes
+    const handleDatePickerStateChange = (updates: Partial<DatePickerState>) => {
+        const newState = { ...datePickerState, ...updates }
+        setDatePickerState(newState)
+
+        // Calculate and update the actual received date based on the current selection mode
+        const calculatedDate = calculateReceivedDate(newState)
+        setReceivedDate(calculatedDate)
+    }    // Function to check if the pictureUrl is an emoji
     const isEmoji = (str: string) => {
         return str.length > 1 && str.length <= 2;
     }
@@ -175,7 +214,18 @@ export default function ItemCard({
         setEditedName(name)
         setEditedItemType(itemType)
         setEditedStatus(status)
-        setReceivedDate(initialReceivedDate ? new Date(initialReceivedDate) : undefined)
+        const originalDate = initialReceivedDate ? new Date(initialReceivedDate) : undefined
+        setReceivedDate(originalDate)
+
+        // Reset date picker state
+        setDatePickerState({
+            ...initializeDatePickerState(originalDate),
+            dateSelectionMode: 'full',
+            selectedMonth: '',
+            selectedYear: '',
+            startYear: '',
+            endYear: ''
+        })
 
         // Reset ownership duration goal unit and value
         if (ownershipDurationGoalMonths >= 12 && ownershipDurationGoalMonths % 12 === 0) {
@@ -308,12 +358,12 @@ export default function ItemCard({
                                     type="text"
                                     value={editedName}
                                     onChange={(e) => setEditedName(e.target.value)}
-                                    maxLength={50}
+                                    maxLength={25}
                                     className="text-lg font-semibold bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-teal-500 dark:focus:border-teal-400"
                                     onClick={(e) => e.stopPropagation()}
                                 />
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    {editedName ? editedName.length : 0}/50 characters
+                                    {editedName ? editedName.length : 0}/25 characters
                                 </p>
                             </div>
                         ) : (
@@ -401,29 +451,14 @@ export default function ItemCard({
                             {/* Item Received Date */}
                             <div className="flex flex-col space-y-2">
                                 <span className="text-sm text-gray-500 dark:text-gray-400">Item Received Date:</span>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant="outline"
-                                            className="w-[240px] justify-start text-left font-normal"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {receivedDate ? format(receivedDate, "PPP") : <span>Pick a date</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-800" align="start">
-                                        <Calendar
-                                            mode="single"
-                                            selected={receivedDate}
-                                            onSelect={setReceivedDate}
-                                            initialFocus
-                                            captionLayout="dropdown"
-                                            showOutsideDays={true}
-                                            className="rounded-md border"
-                                        />
-                                    </PopoverContent>
-                                </Popover>
+                                <DatePickerComponent
+                                    state={datePickerState}
+                                    onStateChange={handleDatePickerStateChange}
+                                    onDateChange={setReceivedDate}
+                                    isPopoverOpen={isDatePickerOpen}
+                                    onPopoverOpenChange={setIsDatePickerOpen}
+                                    buttonClassName="w-[240px] justify-start text-left font-normal"
+                                />
                             </div>
 
                             {/* Item Status */}
@@ -598,15 +633,26 @@ export default function ItemCard({
                                     <input
                                         type="number"
                                         value={ownershipGoalValue}
-                                        onChange={(e) => setOwnershipGoalValue(Number(e.target.value))}
+                                        onChange={(e) => setOwnershipGoalValue(formatOwnershipGoalValue(e.target.value))}
                                         min="1"
-                                        max={ownershipGoalUnit === 'years' ? 10 : 120}
+                                        max={ownershipGoalUnit === 'years' ? 999 : 999}
                                         className="block w-24 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"
                                         onClick={(e) => e.stopPropagation()}
                                     />
                                     <select
                                         value={ownershipGoalUnit}
-                                        onChange={(e) => setOwnershipGoalUnit(e.target.value as 'months' | 'years')}
+                                        onChange={(e) => {
+                                            const newUnit = e.target.value as 'months' | 'years'
+                                            setOwnershipGoalUnit(newUnit)
+                                            // Convert current value to new unit with 3-digit limit
+                                            if (newUnit === 'years' && ownershipGoalUnit === 'months') {
+                                                const convertedValue = Math.max(1, Math.round(ownershipGoalValue / 12))
+                                                setOwnershipGoalValue(Math.min(999, convertedValue))
+                                            } else if (newUnit === 'months' && ownershipGoalUnit === 'years') {
+                                                const convertedValue = ownershipGoalValue * 12
+                                                setOwnershipGoalValue(Math.min(999, convertedValue))
+                                            }
+                                        }}
                                         className="rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"
                                         onClick={(e) => e.stopPropagation()}
                                     >

@@ -1,5 +1,5 @@
 from django.utils import timezone
-from .models import OwnedItem, Checkup, ItemStatus, ItemType
+from .models import OwnedItem, Checkup, ItemStatus, ItemType, is_user_admin
 from datetime import timedelta
 from django.core.mail import send_mail
 from django.conf import settings
@@ -71,11 +71,19 @@ class ItemService:
         max_items = OwnedItem._meta.get_field("user").related_model._meta.app_label
         from .models import MAX_ITEMS_PER_USER
 
+        # Admin users can always add items
+        if is_user_admin(user):
+            can_add = True
+            # For admin users, show "unlimited" or a high number for remaining slots
+            remaining_slots = 999  # or float('inf') but API might prefer a number
+        else:
+            can_add = remaining_slots > 0
+
         return {
             "current_count": current_count,
             "max_items": MAX_ITEMS_PER_USER,
             "remaining_slots": remaining_slots,
-            "can_add_items": remaining_slots > 0,
+            "can_add_items": can_add,
         }
 
 

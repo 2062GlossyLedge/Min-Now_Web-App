@@ -9,6 +9,26 @@ import { fetchDonatedBadgesJWT, testClerkJWT } from "@/utils/api"
 import AuthMessage from "@/components/AuthMessage"
 import { SignedIn, SignedOut, useUser, useAuth } from '@clerk/nextjs'
 
+// Map database values to display names
+const itemTypeDisplayNames: Record<string, string> = {
+    'Clothing_Accessories': 'Clothing & Accessories',
+    'Technology': 'Technology',
+    'Furniture_Appliances': 'Furniture & Appliances',
+    'Kitchenware': 'Kitchenware',
+    'Books_Media': 'Books & Media',
+    'Vehicles': 'Vehicles',
+    'Personal_Care_Items': 'Personal Care Items',
+    'Decor_Art': 'Decor & Art',
+    'Tools_Equipment': 'Tools & Equipment',
+    'Toys_Games': 'Toys & Games',
+    'Outdoor_Gear': 'Outdoor Gear',
+    'Fitness_Equipment': 'Fitness Equipment',
+    'Pet_Supplies': 'Pet Supplies',
+    'Subscriptions_Licenses': 'Subscriptions & Licenses',
+    'Miscellaneous': 'Miscellaneous',
+    'Other': 'Other'
+}
+
 // Emoji map for item types (no question marks, fallback to 🏷️)
 const itemTypeEmojis: Record<string, string> = {
     Clothing_Accessories: "💍",
@@ -20,6 +40,7 @@ const itemTypeEmojis: Record<string, string> = {
     Outdoor_Gear: "🏕️",
     Fitness_Equipment: "🎾",
     Furniture_Appliances: "🪑",
+    Kitchenware: "🍽️",
     Decor_Art: "🎄",
     Books_Media: "📚",
     Toys_Games: "🧸",
@@ -46,12 +67,93 @@ type Badge = {
 }
 type BadgeGroups = Record<string, Badge[]>
 
+// Badge summary component showing fraction of badges collected for each tier
+const BadgeSummary = ({ badgeGroups }: { badgeGroups: BadgeGroups }) => {
+    // Calculate badge statistics for each item type and tier
+    const badgeStats = Object.entries(badgeGroups).map(([itemType, badges]) => {
+        const bronzeBadges = badges.filter(b => b.tier === 'bronze')
+        const silverBadges = badges.filter(b => b.tier === 'silver')
+        const goldBadges = badges.filter(b => b.tier === 'gold')
+
+        const bronzeAchieved = bronzeBadges.filter(b => b.achieved).length
+        const silverAchieved = silverBadges.filter(b => b.achieved).length
+        const goldAchieved = goldBadges.filter(b => b.achieved).length
+
+        return {
+            itemType,
+            displayName: itemTypeDisplayNames[itemType] || itemType,
+            emoji: itemTypeEmojis[itemType] || "🏷️",
+            bronze: { achieved: bronzeAchieved, total: bronzeBadges.length },
+            silver: { achieved: silverAchieved, total: silverBadges.length },
+            gold: { achieved: goldAchieved, total: goldBadges.length }
+        }
+    })
+
+    if (badgeStats.length === 0) return null
+
+    return (
+        <div className="mb-8">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Badge Progress Overview</h2>
+            {/* Horizontal scrollable container */}
+            <div className="overflow-x-auto pb-4">
+                <div className="flex space-x-4 min-w-max">
+                    {badgeStats.map(({ itemType, displayName, emoji, bronze, silver, gold }) => (
+                        <div key={itemType} className="flex-shrink-0 bg-white dark:bg-gray-900 rounded-lg p-4 shadow border border-gray-200 dark:border-gray-700 min-w-[200px]">
+                            {/* Item type header */}
+                            <div className="flex items-center mb-3">
+                                <span className="text-2xl mr-2">{emoji}</span>
+                                <span className="font-medium text-gray-900 dark:text-gray-100 text-sm">{displayName}</span>
+                            </div>
+
+                            {/* Badge tier progress */}
+                            <div className="space-y-2">
+                                {/* Bronze badges */}
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center">
+                                        <div className="w-3 h-3 rounded-full border-2 border-[#cd7f32] mr-2"></div>
+                                        <span className="text-xs text-gray-600 dark:text-gray-400">Bronze</span>
+                                    </div>
+                                    <span className="text-xs font-medium text-gray-900 dark:text-gray-100">
+                                        {bronze.achieved}/{bronze.total}
+                                    </span>
+                                </div>
+
+                                {/* Silver badges */}
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center">
+                                        <div className="w-3 h-3 rounded-full border-2 border-[#c0c0c0] mr-2"></div>
+                                        <span className="text-xs text-gray-600 dark:text-gray-400">Silver</span>
+                                    </div>
+                                    <span className="text-xs font-medium text-gray-900 dark:text-gray-100">
+                                        {silver.achieved}/{silver.total}
+                                    </span>
+                                </div>
+
+                                {/* Gold badges */}
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center">
+                                        <div className="w-3 h-3 rounded-full border-2 border-[#ffd700] mr-2"></div>
+                                        <span className="text-xs text-gray-600 dark:text-gray-400">Gold</span>
+                                    </div>
+                                    <span className="text-xs font-medium text-gray-900 dark:text-gray-100">
+                                        {gold.achieved}/{gold.total}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    )
+}
+
 // Shared grid component for badges
 const BadgeGrid = ({ itemType, badges }: { itemType: string; badges: Badge[] }) => (
     <div className="mb-12">
         {/* Item type header on the left */}
         <div className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-2">
-            {itemType}
+            {itemTypeDisplayNames[itemType] || itemType}
         </div>
         {/* Two-column grid of badges under the header */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -164,6 +266,11 @@ const GaveBadgesPage = () => {
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">Gave Badges</h1>
                     <p className="text-gray-600 dark:text-gray-400">Track your progress for items you've donated or sold</p>
                 </div>
+
+                {/* Badge Summary - show overview of all badge progress */}
+                {!loading && !error && Object.keys(badgeGroups).length > 0 && (
+                    <BadgeSummary badgeGroups={badgeGroups} />
+                )}
 
                 {loading && <p className="text-center text-gray-500 dark:text-gray-400">Loading gave badges...</p>}
                 {error && (

@@ -918,14 +918,14 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                         className="w-full py-2 px-4 rounded bg-purple-600 text-white hover:bg-purple-700 transition disabled:opacity-50"
                                         disabled={quickFormLoading || !canAddToQuickList()}
                                     >
-                                        {quickFormLoading ? 'Adding...' : canAddToQuickList() ? 'Add to Items to Add' : 'Limit Reached'}
+                                        {quickFormLoading ? 'Adding...' : canAddToQuickList() ? 'Add Item to Batch' : 'Limit Reached'}
                                     </button>
                                 </form>
                             )}
-                            {/* Items to Add List */}
+                            {/* Item Batch List */}
                             <div>
                                 <div className="flex justify-between items-center mb-2">
-                                    <h3 className="text-lg font-semibold">Items to add</h3>
+                                    <h3 className="text-lg font-semibold">Item Batch</h3>
                                     {itemStats && (
                                         <span className="text-sm text-gray-600 dark:text-gray-400">
                                             {isUserAdmin() ?
@@ -994,7 +994,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                     onClick={handleSubmitAllQuickItems}
                                     type="button"
                                 >
-                                    Submit All Items
+                                    {'Submit Item Batch'}
                                 </button>
                             </div>
                         </div>

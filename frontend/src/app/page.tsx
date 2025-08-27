@@ -112,7 +112,7 @@ export default function HomePage() {
                         </div>
                         <h1 className="text-lg sm:text-2xl font-bold text-white">Min-Now</h1>
                     </div>
-                    
+
                     {/* Conditional navigation based on authentication status */}
                     <div className="flex items-center space-x-2 sm:space-x-3">
                         <SignedIn>
@@ -123,7 +123,7 @@ export default function HomePage() {
                                 <span className="sm:inline">Go to App</span>
                             </Link>
                         </SignedIn>
-                        
+
                         <SignedOut>
                             <div className="flex items-center space-x-2">
                                 <div className="text-xs sm:text-sm">
@@ -222,7 +222,7 @@ export default function HomePage() {
                                             Welcome Back!
                                         </h2>
                                         <p className="text-base sm:text-lg lg:text-xl text-white/90 mb-6 sm:mb-8 leading-relaxed px-4">
-                                            Continue your minimalist journey. Track your belongings, make mindful decisions, 
+                                            Continue your minimalist journey. Track your belongings, make mindful decisions,
                                             and maintain the freedom of minimalism.
                                         </p>
                                     </SignedIn>
@@ -237,7 +237,7 @@ export default function HomePage() {
                                             Go to App
                                         </Link>
                                     </SignedIn>
-                                    
+
                                     <SignedOut>
                                         <SignUpButton mode="modal">
                                             <button className="w-full sm:w-auto bg-white text-teal-600 hover:bg-white/90 px-6 sm:px-8 py-3 sm:py-4 rounded-full font-semibold text-base sm:text-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105">

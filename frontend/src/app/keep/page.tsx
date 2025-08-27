@@ -5,6 +5,7 @@ import ItemCard from '../../components/ItemCard'
 import AddItemForm from '../../components/AddItemForm'
 import FilterBar from '../../components/FilterBar'
 import CheckupManager from '../../components/CheckupManager'
+import OnboardingManager from '../../components/OnboardingManager'
 import AuthMessage from '../../components/AuthMessage'
 // CSRF-based API imports (commented out - using JWT approach)
 // import { updateItem, deleteItem, fetchItemsByStatus, createItem, sendTestCheckupEmail, agentAddItem, createHandleEdit } from '@/utils/api'
@@ -17,6 +18,7 @@ import { SignedIn, SignedOut, useUser, useAuth } from '@clerk/nextjs'
 // import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch' // Not needed for JWT approach
 import { useRouter } from 'next/navigation'
 import { useItemUpdate } from '@/contexts/ItemUpdateContext'
+import { useOnboarding } from '@/contexts/OnboardingContext'
 
 export default function KeepView() {
     const [items, setItems] = useState<Item[]>([])
@@ -34,6 +36,7 @@ export default function KeepView() {
     const [emailStatus, setEmailStatus] = useState<string | null>(null)
     const { refreshTrigger, clearUpdatedItems } = useItemUpdate()
     const [deletingItemId, setDeletingItemId] = useState<string | null>(null) // Track which item is being deleted
+    const { onboardingStep, nextStep, setShowExplanation, setShowSpotlight } = useOnboarding()
 
     // Separate effect to handle authentication state changes
     useEffect(() => {
@@ -144,6 +147,16 @@ export default function KeepView() {
         }
     }, [getToken, refreshTrigger, isLoaded, isSignedIn])
 
+    // Show explanation when entering keep page during onboarding
+    useEffect(() => {
+        if (onboardingStep === 'add-item' && isLoaded && isSignedIn) {
+            const timer = setTimeout(() => {
+                setShowExplanation('keep-page')
+            }, 500)
+            return () => clearTimeout(timer)
+        }
+    }, [onboardingStep, isLoaded, isSignedIn, setShowExplanation])
+
 
     const handleStatusChange = async (id: string, newStatus: string) => {
         try {
@@ -205,6 +218,11 @@ export default function KeepView() {
             ownershipDuration: newItem.ownership_duration?.description || 'Not specified'
         }
         setItems(prevItems => [...prevItems, mappedItem])
+
+        // Trigger next onboarding step if in onboarding mode
+        if (onboardingStep === 'add-item') {
+            nextStep()
+        }
     }
 
     // Filter items based on selected type
@@ -291,14 +309,22 @@ export default function KeepView() {
                     <div className="flex space-x-2">
                         {/* Checkup Manager Button */}
                         <button
-                            onClick={() => setShowCheckupManager(true)}
+                            onClick={() => {
+                                setShowCheckupManager(true)
+                                // Clear onboarding explanations when user clicks the checkup button
+                                if (onboardingStep === 'checkup') {
+                                    setShowExplanation(null)
+                                    setShowSpotlight(false)
+                                }
+                            }}
                             className="p-2 text-gray-900 dark:text-white hover:text-teal-500 dark:hover:text-teal-400 transition-colors relative"
+                            data-onboarding="checkup-button"
                         >
                             {/* Calendar Icon */}
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
-                            {isCheckupDue && (
+                            {(isCheckupDue || onboardingStep === 'checkup') && (
                                 <div className="absolute top-1.5 right-1.5 w-3 h-3 bg-red-500 rounded-full"></div>
                             )}
                         </button>
@@ -355,9 +381,17 @@ export default function KeepView() {
                             )}
                             {/* Add Item Button (shows add item form directly) */}
                             <button
-                                onClick={() => setShowAddForm(true)}
+                                onClick={() => {
+                                    setShowAddForm(true)
+                                    // Clear onboarding explanations when user clicks the add button
+                                    if (onboardingStep === 'add-item') {
+                                        setShowExplanation(null)
+                                        setShowSpotlight(false)
+                                    }
+                                }}
                                 className="p-2 text-gray-900 dark:text-white hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
                                 title="Add Item"
+                                data-onboarding="add-item-button"
                             >
                                 {/* Plus Icon */}
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -499,6 +533,9 @@ export default function KeepView() {
                         onClose={() => setShowCheckupManager(false)}
                     />
                 )}
+
+                {/* Onboarding Manager */}
+                <OnboardingManager />
             </SignedIn>
         </div>
     )

@@ -19,6 +19,7 @@ import "@uploadthing/react/styles.css";
 import { useAuth, useUser } from '@clerk/nextjs'
 import DatePickerComponent from '@/components/DatePickerComponent'
 import { DatePickerState, calculateReceivedDate, isDateValid, initializeDatePickerState } from '@/utils/datePickerHelpers'
+import { toast } from 'sonner'
 
 
 
@@ -357,6 +358,12 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
             setIsSubmitting(false)
             return
         }
+
+        // Show loading toast
+        const loadingToastId = toast.loading('Adding item...', {
+            description: 'Creating your new item',
+        })
+
         try {
             const localDate = new Date(calculatedDate)
             localDate.setHours(0, 0, 0, 0)
@@ -382,6 +389,12 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
             }
 
             if (data) {
+                // Dismiss loading toast and show success toast
+                toast.dismiss(loadingToastId)
+                toast.success('Item added successfully!', {
+                    description: `${name} has been added to your Keep items`,
+                })
+
                 // Refresh item stats after successful creation
                 const { data: newStats } = await fetchUserItemStatsJWT(getToken)
                 if (newStats) {
@@ -392,6 +405,11 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
             }
         } catch (error) {
             console.error('Error adding item:', error)
+            // Dismiss loading toast and show error toast
+            toast.dismiss(loadingToastId)
+            toast.error('Failed to add item', {
+                description: error instanceof Error ? error.message : 'An unexpected error occurred',
+            })
             setManualAddError(error instanceof Error ? error.message : 'Failed to add item')
         } finally {
             setIsSubmitting(false)

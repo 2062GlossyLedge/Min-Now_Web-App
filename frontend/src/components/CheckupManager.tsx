@@ -9,9 +9,11 @@ import { CheckCircle2 } from 'lucide-react'
 // import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
 
 // JWT-based API imports (new approach)
-import { updateItemJWT, fetchCheckupJWT, createCheckupJWT, completeCheckupJWT, testClerkJWT, fetchItemsByStatusJWT } from '@/utils/api'
+import { updateItemJWT, fetchCheckupJWT, completeCheckupJWT, testClerkJWT, fetchItemsByStatusJWT } from '@/utils/api'
 import { useItemUpdate } from '@/contexts/ItemUpdateContext'
+import { useOnboarding } from '@/contexts/OnboardingContext'
 import { useUser, useAuth } from '@clerk/nextjs'
+import { toast } from 'sonner'
 
 // Map database values to display names
 const itemTypeDisplayNames: Record<string, string> = {
@@ -51,6 +53,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
     const { getToken } = useAuth() // JWT approach - get token from Clerk
     const { addUpdatedItem, triggerRefresh } = useItemUpdate()
     const { isSignedIn, isLoaded } = useUser() // Get user authentication status
+    const { onboardingStep, completeOnboarding, setShowExplanation } = useOnboarding()
 
     // Disable body scroll when modal is open
     useEffect(() => {
@@ -243,6 +246,24 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
             }
 
             setShowConfirmation(true)
+
+            // Complete onboarding if this is the checkup step
+            if (onboardingStep === 'checkup') {
+                completeOnboarding()
+                
+                // Show tutorial completion toast after a short delay
+                setTimeout(() => {
+                    toast.success('Tutorial completed! 🎉', {
+                        description: 'You\'ve successfully learned how to use Min-Now. Start managing your items with confidence!',
+                        duration: 5000, // Show for 5 seconds
+                    })
+                }, 1000)
+                
+                // Show explanation after a delay
+                setTimeout(() => {
+                    setShowExplanation('checkup-complete')
+                }, 2000)
+            }
 
             setTimeout(() => {
                 // Trigger refresh after checkup completion and animation

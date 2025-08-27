@@ -6,6 +6,7 @@ import ConditionalNavigation from '@/components/ConditionalNavigation'
 import ConditionalMain from '@/components/ConditionalMain'
 import { ClerkProvider } from '@clerk/nextjs'
 import { ItemUpdateProvider } from '../contexts/ItemUpdateContext'
+import { OnboardingProvider } from '../contexts/OnboardingContext'
 import { Toaster } from '@/components/ui/sonner'
 import { HydrationWrapper } from '@/app/HydrationWrapper'
 
@@ -31,16 +32,18 @@ export default function RootLayout({
                 <body className={inter.className}>
                     {/* HydrationWrapper mounts first, blocking all children until mounted */}
                     <HydrationWrapper>
-                        <ItemUpdateProvider>
-                            <ThemeProvider>
-                                <ConditionalNavigation />
-                                <ConditionalMain>
-                                    {children}
-                                </ConditionalMain>
-                                {/* Sonner Toaster for notifications */}
-                                <Toaster />
-                            </ThemeProvider>
-                        </ItemUpdateProvider>
+                        <OnboardingProvider>
+                            <ItemUpdateProvider>
+                                <ThemeProvider>
+                                    <ConditionalNavigation />
+                                    <ConditionalMain>
+                                        {children}
+                                    </ConditionalMain>
+                                    {/* Sonner Toaster for notifications */}
+                                    <Toaster />
+                                </ThemeProvider>
+                            </ItemUpdateProvider>
+                        </OnboardingProvider>
                     </HydrationWrapper>
                 </body>
             </html>

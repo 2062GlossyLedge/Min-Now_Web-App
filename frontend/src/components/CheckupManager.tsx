@@ -56,7 +56,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
     useEffect(() => {
         // Add overflow hidden to body when component mounts
         document.body.style.overflow = 'hidden'
-        
+
         // Cleanup function to restore scroll when component unmounts
         return () => {
             document.body.style.overflow = 'unset'

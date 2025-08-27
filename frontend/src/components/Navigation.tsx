@@ -76,9 +76,9 @@ export default function Navigation() {
                         {/* vertical line to demarcate button and logo */}
                         <div className="h-8 w-px bg-gray-300 dark:bg-gray-700" />
                         <Link
-                            href="/landing"
+                            href="/"
                             className="relative w-8 h-8  overflow-hidden hover:opacity-80 transition-opacity duration-200 rounded"
-                            title="Go to Min-Now Landing Page"
+                            title="Go to Min-Now Home Page"
                         >
                             <Image
                                 src="/Min-NowDarkLogoCropped.jpg"

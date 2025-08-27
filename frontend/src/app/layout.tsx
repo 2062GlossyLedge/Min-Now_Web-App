@@ -2,7 +2,8 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './global.css'
 import { ThemeProvider } from '../components/ThemeProvider'
-import Navigation from '../components/Navigation'
+import ConditionalNavigation from '@/components/ConditionalNavigation'
+import ConditionalMain from '@/components/ConditionalMain'
 import { ClerkProvider } from '@clerk/nextjs'
 import { ItemUpdateProvider } from '../contexts/ItemUpdateContext'
 import { Toaster } from '@/components/ui/sonner'
@@ -32,10 +33,10 @@ export default function RootLayout({
                     <HydrationWrapper>
                         <ItemUpdateProvider>
                             <ThemeProvider>
-                                <Navigation />
-                                <main className="min-h-screen">
+                                <ConditionalNavigation />
+                                <ConditionalMain>
                                     {children}
-                                </main>
+                                </ConditionalMain>
                                 {/* Sonner Toaster for notifications */}
                                 <Toaster />
                             </ThemeProvider>

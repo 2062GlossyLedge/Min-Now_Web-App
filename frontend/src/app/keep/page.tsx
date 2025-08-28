@@ -504,7 +504,7 @@ export default function KeepView() {
 
                 {!loading && !error && filteredItems.length > 0 && (
                     <div className="space-y-4">
-                        {filteredItems.map((item) => (
+                        {filteredItems.map((item, index) => (
                             <ItemCard
                                 key={item.id}
                                 id={item.id}
@@ -522,6 +522,11 @@ export default function KeepView() {
                                 onDelete={handleDelete}
                                 isDeleting={deletingItemId === item.id}
                                 isAnyDeleting={deletingItemId !== null}
+                                // Add onboarding data attribute to the first item (most recently added)
+                                isFirstItem={index === 0}
+                                onboardingStep={onboardingStep}
+                                onNextStep={nextStep}
+                                setShowSpotlight={setShowSpotlight}
                             />
                         ))}
                     </div>

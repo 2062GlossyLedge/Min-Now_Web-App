@@ -14,6 +14,7 @@ import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 import { useOnboarding } from '@/contexts/OnboardingContext'
 import { useUser, useAuth } from '@clerk/nextjs'
 import { toast } from 'sonner'
+import OnboardingExplanation from './OnboardingExplanation'
 
 // Map database values to display names
 const itemTypeDisplayNames: Record<string, string> = {
@@ -53,18 +54,25 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
     const { getToken } = useAuth() // JWT approach - get token from Clerk
     const { addUpdatedItem, triggerRefresh } = useItemUpdate()
     const { isSignedIn, isLoaded } = useUser() // Get user authentication status
-    const { onboardingStep, completeOnboarding, setShowExplanation } = useOnboarding()
+    const { onboardingStep, completeOnboarding, nextStep } = useOnboarding()
 
     // Disable body scroll when modal is open
     useEffect(() => {
         // Add overflow hidden to body when component mounts
         document.body.style.overflow = 'hidden'
 
+        // Trigger onboarding for checkup review if in checkup step
+        if (onboardingStep === 'checkup') {
+            setTimeout(() => {
+                nextStep() // Move to checkup-review step
+            }, 1000) // Small delay to let the checkup modal open
+        }
+
         // Cleanup function to restore scroll when component unmounts
         return () => {
             document.body.style.overflow = 'unset'
         }
-    }, [])
+    }, [onboardingStep, nextStep])
 
     // Separate effect to handle authentication state changes
     useEffect(() => {
@@ -247,10 +255,10 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
 
             setShowConfirmation(true)
 
-            // Complete onboarding if this is the checkup step
-            if (onboardingStep === 'checkup') {
+            // Complete onboarding if this is the checkup-submit step
+            if (onboardingStep === 'checkup-submit') {
                 completeOnboarding()
-                
+
                 // Show tutorial completion toast after a short delay
                 setTimeout(() => {
                     toast.success('Tutorial completed! 🎉', {
@@ -258,11 +266,6 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                         duration: 5000, // Show for 5 seconds
                     })
                 }, 1000)
-                
-                // Show explanation after a delay
-                setTimeout(() => {
-                    setShowExplanation('checkup-complete')
-                }, 2000)
             }
 
             setTimeout(() => {
@@ -396,6 +399,17 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                     </div>
 
                     <div>
+                        {/* Onboarding Explanation for Checkup - positioned before review items */}
+                        {onboardingStep === 'checkup-review' && (
+                            <div className="mb-4">
+                                <OnboardingExplanation
+                                    title="Review Your Item"
+                                    description="This is your item to review. Check how long it's been since you last used it, then choose 'Used' if you've used it in the past month (resets the counter) or 'Not Used' if you haven't. After making your choice, you'll be able to complete the checkup."
+                                    inline={true}
+                                />
+                            </div>
+                        )}
+
                         <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">
                             Review Items
                         </h3>
@@ -410,15 +424,24 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                             </p>
                         ) : (
                             <div className="space-y-3 max-h-[300px] overflow-y-auto">
-                                {items.map((item) => (
-                                    <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                {items.map((item, index) => (
+                                    <div 
+                                        key={item.id} 
+                                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                                        {...(index === 0 && onboardingStep === 'checkup-review' ? { 'data-onboarding': 'first-checkup-item' } : {})}
+                                    >
                                         <div className="flex items-center space-x-3">
 
                                             <div>
                                                 <p className="font-medium text-gray-900 dark:text-gray-100">{item.name}</p>
                                                 <p className="text-sm text-gray-500 dark:text-gray-400">{itemTypeDisplayNames[item.itemType] || item.itemType}</p>
                                                 {/* Show how long since last used for each item */}
-                                                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Last used: {formatLastUsedDuration(item.last_used ?? '')}</p>
+                                                <p 
+                                                    className="text-xs text-gray-400 dark:text-gray-500 mt-1"
+                                                    {...(index === 0 && onboardingStep === 'checkup-review' ? { 'data-onboarding': 'last-used-info' } : {})}
+                                                >
+                                                    Last used: {formatLastUsedDuration(item.last_used ?? '')}
+                                                </p>
                                                 {/* Show pending status change if any */}
                                                 {getPendingStatusText(item.id) && (
                                                     <p className="text-xs text-teal-600 dark:text-teal-400 mt-1 font-medium">
@@ -431,7 +454,15 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                                             {checkupType === 'Keep' ? (
                                                 <>
                                                     <button
-                                                        onClick={() => handleStatusChange(item.id, 'used')}
+                                                        onClick={() => {
+                                                            handleStatusChange(item.id, 'used')
+                                                            // Handle onboarding progression
+                                                            if (index === 0 && onboardingStep === 'checkup-review') {
+                                                                setTimeout(() => {
+                                                                    nextStep() // Move to checkup-submit step
+                                                                }, 500)
+                                                            }
+                                                        }}
                                                         disabled={isSubmitting}
                                                         className={`px-3 py-1 text-sm rounded transition-colors duration-200 ${isSubmitting
                                                             ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
@@ -440,11 +471,20 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                                                                 : 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 hover:bg-teal-200 dark:hover:bg-teal-800'
                                                             }`}
                                                         title={isSubmitting ? 'Please wait...' : 'Mark as used'}
+                                                        {...(index === 0 && onboardingStep === 'checkup-review' ? { 'data-onboarding': 'used-button' } : {})}
                                                     >
                                                         Used
                                                     </button>
                                                     <button
-                                                        onClick={() => handleStatusChange(item.id, 'not_used')}
+                                                        onClick={() => {
+                                                            handleStatusChange(item.id, 'not_used')
+                                                            // Handle onboarding progression
+                                                            if (index === 0 && onboardingStep === 'checkup-review') {
+                                                                setTimeout(() => {
+                                                                    nextStep() // Move to checkup-submit step
+                                                                }, 500)
+                                                            }
+                                                        }}
                                                         disabled={isSubmitting}
                                                         className={`px-3 py-1 text-sm rounded transition-colors duration-200 ${isSubmitting
                                                             ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
@@ -453,6 +493,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                                                                 : 'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 hover:bg-teal-200 dark:hover:bg-teal-800'
                                                             }`}
                                                         title={isSubmitting ? 'Please wait...' : 'Mark as not used'}
+                                                        {...(index === 0 && onboardingStep === 'checkup-review' ? { 'data-onboarding': 'not-used-button' } : {})}
                                                     >
                                                         Not Used
                                                     </button>
@@ -524,6 +565,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                             onClick={handleSubmit}
                             disabled={isSubmitting}
                             className="px-4 py-2 text-sm font-medium text-white bg-teal-600 border border-transparent rounded-md hover:bg-teal-700 disabled:opacity-50"
+                            {...(onboardingStep === 'checkup-submit' ? { 'data-onboarding': 'submit-checkup-button' } : {})}
                         >
                             {isSubmitting ? 'Processing Changes...' : `Complete Checkup${itemStatusChanges.size > 0 ? ` (${itemStatusChanges.size} changes)` : ''}`}
                         </button>

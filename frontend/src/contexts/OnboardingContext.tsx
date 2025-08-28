@@ -5,7 +5,7 @@ import { useUser } from '@clerk/nextjs'
 
 interface OnboardingContextType {
     isOnboarding: boolean
-    onboardingStep: 'add-item' | 'checkup' | 'completed'
+    onboardingStep: 'add-item' | 'expand-item' | 'progress-bar' | 'checkup' | 'checkup-review' | 'checkup-submit' | 'completed'
     startOnboarding: () => void
     skipOnboarding: () => void
     nextStep: () => void
@@ -23,7 +23,7 @@ const OnboardingContext = createContext<OnboardingContextType | undefined>(undef
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
     const { user, isLoaded } = useUser()
     const [isOnboarding, setIsOnboarding] = useState(false)
-    const [onboardingStep, setOnboardingStep] = useState<'add-item' | 'checkup' | 'completed'>('add-item')
+    const [onboardingStep, setOnboardingStep] = useState<'add-item' | 'expand-item' | 'progress-bar' | 'checkup' | 'checkup-review' | 'checkup-submit' | 'completed'>('add-item')
     const [showSpotlight, setShowSpotlight] = useState(false)
     const [showExplanation, setShowExplanation] = useState<string | null>(null)
     const [tutorialCompletionCount, setTutorialCompletionCount] = useState(0)
@@ -35,7 +35,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
             const completionCount = parseInt(localStorage.getItem(`tutorial-completion-count-${user.id}`) || '0')
             setTutorialCompletionCount(completionCount)
             setHasCompletedTutorial(completionCount > 0)
-            
+
             // Only auto-start onboarding if they haven't completed it before
             if (completionCount === 0) {
                 setIsOnboarding(true)
@@ -63,9 +63,21 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
     const nextStep = () => {
         if (onboardingStep === 'add-item') {
+            setOnboardingStep('expand-item')
+            setShowSpotlight(true)
+        } else if (onboardingStep === 'expand-item') {
+            setOnboardingStep('progress-bar')
+            setShowSpotlight(true)
+        } else if (onboardingStep === 'progress-bar') {
             setOnboardingStep('checkup')
             setShowSpotlight(true)
         } else if (onboardingStep === 'checkup') {
+            setOnboardingStep('checkup-review')
+            setShowSpotlight(true)
+        } else if (onboardingStep === 'checkup-review') {
+            setOnboardingStep('checkup-submit')
+            setShowSpotlight(true)
+        } else if (onboardingStep === 'checkup-submit') {
             completeOnboarding()
         }
     }

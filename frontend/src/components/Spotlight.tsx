@@ -29,29 +29,44 @@ export default function Spotlight({
     const [targetRect, setTargetRect] = useState<DOMRect | null>(null)
 
     useEffect(() => {
+        let retryCount = 0
+        const maxRetries = 10
+        
         const findTarget = () => {
             const element = document.querySelector(targetSelector) as HTMLElement
             if (element) {
                 setTargetElement(element)
                 setTargetRect(element.getBoundingClientRect())
-                
+
                 // Ensure the target element is highly clickable and visible
                 element.style.position = 'relative'
                 element.style.zIndex = '1002' // Higher than overlay
                 element.style.pointerEvents = 'auto'
-                
+
                 // Add a subtle highlight to indicate it's the target
                 element.style.backgroundColor = 'rgba(20, 184, 166, 0.1)'
                 element.style.borderRadius = '4px'
                 element.style.transition = 'all 0.3s ease'
+                return true
+            }
+            return false
+        }
+
+        const attemptFind = () => {
+            if (findTarget()) {
+                return // Found the element, stop retrying
+            }
+            
+            retryCount++
+            if (retryCount < maxRetries) {
+                // Progressively longer delays for elements that take time to render
+                const delay = retryCount <= 3 ? 100 : retryCount <= 6 ? 200 : 500
+                setTimeout(attemptFind, delay)
             }
         }
 
-        // Try to find the element immediately
-        findTarget()
-
-        // If not found, try again after a short delay
-        const timeout = setTimeout(findTarget, 100)
+        // Start the search process
+        attemptFind()
 
         // Update position on scroll/resize
         const updatePosition = () => {
@@ -64,10 +79,9 @@ export default function Spotlight({
         window.addEventListener('resize', updatePosition)
 
         return () => {
-            clearTimeout(timeout)
             window.removeEventListener('scroll', updatePosition)
             window.removeEventListener('resize', updatePosition)
-            
+
             // Clean up the target element
             if (targetElement) {
                 targetElement.style.position = ''
@@ -84,20 +98,32 @@ export default function Spotlight({
         return null
     }
 
-    const tooltipLeft = targetRect.left + targetRect.width + 20
-    const tooltipTop = targetRect.top
     const tooltipWidth = 300
 
-    // Adjust position if tooltip would go off screen
-    const adjustedLeft = tooltipLeft + tooltipWidth > window.innerWidth 
-        ? targetRect.left - tooltipWidth - 20 
-        : tooltipLeft
+    // Always position tooltip below the target element for consistent behavior
+    let adjustedLeft = targetRect.left + (targetRect.width / 2) - (tooltipWidth / 2)
+    let adjustedTop = targetRect.bottom + 20
+
+    // Ensure tooltip doesn't go off the edges of the screen
+    if (adjustedLeft < 20) {
+        adjustedLeft = 20
+    } else if (adjustedLeft + tooltipWidth > window.innerWidth - 20) {
+        adjustedLeft = window.innerWidth - tooltipWidth - 20
+    }
+
+    // If tooltip would go below viewport, position it above the target instead
+    if (adjustedTop + 200 > window.innerHeight) { // Estimate tooltip height as 200px
+        adjustedTop = targetRect.top - 220 // Position above with some margin
+        if (adjustedTop < 20) {
+            adjustedTop = 20 // Fallback to top of screen if needed
+        }
+    }
 
     return (
         <>
             {/* Minimal overlay that preserves background visibility */}
-            <div 
-                className="fixed inset-0 bg-transparent z-1000" 
+            <div
+                className="fixed inset-0 bg-transparent z-1000"
                 style={{ zIndex: 1000 }}
                 onClick={(e) => e.stopPropagation()}
             >
@@ -112,20 +138,20 @@ export default function Spotlight({
                         pointerEvents: 'none', // Allow clicks to pass through to the actual element
                     }}
                 />
-                
+
                 {/* Tooltip */}
                 <div
-                    className="absolute bg-white dark:bg-gray-800 rounded-lg p-4 shadow-xl max-w-sm z-1001"
+                    className="absolute bg-white dark:bg-gray-900 rounded-lg p-4 shadow-xl max-w-sm z-1001 border border-gray-200 dark:border-gray-600"
                     style={{
                         left: adjustedLeft,
-                        top: tooltipTop,
+                        top: adjustedTop,
                         zIndex: 1001
                     }}
                 >
-                    <h3 className="font-bold text-lg mb-2 text-gray-900 dark:text-gray-100">
+                    <h3 className="font-bold text-lg mb-2 text-gray-900 dark:text-white">
                         {title}
                     </h3>
-                    <p className="text-gray-600 dark:text-gray-300 mb-4">
+                    <p className="text-gray-700 dark:text-gray-200 mb-4">
                         {description}
                     </p>
                     <div className="flex space-x-2">

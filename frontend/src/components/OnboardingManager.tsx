@@ -7,22 +7,23 @@ import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
 
 export default function OnboardingManager() {
-    const { 
-        isOnboarding, 
-        onboardingStep, 
-        skipOnboarding, 
+    const {
+        isOnboarding,
+        onboardingStep,
+        skipOnboarding,
+        nextStep,
         showSpotlight,
         setShowSpotlight,
         showExplanation,
         setShowExplanation
     } = useOnboarding()
-    
+
     const pathname = usePathname()
 
     // Hide spotlight when navigating between pages
     useEffect(() => {
         setShowSpotlight(false)
-        
+
         // Show spotlight again after navigation completes
         const timer = setTimeout(() => {
             if (isOnboarding) {
@@ -41,13 +42,10 @@ export default function OnboardingManager() {
     if (showExplanation) {
         let title = ''
         let description = ''
-        
+
         if (showExplanation === 'keep-page') {
             title = 'Welcome to Keep Items!'
             description = 'This is where you manage items you want to keep. You can add new items, review existing ones, and organize your belongings. The Keep section helps you track what you own and when you last used each item.'
-        } else if (showExplanation === 'checkup-complete') {
-            title = 'Checkup Complete!'
-            description = 'Great job! You\'ve completed your first checkup. Checkups help you regularly review your items and decide what to keep, give away, or donate. This helps maintain a minimalist lifestyle and ensures you only keep what truly adds value to your life.'
         }
 
         return (
@@ -81,12 +79,49 @@ export default function OnboardingManager() {
         )
     }
 
+    if (onboardingStep === 'expand-item' && pathname === '/keep') {
+        return (
+            <Spotlight
+                targetSelector="[data-onboarding='first-item-card']"
+                title="Explore Your Item"
+                description="Great! You've added your first item. Now click on the item card or the down arrow to expand it and see more details about your item."
+                onNext={() => {
+                    setShowSpotlight(false)
+                    setShowExplanation(null)
+                    // The next step will be triggered when the item is expanded
+                }}
+                onSkip={skipOnboarding}
+                nextText="I'll expand it"
+                skipText="Skip tutorial"
+            />
+        )
+    }
+
+    if (onboardingStep === 'progress-bar' && pathname === '/keep') {
+        return (
+            <Spotlight
+                targetSelector="[data-onboarding='ownership-progress-bar']"
+                title="Track Your Ownership Goal"
+                description="This progress bar shows how long you've owned this item compared to your ownership goal. It helps you decide if you've gotten enough value from the item or if it's time to let it go."
+                onNext={() => {
+                    setShowSpotlight(false)
+                    setShowExplanation(null)
+                    // Move to the checkup step
+                    nextStep()
+                }}
+                onSkip={skipOnboarding}
+                nextText="Got it!"
+                skipText="Skip tutorial"
+            />
+        )
+    }
+
     if (onboardingStep === 'checkup' && pathname === '/keep') {
         return (
             <Spotlight
                 targetSelector="[data-onboarding='checkup-button']"
                 title="Time for a Checkup!"
-                description="Great! You've added an item. Now try the checkup feature - it helps you review your items and decide what to keep or give away. Click the calendar icon to start your first checkup."
+                description="Excellent! Now try the checkup feature - it helps you review your items and decide what to keep or give away. Click the calendar icon to start your first checkup."
                 onNext={() => {
                     setShowSpotlight(false)
                     setShowExplanation(null)

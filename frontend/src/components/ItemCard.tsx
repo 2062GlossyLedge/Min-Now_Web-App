@@ -50,6 +50,11 @@ interface ItemCardProps {
     onDelete?: (id: string) => void
     isDeleting?: boolean // Whether this specific item is being deleted
     isAnyDeleting?: boolean // Whether any item in the list is being deleted
+    // Onboarding props
+    isFirstItem?: boolean
+    onboardingStep?: string
+    onNextStep?: () => void
+    setShowSpotlight?: (show: boolean) => void
 }
 
 export default function ItemCard({
@@ -66,6 +71,11 @@ export default function ItemCard({
     onDelete,
     isDeleting = false,
     isAnyDeleting = false,
+    // Onboarding props
+    isFirstItem = false,
+    onboardingStep,
+    onNextStep,
+    setShowSpotlight,
 }: ItemCardProps) {
     const [isExpanded, setIsExpanded] = useState(false)
     const [isEditing, setIsEditing] = useState(false)
@@ -297,10 +307,39 @@ export default function ItemCard({
         'Other': 'Other'
     }
 
+    // Handle onboarding interactions
+    const handleCardClick = () => {
+        if (!isEditing) {
+            // Handle onboarding step progression - hide spotlight before expansion
+            if (isFirstItem && onboardingStep === 'expand-item' && !isExpanded && onNextStep && setShowSpotlight) {
+                // Hide spotlight immediately, then expand and move to next step
+                setShowSpotlight(false)
+                
+                // Small delay to let spotlight hide, then expand
+                setTimeout(() => {
+                    setIsExpanded(!isExpanded)
+                    // Move to next step after expansion completes and elements are rendered
+                    setTimeout(() => {
+                        onNextStep()
+                    }, 600) // Increased delay to ensure progress bar is rendered
+                }, 100)
+            } else {
+                // Normal expansion behavior
+                setIsExpanded(!isExpanded)
+            }
+        }
+    }
+
+    const handleCollapseClick = (e: React.MouseEvent) => {
+        e.stopPropagation()
+        setIsExpanded(!isExpanded)
+    }
+
     return (
         <div
-            onClick={() => !isEditing && setIsExpanded(!isExpanded)}
+            onClick={handleCardClick}
             className="bg-white dark:bg-gray-900 rounded-lg shadow-md p-4 mb-4 cursor-pointer group"
+            {...(isFirstItem && (onboardingStep === 'expand-item' || onboardingStep === 'progress-bar') ? { 'data-onboarding': 'first-item-card' } : {})}
         >
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -418,10 +457,7 @@ export default function ItemCard({
                         </button>
                     )}
                     <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setIsExpanded(!isExpanded);
-                        }}
+                        onClick={handleCollapseClick}
                         className="text-gray-500 dark:text-gray-400 hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
                     >
                         {/* hide collapse button in edit mode */}
@@ -704,7 +740,10 @@ export default function ItemCard({
 
                             {/* Progress bar for ownership duration goal - only show in Keep status */}
                             {status === 'Keep' && (
-                                <div className="space-y-2">
+                                <div 
+                                    className="space-y-2"
+                                    {...(isFirstItem && onboardingStep === 'progress-bar' ? { 'data-onboarding': 'ownership-progress-bar' } : {})}
+                                >
                                     <div className="flex justify-between text-xs">
                                         <span className="text-gray-500 dark:text-gray-400">
                                             Goal: {Math.floor(ownershipDurationGoalMonths / 12)}y {ownershipDurationGoalMonths % 12}m

@@ -62,7 +62,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const [quickEndYear, setQuickEndYear] = useState('')
     const [quickPromptsDict, setQuickPromptsDict] = useState<Record<string, string>>({})
     const [ownershipGoalUnit, setOwnershipGoalUnit] = useState<'months' | 'years'>('years')
-    const [ownershipGoalValue, setOwnershipGoalValue] = useState<number>(1)
+    const [ownershipGoalValue, setOwnershipGoalValue] = useState<string>('1')
 
     // Main date picker state for manual add
     const [datePickerState, setDatePickerState] = useState<DatePickerState>(() => ({
@@ -234,19 +234,23 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
 
     // Helper function to calculate total ownership duration in months
     const calculateOwnershipDurationMonths = (): number => {
-        return ownershipGoalUnit === 'years' ? ownershipGoalValue * 12 : ownershipGoalValue
+        const numericValue = parseInt(ownershipGoalValue || '1', 10)
+        return ownershipGoalUnit === 'years' ? numericValue * 12 : numericValue
     }
 
-    // Helper function to format ownership goal value input (max 3 digits, remove leading zeros when >= 2 digits)
-    const formatOwnershipGoalValue = (value: string): number => {
+    // Helper function to handle ownership goal value input changes
+    const handleOwnershipGoalValueChange = (value: string): void => {
         // Remove non-numeric characters and limit to 3 digits
         const numericValue = value.replace(/\D/g, '').slice(0, 3)
+        setOwnershipGoalValue(numericValue)
+    }
 
-        // Convert to number and remove leading zeros for values >= 10
-        const parsedValue = parseInt(numericValue || '0', 10)
-
-        // Ensure minimum value of 1
-        return Math.max(1, parsedValue)
+    // Helper function to ensure valid ownership goal value (called on blur)
+    const ensureValidOwnershipGoalValue = (): void => {
+        const numericValue = parseInt(ownershipGoalValue || '0', 10)
+        if (numericValue === 0 || isNaN(numericValue)) {
+            setOwnershipGoalValue('1')
+        }
     }
 
     // Fetch user item stats on component mount
@@ -732,11 +736,12 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Ownership Duration Goal</label>
                                 <div className="mt-1 flex items-center space-x-3">
                                     <input
-                                        type="number"
+                                        type="text"
                                         value={ownershipGoalValue}
-                                        onChange={(e) => setOwnershipGoalValue(formatOwnershipGoalValue(e.target.value))}
-                                        min="1"
-                                        max={ownershipGoalUnit === 'years' ? 999 : 999}
+                                        onChange={(e) => handleOwnershipGoalValueChange(e.target.value)}
+                                        onBlur={ensureValidOwnershipGoalValue}
+                                        placeholder="1"
+                                        maxLength={3}
                                         className="block w-24 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"
                                     />
                                     <select
@@ -745,12 +750,13 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                             const newUnit = e.target.value as 'months' | 'years'
                                             setOwnershipGoalUnit(newUnit)
                                             // Convert current value to new unit with 3-digit limit
+                                            const currentNumericValue = parseInt(ownershipGoalValue || '1', 10)
                                             if (newUnit === 'years' && ownershipGoalUnit === 'months') {
-                                                const convertedValue = Math.max(1, Math.round(ownershipGoalValue / 12))
-                                                setOwnershipGoalValue(Math.min(999, convertedValue))
+                                                const convertedValue = Math.max(1, Math.round(currentNumericValue / 12))
+                                                setOwnershipGoalValue(Math.min(999, convertedValue).toString())
                                             } else if (newUnit === 'months' && ownershipGoalUnit === 'years') {
-                                                const convertedValue = ownershipGoalValue * 12
-                                                setOwnershipGoalValue(Math.min(999, convertedValue))
+                                                const convertedValue = currentNumericValue * 12
+                                                setOwnershipGoalValue(Math.min(999, convertedValue).toString())
                                             }
                                         }}
                                         className="rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"

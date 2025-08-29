@@ -6,8 +6,7 @@ from dotenv import load_dotenv
 
 # Configure logging for production
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -68,7 +67,7 @@ if is_production:
         enable_utc=True,
         # Production-optimized settings
         worker_pool="prefork",  # Use prefork pool for better performance in production
-        worker_concurrency=4,   # Adjust based on Railway's CPU allocation
+        worker_concurrency=1,  # Adjust based on Railway's CPU allocation
         task_always_eager=False,
         worker_prefetch_multiplier=1,  # Prevent worker overload
         task_acks_late=True,  # Ensure task reliability

@@ -5,7 +5,7 @@ import { useUser } from '@clerk/nextjs'
 
 interface OnboardingContextType {
     isOnboarding: boolean
-    onboardingStep: 'add-item' | 'expand-item' | 'progress-bar' | 'checkup' | 'checkup-review' | 'checkup-submit' | 'completed'
+    onboardingStep: 'add-item' | 'expand-item' | 'progress-bar' | 'checkup' | 'checkup-review' | 'checkup-submit' | 'email-signup' | 'completed'
     startOnboarding: () => void
     skipOnboarding: () => void
     nextStep: () => void
@@ -23,7 +23,7 @@ const OnboardingContext = createContext<OnboardingContextType | undefined>(undef
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
     const { user, isLoaded } = useUser()
     const [isOnboarding, setIsOnboarding] = useState(false)
-    const [onboardingStep, setOnboardingStep] = useState<'add-item' | 'expand-item' | 'progress-bar' | 'checkup' | 'checkup-review' | 'checkup-submit' | 'completed'>('add-item')
+    const [onboardingStep, setOnboardingStep] = useState<'add-item' | 'expand-item' | 'progress-bar' | 'checkup' | 'checkup-review' | 'checkup-submit' | 'email-signup' | 'completed'>('add-item')
     const [showSpotlight, setShowSpotlight] = useState(false)
     const [showExplanation, setShowExplanation] = useState<string | null>(null)
     const [tutorialCompletionCount, setTutorialCompletionCount] = useState(0)
@@ -78,6 +78,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
             setOnboardingStep('checkup-submit')
             setShowSpotlight(true)
         } else if (onboardingStep === 'checkup-submit') {
+            setOnboardingStep('email-signup')
+            setShowSpotlight(true)
+        } else if (onboardingStep === 'email-signup') {
             completeOnboarding()
         }
     }

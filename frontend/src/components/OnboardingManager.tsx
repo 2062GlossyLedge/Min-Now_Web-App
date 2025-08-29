@@ -3,8 +3,10 @@
 import { useOnboarding } from '@/contexts/OnboardingContext'
 import Spotlight from './Spotlight'
 import OnboardingExplanation from './OnboardingExplanation'
+import EmailSignupModal from './EmailSignupModal'
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
+import { toast } from 'sonner'
 
 export default function OnboardingManager() {
     const {
@@ -12,6 +14,7 @@ export default function OnboardingManager() {
         onboardingStep,
         skipOnboarding,
         nextStep,
+        completeOnboarding,
         showSpotlight,
         setShowSpotlight,
         showExplanation,
@@ -130,6 +133,35 @@ export default function OnboardingManager() {
                 onSkip={skipOnboarding}
                 nextText="I'll do a checkup"
                 skipText="Skip tutorial"
+            />
+        )
+    }
+
+    if (onboardingStep === 'email-signup') {
+        return (
+            <EmailSignupModal
+                onComplete={() => {
+                    completeOnboarding()
+
+                    // Show tutorial completion toast after a short delay
+                    setTimeout(() => {
+                        toast.success('Tutorial completed! 🎉', {
+                            description: 'You\'ve successfully learned how to use Min-Now. Start managing your items with confidence!',
+                            duration: 5000, // Show for 5 seconds
+                        })
+                    }, 1000)
+                }}
+                onSkip={() => {
+                    completeOnboarding()
+
+                    // Show tutorial completion toast after a short delay
+                    setTimeout(() => {
+                        toast.success('Tutorial completed! 🎉', {
+                            description: 'You\'ve successfully learned how to use Min-Now. Start managing your items with confidence!',
+                            duration: 5000, // Show for 5 seconds
+                        })
+                    }, 1000)
+                }}
             />
         )
     }

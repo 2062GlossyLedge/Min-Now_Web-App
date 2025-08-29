@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Item } from '@/types/item'
-import { CheckCircle2 } from 'lucide-react'
+import { toast } from 'sonner'
 // CSRF-based API imports (commented out - using JWT approach)
 // import { updateItem, fetchCheckup, createCheckup, completeCheckup } from '@/utils/api'
 // import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
@@ -13,7 +13,6 @@ import { updateItemJWT, fetchCheckupJWT, completeCheckupJWT, testClerkJWT, fetch
 import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 import { useOnboarding } from '@/contexts/OnboardingContext'
 import { useUser, useAuth } from '@clerk/nextjs'
-import { toast } from 'sonner'
 import OnboardingExplanation from './OnboardingExplanation'
 
 // Map database values to display names
@@ -47,14 +46,13 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [items, setItems] = useState<Item[]>([])
     const [loading, setLoading] = useState(true)
-    const [showConfirmation, setShowConfirmation] = useState(false)
     const [changedItems, setChangedItems] = useState<Set<string>>(new Set())
     const [itemStatusChanges, setItemStatusChanges] = useState<Map<string, 'used' | 'not_used' | 'donate'>>(new Map()) // Track pending status changes
     // const { authenticatedFetch } = useAuthenticatedFetch() // CSRF approach - commented out
     const { getToken } = useAuth() // JWT approach - get token from Clerk
     const { addUpdatedItem, triggerRefresh } = useItemUpdate()
     const { isSignedIn, isLoaded } = useUser() // Get user authentication status
-    const { onboardingStep, completeOnboarding, nextStep } = useOnboarding()
+    const { onboardingStep, nextStep } = useOnboarding()
 
     // Disable body scroll when modal is open
     useEffect(() => {
@@ -253,49 +251,26 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                 // }
             }
 
-            setShowConfirmation(true)
+            // Show success toast
+            toast.success('Checkup Complete!', {
+                description: `Your ${checkupType.toLowerCase()} items have been reviewed.`,
+                duration: 3000,
+            })
 
-            // Complete onboarding if this is the checkup-submit step
+            // Move to email signup step if this is the checkup-submit step
             if (onboardingStep === 'checkup-submit') {
-                completeOnboarding()
-
-                // Show tutorial completion toast after a short delay
-                setTimeout(() => {
-                    toast.success('Tutorial completed! 🎉', {
-                        description: 'You\'ve successfully learned how to use Min-Now. Start managing your items with confidence!',
-                        duration: 5000, // Show for 5 seconds
-                    })
-                }, 1000)
+                // Don't complete onboarding yet, move to email signup
+                nextStep()
             }
 
-            setTimeout(() => {
-                // Trigger refresh after checkup completion and animation
-                triggerRefresh()
-                router.refresh()
-                onClose()
-            }, 1500) // Extended from 1500ms to 3000ms for longer animation viewing
+            // Trigger refresh immediately since no animation
+            triggerRefresh()
+            router.refresh()
+            onClose()
         } catch (error) {
             console.error('Error setting checkup:', error)
             setIsSubmitting(false)
         }
-    }
-
-    if (showConfirmation) {
-        return (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md text-center">
-                    <div className="flex justify-center mb-4">
-                        <CheckCircle2 className="w-16 h-16 text-teal-500 animate-bounce" />
-                    </div>
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-                        Checkup Complete!
-                    </h2>
-                    <p className="text-gray-600 dark:text-gray-400">
-                        Your {checkupType.toLowerCase()} items have been reviewed.
-                    </p>
-                </div>
-            </div>
-        )
     }
 
     // Helper to format last used date
@@ -404,7 +379,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                             <div className="mb-4">
                                 <OnboardingExplanation
                                     title="Review Your Item"
-                                    description="This is your item to review. Check how long it's been since you last used it, then choose 'Used' if you've used it in the past month or 'Not Used' if you haven't."
+                                    description="This is your item to review. Choose 'Used' if you've used it in the past month or 'Not Used' if you haven't. "
                                     inline={true}
                                 />
                             </div>

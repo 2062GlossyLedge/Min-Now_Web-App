@@ -4,7 +4,8 @@ builder = "nixpacks"
 [deploy]
 startCommand = "gunicorn backend.minNow.wsgi:application --bind 0.0.0.0:$PORT"
 
-
-
 [web]
 command = "gunicorn backend.minNow.wsgi:application --bind 0.0.0.0:$PORT --log-file -"
+
+[worker]
+command = "cd backend/items/background && celery -A tasks worker --loglevel=INFO --concurrency=4 --pool=prefork"

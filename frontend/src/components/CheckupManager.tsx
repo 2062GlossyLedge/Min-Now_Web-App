@@ -404,7 +404,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                             <div className="mb-4">
                                 <OnboardingExplanation
                                     title="Review Your Item"
-                                    description="This is your item to review. Check how long it's been since you last used it, then choose 'Used' if you've used it in the past month (resets the counter) or 'Not Used' if you haven't. After making your choice, you'll be able to complete the checkup."
+                                    description="This is your item to review. Check how long it's been since you last used it, then choose 'Used' if you've used it in the past month or 'Not Used' if you haven't."
                                     inline={true}
                                 />
                             </div>
@@ -425,8 +425,8 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                         ) : (
                             <div className="space-y-3 max-h-[300px] overflow-y-auto">
                                 {items.map((item, index) => (
-                                    <div 
-                                        key={item.id} 
+                                    <div
+                                        key={item.id}
                                         className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
                                         {...(index === 0 && onboardingStep === 'checkup-review' ? { 'data-onboarding': 'first-checkup-item' } : {})}
                                     >
@@ -436,7 +436,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                                                 <p className="font-medium text-gray-900 dark:text-gray-100">{item.name}</p>
                                                 <p className="text-sm text-gray-500 dark:text-gray-400">{itemTypeDisplayNames[item.itemType] || item.itemType}</p>
                                                 {/* Show how long since last used for each item */}
-                                                <p 
+                                                <p
                                                     className="text-xs text-gray-400 dark:text-gray-500 mt-1"
                                                     {...(index === 0 && onboardingStep === 'checkup-review' ? { 'data-onboarding': 'last-used-info' } : {})}
                                                 >

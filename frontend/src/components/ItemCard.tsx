@@ -314,7 +314,7 @@ export default function ItemCard({
             if (isFirstItem && onboardingStep === 'expand-item' && !isExpanded && onNextStep && setShowSpotlight) {
                 // Hide spotlight immediately, then expand and move to next step
                 setShowSpotlight(false)
-                
+
                 // Small delay to let spotlight hide, then expand
                 setTimeout(() => {
                     setIsExpanded(!isExpanded)
@@ -740,7 +740,7 @@ export default function ItemCard({
 
                             {/* Progress bar for ownership duration goal - only show in Keep status */}
                             {status === 'Keep' && (
-                                <div 
+                                <div
                                     className="space-y-2"
                                     {...(isFirstItem && onboardingStep === 'progress-bar' ? { 'data-onboarding': 'ownership-progress-bar' } : {})}
                                 >

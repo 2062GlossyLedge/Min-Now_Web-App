@@ -31,7 +31,7 @@ export default function Spotlight({
     useEffect(() => {
         let retryCount = 0
         const maxRetries = 10
-        
+
         const findTarget = () => {
             const element = document.querySelector(targetSelector) as HTMLElement
             if (element) {
@@ -56,7 +56,7 @@ export default function Spotlight({
             if (findTarget()) {
                 return // Found the element, stop retrying
             }
-            
+
             retryCount++
             if (retryCount < maxRetries) {
                 // Progressively longer delays for elements that take time to render

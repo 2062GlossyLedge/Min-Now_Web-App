@@ -45,7 +45,7 @@ export default function OnboardingManager() {
 
         if (showExplanation === 'keep-page') {
             title = 'Welcome to Keep Items!'
-            description = 'This is where you manage items you want to keep. You can add new items, review existing ones, and organize your belongings. The Keep section helps you track what you own and when you last used each item.'
+            description = 'This is where you manage items you want to keep. You can add new items, review existing ones, and organize your belongings.'
         }
 
         return (
@@ -66,7 +66,7 @@ export default function OnboardingManager() {
             <Spotlight
                 targetSelector="[data-onboarding='add-item-button']"
                 title="Add Your First Item"
-                description="Start by adding an item you want to keep track of. Click the plus (+) button to add your first item and see how Min-Now helps you manage your belongings."
+                description="Start by adding one of the most important items you physically own. Click the plus (+) button to add your first item."
                 onNext={() => {
                     setShowSpotlight(false)
                     setShowExplanation(null)
@@ -102,7 +102,7 @@ export default function OnboardingManager() {
             <Spotlight
                 targetSelector="[data-onboarding='ownership-progress-bar']"
                 title="Track Your Ownership Goal"
-                description="This progress bar shows how long you've owned this item compared to your ownership goal. It helps you decide if you've gotten enough value from the item or if it's time to let it go."
+                description="This progress bar shows how long you've owned this item compared to your ownership goal. Hit your goal and feel satisfied for taking good care of your belonging."
                 onNext={() => {
                     setShowSpotlight(false)
                     setShowExplanation(null)

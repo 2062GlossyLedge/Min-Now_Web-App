@@ -209,12 +209,12 @@ export default function HomePage() {
                                     <UserPlus className="w-12 h-12 sm:w-16 sm:h-16 text-white mx-auto mb-4 sm:mb-6" />
                                     <SignedOut>
                                         <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-white mb-4 sm:mb-6">
-                                            Ready to Start Your Minimalist Journey?
+                                            Ready to Start Your Item Organization Journey?
                                         </h2>
                                         <p className="text-base sm:text-lg lg:text-xl text-white/90 mb-6 sm:mb-8 leading-relaxed px-4">
-                                            Join the users who have simplified their lives with Min-Now.
+                                            Join the users who have organized their lives with Min-Now.
                                             Start tracking your belongings, make mindful decisions, and discover the
-                                            freedom of minimalism.
+                                            freedom of knowing your ownership habits.
                                         </p>
                                     </SignedOut>
                                     <SignedIn>
@@ -288,7 +288,7 @@ export default function HomePage() {
 
             {/* Footer */}
             <footer className="relative z-10 text-center text-white/70 py-2 sm:py-1 px-4">
-                <p className="text-xs sm:text-sm">&copy; 2025 Min-Now. Simplify your life, one item at a time.</p>
+                <p className="text-xs sm:text-sm">&copy; 2025 Min-Now. Organize your life, one item at a time.</p>
             </footer>
         </div>
     )

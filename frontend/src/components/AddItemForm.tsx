@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ImageIcon, SmileIcon } from 'lucide-react'
+import { ImageIcon, SmileIcon, InfoIcon, ChevronDownIcon, ChevronUpIcon } from 'lucide-react'
 // CSRF-based API imports (commented out - using JWT approach)
 // import { createItem } from '@/utils/api'
 // import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
@@ -20,6 +20,8 @@ import { useAuth, useUser } from '@clerk/nextjs'
 import DatePickerComponent from '@/components/DatePickerComponent'
 import { DatePickerState, calculateReceivedDate, isDateValid, initializeDatePickerState } from '@/utils/datePickerHelpers'
 import { toast } from 'sonner'
+import ItemReceivedDateSection from '@/components/ItemReceivedDateSection'
+import OwnershipDurationGoalSection from '@/components/OwnershipDurationGoalSection'
 
 
 
@@ -49,11 +51,13 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const [quickItemYear, setQuickItemYear] = useState('')
     const [quickItemsToAdd, setQuickItemsToAdd] = useState<{
         name: string,
-        dateMode: string,
+        trackingMode: 'received' | 'today',
+        dateMode?: string,
         month?: string,
         year?: string,
         startYear?: string,
-        endYear?: string
+        endYear?: string,
+        ownershipGoalMonths?: number
     }[]>([])
     const [quickFormLoading, setQuickFormLoading] = useState(false)
     const [quickFormError, setQuickFormError] = useState<string | null>(null)
@@ -61,8 +65,14 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const [quickStartYear, setQuickStartYear] = useState('')
     const [quickEndYear, setQuickEndYear] = useState('')
     const [quickPromptsDict, setQuickPromptsDict] = useState<Record<string, string>>({})
+    const [quickOwnershipGoalUnit, setQuickOwnershipGoalUnit] = useState<'months' | 'years'>('years')
+    const [quickOwnershipGoalValue, setQuickOwnershipGoalValue] = useState<string>('1')
+    const [quickShowOwnershipGoal, setQuickShowOwnershipGoal] = useState(false)
+    const [quickShowDateTracking, setQuickShowDateTracking] = useState(false)
     const [ownershipGoalUnit, setOwnershipGoalUnit] = useState<'months' | 'years'>('years')
     const [ownershipGoalValue, setOwnershipGoalValue] = useState<string>('1')
+    const [trackingMode, setTrackingMode] = useState<'received' | 'today'>('today')
+    const [quickTrackingMode, setQuickTrackingMode] = useState<'received' | 'today'>('today')
 
     // Main date picker state for manual add
     const [datePickerState, setDatePickerState] = useState<DatePickerState>(() => ({
@@ -203,6 +213,9 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
 
     // Helper function to check if quick add date is valid
     const isQuickDateValid = (): boolean => {
+        if (quickTrackingMode === 'today') {
+            return true // Always valid when tracking starts today
+        }
         switch (quickDateSelectionMode) {
             case 'monthYear':
                 return !!(quickItemMonth && quickItemYear)
@@ -217,6 +230,9 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
 
     // Helper function to generate date string for quick add prompt
     const getQuickDateString = (): string => {
+        if (quickTrackingMode === 'today') {
+            return `today (${new Date().toLocaleDateString()})`
+        }
         switch (quickDateSelectionMode) {
             case 'monthYear':
                 return `${quickItemMonth} ${quickItemYear}`
@@ -250,6 +266,25 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
         const numericValue = parseInt(ownershipGoalValue || '0', 10)
         if (numericValue === 0 || isNaN(numericValue)) {
             setOwnershipGoalValue('1')
+        }
+    }
+
+    // Helper functions for quick add ownership goal
+    const calculateQuickOwnershipDurationMonths = (): number => {
+        const numericValue = parseInt(quickOwnershipGoalValue || '1', 10)
+        return quickOwnershipGoalUnit === 'years' ? numericValue * 12 : numericValue
+    }
+
+    const handleQuickOwnershipGoalValueChange = (value: string): void => {
+        // Remove non-numeric characters and limit to 3 digits
+        const numericValue = value.replace(/\D/g, '').slice(0, 3)
+        setQuickOwnershipGoalValue(numericValue)
+    }
+
+    const ensureValidQuickOwnershipGoalValue = (): void => {
+        const numericValue = parseInt(quickOwnershipGoalValue || '0', 10)
+        if (numericValue === 0 || isNaN(numericValue)) {
+            setQuickOwnershipGoalValue('1')
         }
     }
 
@@ -350,12 +385,20 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
             return
         }
 
-        const calculatedDate = calculateReceivedDate(datePickerState)
-        if (!calculatedDate) {
-            console.error('Received date is required')
-            setManualAddError('Received date is required')
-            setIsSubmitting(false)
-            return
+        let calculatedDate: Date
+        if (trackingMode === 'today') {
+            // Use today's date when tracking starts today or when date tracking is collapsed (default)
+            calculatedDate = new Date()
+        } else {
+            // Use the date picker value when using received date
+            const dateFromPicker = calculateReceivedDate(datePickerState)
+            if (!dateFromPicker) {
+                console.error('Received date is required')
+                setManualAddError('Received date is required')
+                setIsSubmitting(false)
+                return
+            }
+            calculatedDate = dateFromPicker
         }
         if (!useEmoji && !uploadedImageUrl) {
             setManualAddError('Please select an emoji or upload an image')
@@ -436,17 +479,31 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
 
         setQuickFormLoading(true)
         try {
+            const today = new Date()
             const dateString = getQuickDateString()
-            // Compose prompt for agent_add_item
-            const prompt = `Add a new item to keep: name '${quickItemName}', received ${dateString} `
+
+            // Compose prompt for agent_add_item with ownership goal if set
+            let prompt = quickTrackingMode === 'today'
+                ? `Add a new item to keep: name '${quickItemName}', start tracking today: ${today.toLocaleDateString()}`
+                : `Add a new item to keep: name '${quickItemName}', received ${dateString}`
+            // Append ownership goal if default was changed
+            if (quickShowOwnershipGoal) {
+                const ownershipGoalMonths = calculateQuickOwnershipDurationMonths()
+                prompt += `, ownership goal: ${ownershipGoalMonths} months`
+            }
 
             // Create new item object
             const newItem = {
                 name: quickItemName,
-                dateMode: quickDateSelectionMode,
-                ...(quickDateSelectionMode === 'monthYear' && { month: quickItemMonth, year: quickItemYear }),
-                ...(quickDateSelectionMode === 'year' && { year: quickItemYear }),
-                ...(quickDateSelectionMode === 'yearRange' && { startYear: quickStartYear, endYear: quickEndYear })
+                trackingMode: quickTrackingMode,
+                // Only include date-related properties when tracking mode is 'received'
+                ...(quickTrackingMode === 'received' && {
+                    dateMode: quickDateSelectionMode,
+                    ...(quickDateSelectionMode === 'monthYear' && { month: quickItemMonth, year: quickItemYear }),
+                    ...(quickDateSelectionMode === 'year' && { year: quickItemYear }),
+                    ...(quickDateSelectionMode === 'yearRange' && { startYear: quickStartYear, endYear: quickEndYear })
+                }),
+                ...(quickShowOwnershipGoal && { ownershipGoalMonths: calculateQuickOwnershipDurationMonths() })
             }
 
             // Add to quickItemsToAdd and quickPromptsDict (do not send to backend yet)
@@ -461,32 +518,18 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
             setQuickItemYear('')
             setQuickStartYear('')
             setQuickEndYear('')
+            // Reset tracking mode to default (today)
+            setQuickTrackingMode('today')
+            // Reset quick ownership goal states
+            setQuickOwnershipGoalValue('1')
+            setQuickOwnershipGoalUnit('years')
+            setQuickShowOwnershipGoal(false)
+            setQuickShowDateTracking(false)
         } catch (error) {
             setQuickFormError('Failed to add item via Quick Add')
         } finally {
             setQuickFormLoading(false)
         }
-    }
-
-    function LoadingSpinnerSVG() {
-        return (
-            <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="white"
-            >
-                <path
-                    d="M12,1A11,11,0,1,0,23,12,11,11,0,0,0,12,1Zm0,19a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z"
-                    opacity=".25"
-                />
-                <path
-                    d="M10.14,1.16a11,11,0,0,0-9,8.92A1.59,1.59,0,0,0,2.46,12,1.52,1.52,0,0,0,4.11,10.7a8,8,0,0,1,6.66-6.61A1.42,1.42,0,0,0,12,2.69h0A1.57,1.57,0,0,0,10.14,1.16Z"
-                    className="spinner_ajPY"
-                />
-            </svg>
-        );
     }
 
 
@@ -541,7 +584,8 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
     ]
-    const years = Array.from({ length: 21 }, (_, i) => `${2024 - i} `)
+    const currentYear = new Date().getFullYear()
+    const years = Array.from({ length: 201 }, (_, i) => `${currentYear - i}`)
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -722,52 +766,47 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Item Received Date</label>
-                                <DatePickerComponent
-                                    state={datePickerState}
-                                    onStateChange={handleDatePickerStateChange}
-                                    onDateChange={setReceivedDate}
-                                    isPopoverOpen={isDatePickerOpen}
-                                    onPopoverOpenChange={setIsDatePickerOpen}
-                                    required={true}
+                                {/* Date Tracking Content */}
+                                <ItemReceivedDateSection
+                                    trackingMode={trackingMode}
+                                    onTrackingModeChange={setTrackingMode}
+                                    dateSelectionMode="monthYear"
+                                    onDateSelectionModeChange={() => { }}
+                                    datePickerState={datePickerState}
+                                    onDatePickerStateChange={handleDatePickerStateChange}
+                                    isDatePickerOpen={isDatePickerOpen}
+                                    onDatePickerOpenChange={setIsDatePickerOpen}
+                                    receivedDate={receivedDate}
+                                    onReceivedDateChange={setReceivedDate}
+                                    variant="manual"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Ownership Duration Goal</label>
-                                <div className="mt-1 flex items-center space-x-3">
-                                    <input
-                                        type="text"
-                                        value={ownershipGoalValue}
-                                        onChange={(e) => handleOwnershipGoalValueChange(e.target.value)}
-                                        onBlur={ensureValidOwnershipGoalValue}
-                                        placeholder="1"
-                                        maxLength={3}
-                                        className="block w-24 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"
-                                    />
-                                    <select
-                                        value={ownershipGoalUnit}
-                                        onChange={(e) => {
-                                            const newUnit = e.target.value as 'months' | 'years'
-                                            setOwnershipGoalUnit(newUnit)
-                                            // Convert current value to new unit with 3-digit limit
-                                            const currentNumericValue = parseInt(ownershipGoalValue || '1', 10)
-                                            if (newUnit === 'years' && ownershipGoalUnit === 'months') {
-                                                const convertedValue = Math.max(1, Math.round(currentNumericValue / 12))
-                                                setOwnershipGoalValue(Math.min(999, convertedValue).toString())
-                                            } else if (newUnit === 'months' && ownershipGoalUnit === 'years') {
-                                                const convertedValue = currentNumericValue * 12
-                                                setOwnershipGoalValue(Math.min(999, convertedValue).toString())
-                                            }
-                                        }}
-                                        className="rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"
-                                    >
-                                        <option value="months">months</option>
-                                        <option value="years">years</option>
-                                    </select>
-                                    <span className="text-xs text-gray-400 dark:text-gray-500">
-                                        ({calculateOwnershipDurationMonths()} months total)
+                                {/* Ownership Duration Goal Section */}
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Ownership Duration Goal
                                     </span>
+                                    <div className="group relative">
+                                        <InfoIcon className="h-4 w-4 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 cursor-help" />
+                                        <div className="absolute right-full top-1/2 transform -translate-y-1/2 mr-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none w-48 text-center z-50">
+                                            How long you want to keep this item before it breaks, or you give/sell it away
+                                            <div className="absolute left-full top-1/2 transform -translate-y-1/2 border-4 border-transparent border-l-gray-900 dark:border-l-gray-700"></div>
+                                        </div>
+                                    </div>
                                 </div>
+
+                                {/* Ownership Goal Content */}
+                                <OwnershipDurationGoalSection
+                                    ownershipGoalValue={parseInt(ownershipGoalValue || '1', 10)}
+                                    onOwnershipGoalValueChange={(value) => setOwnershipGoalValue(value.toString())}
+                                    ownershipGoalUnit={ownershipGoalUnit}
+                                    onOwnershipGoalUnitChange={setOwnershipGoalUnit}
+                                    trackingMode={trackingMode}
+                                    receivedDate={receivedDate}
+                                    variant="manual"
+                                    calculateOwnershipDurationMonths={calculateOwnershipDurationMonths}
+                                />
                             </div>
                             <div className="flex justify-end space-x-3">
                                 <button
@@ -779,7 +818,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={isSubmitting || !name || (useEmoji ? !pictureEmoji : !uploadedImageUrl) || !isDateValid(datePickerState) || !canAddMoreItems(1)}
+                                    disabled={isSubmitting || !name || (useEmoji ? !pictureEmoji : !uploadedImageUrl) || (trackingMode === 'received' && !isDateValid(datePickerState)) || !canAddMoreItems(1)}
                                     className="px-4 py-2 text-sm font-medium text-white bg-teal-600 border border-transparent rounded-md hover:bg-teal-700 disabled:opacity-50"
                                 >
                                     {isSubmitting ? 'Adding...' : !canAddMoreItems(1) ? 'Limit Reached' : 'Add Item'}
@@ -813,7 +852,14 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                             {/* Quick Add Item Button */}
                             <button
                                 className="mb-4 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition disabled:opacity-50"
-                                onClick={() => setShowQuickAddForm(v => !v)}
+                                onClick={() => {
+                                    if (!showQuickAddForm) {
+                                        // Reset to defaults when opening the form
+                                        setQuickTrackingMode('today')
+
+                                    }
+                                    setShowQuickAddForm(v => !v)
+                                }}
                                 disabled={!showQuickAddForm && !canAddToQuickList()}
                                 type="button"
                             >
@@ -838,109 +884,92 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                         </p>
                                     </div>
 
-                                    {/* Date Selection Mode Options */}
+                                    {/* Collapsible Item Received Date Header for Quick Add */}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Received Date</label>
-                                        <div className="flex flex-wrap gap-2 mb-3">
-                                            <button
-                                                type="button"
-                                                onClick={() => setQuickDateSelectionMode('monthYear')}
-                                                className={`px-3 py-1 text-sm rounded-md ${quickDateSelectionMode === 'monthYear' ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300' : 'bg-gray-100 dark:bg-gray-700'}`}
-                                            >
-                                                Month & Year
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setQuickDateSelectionMode('year')}
-                                                className={`px-3 py-1 text-sm rounded-md ${quickDateSelectionMode === 'year' ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300' : 'bg-gray-100 dark:bg-gray-700'}`}
-                                            >
-                                                Year Only
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setQuickDateSelectionMode('yearRange')}
-                                                className={`px-3 py-1 text-sm rounded-md ${quickDateSelectionMode === 'yearRange' ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300' : 'bg-gray-100 dark:bg-gray-700'}`}
-                                            >
-                                                Year Range
-                                            </button>
-                                        </div>
-
-                                        {/* Month & Year Selection */}
-                                        {quickDateSelectionMode === 'monthYear' && (
-                                            <div className="flex gap-2">
-                                                <div className="flex-1">
-                                                    <select
-                                                        value={quickItemMonth}
-                                                        onChange={e => setQuickItemMonth(e.target.value)}
-                                                        className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-purple-500 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                                                        required
-                                                    >
-                                                        <option value="">Select month</option>
-                                                        {months.map(m => <option key={m} value={m}>{m}</option>)}
-                                                    </select>
-                                                </div>
-                                                <div className="flex-1">
-                                                    <select
-                                                        value={quickItemYear}
-                                                        onChange={e => setQuickItemYear(e.target.value)}
-                                                        className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-purple-500 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                                                        required
-                                                    >
-                                                        <option value="">Select year</option>
-                                                        {years.map(y => <option key={y} value={y}>{y}</option>)}
-                                                    </select>
+                                        <button
+                                            type="button"
+                                            onClick={() => setQuickShowDateTracking(!quickShowDateTracking)}
+                                            className="flex items-center gap-2 mb-2 w-full text-left hover:bg-gray-50 dark:hover:bg-gray-700 p-2 rounded-md transition-colors"
+                                        >
+                                            {quickShowDateTracking ? (
+                                                <ChevronUpIcon className="h-4 w-4 text-gray-500" />
+                                            ) : (
+                                                <ChevronDownIcon className="h-4 w-4 text-gray-500" />
+                                            )}
+                                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                Item Received Date
+                                            </span>
+                                            <div className="group relative">
+                                                <InfoIcon className="h-4 w-4 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 cursor-help" />
+                                                <div className="absolute right-full top-1/2 transform -translate-y-1/2 mr-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none w-48 text-center z-50">
+                                                    Defaults to today. You can select the date when you received the item instead of using today's date
+                                                    <div className="absolute left-full top-1/2 transform -translate-y-1/2 border-4 border-transparent border-l-gray-900 dark:border-l-gray-700"></div>
                                                 </div>
                                             </div>
-                                        )}
+                                        </button>
 
-                                        {/* Year Only Selection */}
-                                        {quickDateSelectionMode === 'year' && (
-                                            <div>
-                                                <select
-                                                    value={quickItemYear}
-                                                    onChange={e => setQuickItemYear(e.target.value)}
-                                                    className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-purple-500 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                                                    required
-                                                >
-                                                    <option value="">Select year</option>
-                                                    {years.map(y => <option key={y} value={y}>{y}</option>)}
-                                                </select>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Defaults to January 1st</p>
+                                        {/* Collapsible Date Tracking Content */}
+                                        {quickShowDateTracking && (
+                                            <div className="space-y-3 pl-6 mb-4">
+                                                <ItemReceivedDateSection
+                                                    trackingMode={quickTrackingMode}
+                                                    onTrackingModeChange={setQuickTrackingMode}
+                                                    dateSelectionMode={quickDateSelectionMode}
+                                                    onDateSelectionModeChange={setQuickDateSelectionMode}
+                                                    itemMonth={quickItemMonth}
+                                                    onItemMonthChange={setQuickItemMonth}
+                                                    itemYear={quickItemYear}
+                                                    onItemYearChange={setQuickItemYear}
+                                                    startYear={quickStartYear}
+                                                    onStartYearChange={setQuickStartYear}
+                                                    endYear={quickEndYear}
+                                                    onEndYearChange={setQuickEndYear}
+                                                    isDateValid={isQuickDateValid}
+                                                    getDateString={getQuickDateString}
+                                                    variant="quick"
+                                                    months={months}
+                                                    years={years}
+                                                />
                                             </div>
                                         )}
+                                    </div>
 
-                                        {/* Year Range Selection */}
-                                        {quickDateSelectionMode === 'yearRange' && (
-                                            <div className="flex gap-2">
-                                                <div className="flex-1">
-                                                    <select
-                                                        value={quickStartYear}
-                                                        onChange={e => setQuickStartYear(e.target.value)}
-                                                        className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-purple-500 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                                                        required
-                                                    >
-                                                        <option value="">Start year</option>
-                                                        {years.map(y => <option key={y} value={y}>{y}</option>)}
-                                                    </select>
-                                                </div>
-                                                <div className="flex-1">
-                                                    <select
-                                                        value={quickEndYear}
-                                                        onChange={e => setQuickEndYear(e.target.value)}
-                                                        className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-purple-500 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                                                        required
-                                                    >
-                                                        <option value="">End year</option>
-                                                        {years.map(y => <option key={y} value={y}>{y}</option>)}
-                                                    </select>
+                                    {/* Collapsible Ownership Duration Goal Header for Quick Add */}
+                                    <div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setQuickShowOwnershipGoal(!quickShowOwnershipGoal)}
+                                            className="flex items-center gap-2 mb-2 w-full text-left hover:bg-gray-50 dark:hover:bg-gray-700 p-2 rounded-md transition-colors"
+                                        >
+                                            {quickShowOwnershipGoal ? (
+                                                <ChevronUpIcon className="h-4 w-4 text-gray-500" />
+                                            ) : (
+                                                <ChevronDownIcon className="h-4 w-4 text-gray-500" />
+                                            )}
+                                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                Ownership Duration Goal
+                                            </span>
+                                            <div className="group relative">
+                                                <InfoIcon className="h-4 w-4 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 cursor-help" />
+                                                <div className="absolute right-full top-1/2 transform -translate-y-1/2 mr-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none w-48 text-center z-50">
+                                                    Defaults to 1 year. How long you want to keep this item before it breaks, or you give/sell it away
+                                                    <div className="absolute left-full top-1/2 transform -translate-y-1/2 border-4 border-transparent border-l-gray-900 dark:border-l-gray-700"></div>
                                                 </div>
                                             </div>
-                                        )}
+                                        </button>
 
-                                        {/* Display calculated date */}
-                                        {isQuickDateValid() && (
-                                            <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                                Selected date: {getQuickDateString()}
+                                        {/* Collapsible Ownership Goal Content */}
+                                        {quickShowOwnershipGoal && (
+                                            <div className="space-y-3 pl-6 mb-4">
+                                                <OwnershipDurationGoalSection
+                                                    ownershipGoalValue={parseInt(quickOwnershipGoalValue || '1', 10)}
+                                                    onOwnershipGoalValueChange={(value) => setQuickOwnershipGoalValue(value.toString())}
+                                                    ownershipGoalUnit={quickOwnershipGoalUnit}
+                                                    onOwnershipGoalUnitChange={setQuickOwnershipGoalUnit}
+                                                    trackingMode={quickTrackingMode}
+                                                    variant="quick"
+                                                    calculateOwnershipDurationMonths={calculateQuickOwnershipDurationMonths}
+                                                />
                                             </div>
                                         )}
                                     </div>
@@ -981,15 +1010,19 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                     <div className="space-y-2">
                                         {quickItemsToAdd.map((item, idx) => {
                                             let dateDisplay = ''
-                                            if (item.dateMode === 'monthYear') {
-                                                dateDisplay = `${item.month} ${item.year} `
-                                            } else if (item.dateMode === 'year') {
-                                                dateDisplay = `January ${item.year} `
-                                            } else if (item.dateMode === 'yearRange') {
-                                                const start = parseInt(item.startYear || '0')
-                                                const end = parseInt(item.endYear || '0')
-                                                const middleYear = Math.floor((start + end) / 2)
-                                                dateDisplay = `June ${middleYear} (${item.startYear} -${item.endYear} range)`
+                                            if (item.trackingMode === 'today') {
+                                                dateDisplay = `Today (${new Date().toLocaleDateString()})`
+                                            } else if (item.trackingMode === 'received') {
+                                                if (item.dateMode === 'monthYear') {
+                                                    dateDisplay = `${item.month} ${item.year}`
+                                                } else if (item.dateMode === 'year') {
+                                                    dateDisplay = `January ${item.year}`
+                                                } else if (item.dateMode === 'yearRange') {
+                                                    const start = parseInt(item.startYear || '0')
+                                                    const end = parseInt(item.endYear || '0')
+                                                    const middleYear = Math.floor((start + end) / 2)
+                                                    dateDisplay = `June ${middleYear} (${item.startYear}-${item.endYear} range)`
+                                                }
                                             }
 
                                             return (
@@ -998,8 +1031,13 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                                         {/* Card for each item */}
                                                         <div className="font-medium">{item.name}</div>
                                                         <div className="text-sm text-gray-600 dark:text-gray-400">
-                                                            Received: {dateDisplay}
+                                                            {item.trackingMode === 'today' ? 'Tracking starts:' : 'Received:'} {dateDisplay}
                                                         </div>
+                                                        {item.ownershipGoalMonths && (
+                                                            <div className="text-xs text-purple-600 dark:text-purple-400">
+                                                                Goal: {item.ownershipGoalMonths} months ({item.ownershipGoalMonths >= 12 ? `${Math.floor(item.ownershipGoalMonths / 12)} year${Math.floor(item.ownershipGoalMonths / 12) > 1 ? 's' : ''}${item.ownershipGoalMonths % 12 > 0 ? ` ${item.ownershipGoalMonths % 12} month${item.ownershipGoalMonths % 12 > 1 ? 's' : ''}` : ''}` : `${item.ownershipGoalMonths} month${item.ownershipGoalMonths > 1 ? 's' : ''}`})
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     <button
                                                         onClick={() => removeQuickItem(idx)}

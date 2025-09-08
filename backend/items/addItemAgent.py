@@ -121,6 +121,9 @@ def create_item_directly(user_id: str, item_data: Dict[str, Any]) -> Dict[str, A
             status=item_data.get("status", "Keep"),
             item_received_date=item_data.get("item_received_date"),
             last_used=item_data.get("last_used"),
+            ownership_duration_goal_months=item_data.get(
+                "ownership_duration_goal_months", 12
+            ),
         )
 
         log.info(f"Item created successfully with ID: {item.id}")

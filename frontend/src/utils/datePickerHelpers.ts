@@ -17,7 +17,8 @@ export const months = [
     'July', 'August', 'September', 'October', 'November', 'December'
 ]
 
-export const years = Array.from({ length: 21 }, (_, i) => `${2024 - i}`)
+const currentYear = new Date().getFullYear()
+export const years = Array.from({ length: 201 }, (_, i) => `${currentYear - i}`)
 
 // Helper function to calculate received date based on selection mode
 export const calculateReceivedDate = (state: DatePickerState): Date | undefined => {

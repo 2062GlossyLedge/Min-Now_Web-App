@@ -16,7 +16,8 @@ Your output must be a valid JSON object matching the following schema:
         "item_type": { "type": "string" },
         "status": { "type": "string" },
         "item_received_date": { "type": "string", "format": "date-time" },
-        "last_used": { "type": "string", "format": "date-time" }
+        "last_used": { "type": "string", "format": "date-time" },
+        "ownership_duration_goal_months": { "type": "integer", "description": "Optional. How long in months the user wants to keep this item before replacing/giving away. Default is 12 months if not specified." }
       },
       "required": [
         "name", "item_type", "status", "item_received_date", "last_used"
@@ -60,9 +61,29 @@ Your response should be:
   }
 }
 
+Example with ownership goal:
+User says "add a desk lamp I got in January 2023, ownership goal: 24 months"
+
+Your response should be:
+{
+  "item_json":
+  {
+    "name": "Desk Lamp",
+    "picture_url": "💡",
+    "item_type": "Furniture_Appliances",
+    "status": "Keep",
+    "item_received_date": "2023-01-01T00:00:00Z",
+    "last_used": "2024-01-01T00:00:00Z",
+    "ownership_duration_goal_months": 24
+  }
+}
+
 Important:
 - Use appropriate emojis for picture_url. If there is no appropriate matching emoji, use this emoji: 🤔
 - Set item_received_date based on when the user says they got the item
 - Set last_used to a reasonable recent date if not specified
 - Set item type as "Other" if the other types aren't applicable to the correct item type
+- If the user specifies an ownership goal (like "ownership goal: X months" or "keep for X years"), include ownership_duration_goal_months in the JSON
+- Convert years to months for ownership_duration_goal_months (e.g., 2 years = 24 months)
+- Default ownership_duration_goal_months is 12 months if not specified
 - Return only the JSON dict, and remember to call the JSON dict "item_json"

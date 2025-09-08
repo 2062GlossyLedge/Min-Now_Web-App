@@ -11,6 +11,8 @@ import { twMerge } from 'tailwind-merge'
 import DatePickerComponent from '@/components/DatePickerComponent'
 import { DatePickerState, calculateReceivedDate, initializeDatePickerState } from '@/utils/datePickerHelpers'
 import { validateImageFile, isIOS } from '@/utils/api'
+import ItemReceivedDateSection from '@/components/ItemReceivedDateSection'
+import OwnershipDurationGoalSection from '@/components/OwnershipDurationGoalSection'
 
 import type { OurFileRouter } from '@/app/api/uploadthing/core'
 
@@ -110,6 +112,9 @@ export default function ItemCard({
         endYear: ''
     }))
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
+
+    // Tracking mode state for edit mode
+    const [trackingMode, setTrackingMode] = useState<'today' | 'received'>('received')
 
     // Image editing states
     const [useEmoji, setUseEmoji] = useState(true)
@@ -486,21 +491,25 @@ export default function ItemCard({
                     {isEditing ? (
                         <div className="space-y-4">
                             {/* Item Received Date */}
-                            <div className="flex flex-col space-y-2">
-                                <span className="text-sm text-gray-500 dark:text-gray-400">Item Received Date:</span>
-                                <DatePickerComponent
-                                    state={datePickerState}
-                                    onStateChange={handleDatePickerStateChange}
-                                    onDateChange={setReceivedDate}
-                                    isPopoverOpen={isDatePickerOpen}
-                                    onPopoverOpenChange={setIsDatePickerOpen}
-                                    buttonClassName="w-[240px] justify-start text-left font-normal"
+                            <div>
+                                <ItemReceivedDateSection
+                                    trackingMode={trackingMode}
+                                    onTrackingModeChange={setTrackingMode}
+                                    dateSelectionMode="monthYear"
+                                    onDateSelectionModeChange={() => { }}
+                                    datePickerState={datePickerState}
+                                    onDatePickerStateChange={handleDatePickerStateChange}
+                                    isDatePickerOpen={isDatePickerOpen}
+                                    onDatePickerOpenChange={setIsDatePickerOpen}
+                                    receivedDate={receivedDate}
+                                    onReceivedDateChange={setReceivedDate}
+                                    variant="edit"
                                 />
                             </div>
 
                             {/* Item Status */}
-                            <div className="flex flex-col space-y-2">
-                                <span className="text-sm text-gray-500 dark:text-gray-400">Item Status:</span>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Item Status</label>
                                 <div className="flex space-x-2">
                                     <button
                                         onClick={(e) => {
@@ -536,14 +545,14 @@ export default function ItemCard({
                                             : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-teal-100 dark:hover:bg-teal-900 hover:text-teal-700 dark:hover:text-teal-300'
                                             }`}
                                     >
-                                        Donate
+                                        Gave
                                     </button>
                                 </div>
                             </div>
 
                             {/* Item Image/Emoji */}
-                            <div className="flex flex-col space-y-2">
-                                <span className="text-sm text-gray-500 dark:text-gray-400">Item Image:</span>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Item Image</label>
                                 <div className="flex items-center space-x-4 mb-2">
                                     <button
                                         type="button"
@@ -644,8 +653,8 @@ export default function ItemCard({
                             </div>
 
                             {/* Item Type */}
-                            <div className="flex flex-col space-y-2">
-                                <span className="text-sm text-gray-500 dark:text-gray-400">Item Type:</span>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Item Type</label>
                                 <Popover open={isItemTypeDropdownOpen} onOpenChange={setIsItemTypeDropdownOpen}>
                                     <PopoverTrigger asChild>
                                         <Button
@@ -678,39 +687,18 @@ export default function ItemCard({
                             </div>
 
                             {/* Ownership Duration Goal */}
-                            <div className="flex flex-col space-y-2">
-                                <span className="text-sm text-gray-500 dark:text-gray-400">Ownership Duration Goal:</span>
-                                <div className="flex items-center space-x-3">
-                                    <input
-                                        type="number"
-                                        value={ownershipGoalValue}
-                                        onChange={(e) => setOwnershipGoalValue(formatOwnershipGoalValue(e.target.value))}
-                                        min="1"
-                                        max={ownershipGoalUnit === 'years' ? 999 : 999}
-                                        className="block w-24 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"
-                                        onClick={(e) => e.stopPropagation()}
-                                    />
-                                    <select
-                                        value={ownershipGoalUnit}
-                                        onChange={(e) => {
-                                            const newUnit = e.target.value as 'months' | 'years'
-                                            setOwnershipGoalUnit(newUnit)
-                                            // Convert current value to new unit with 3-digit limit
-                                            if (newUnit === 'years' && ownershipGoalUnit === 'months') {
-                                                const convertedValue = Math.max(1, Math.round(ownershipGoalValue / 12))
-                                                setOwnershipGoalValue(Math.min(999, convertedValue))
-                                            } else if (newUnit === 'months' && ownershipGoalUnit === 'years') {
-                                                const convertedValue = ownershipGoalValue * 12
-                                                setOwnershipGoalValue(Math.min(999, convertedValue))
-                                            }
-                                        }}
-                                        className="rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"
-                                        onClick={(e) => e.stopPropagation()}
-                                    >
-                                        <option value="months">months</option>
-                                        <option value="years">years</option>
-                                    </select>
-                                </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Ownership Duration Goal</label>
+                                <OwnershipDurationGoalSection
+                                    ownershipGoalValue={ownershipGoalValue}
+                                    onOwnershipGoalValueChange={setOwnershipGoalValue}
+                                    ownershipGoalUnit={ownershipGoalUnit}
+                                    onOwnershipGoalUnitChange={setOwnershipGoalUnit}
+                                    trackingMode={trackingMode}
+                                    receivedDate={receivedDate}
+                                    variant="edit"
+                                    calculateOwnershipDurationMonths={calculateOwnershipDurationMonths}
+                                />
                             </div>
 
                             {/* Action buttons */}
@@ -733,6 +721,7 @@ export default function ItemCard({
                     ) : (
                         /* Non-edit mode display */
                         <div className="space-y-3">
+                            {/* Show ownership duration */}
                             <div className="flex justify-between text-sm">
                                 <span className="text-gray-500 dark:text-gray-400 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">Ownership Duration:</span>
                                 <span className="text-gray-900 dark:text-gray-100 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">{ownershipDuration}</span>
@@ -757,6 +746,23 @@ export default function ItemCard({
                                             className="bg-teal-500 h-2 rounded-full transition-all duration-300 ease-in-out"
                                             style={{ width: `${Math.min(ownershipDurationGoalProgress * 100, 100)}%` }}
                                         ></div>
+                                    </div>
+                                    {/* Start and End Dates */}
+                                    <div className="flex justify-between text-xs">
+                                        <span className="text-gray-500 dark:text-gray-400">
+                                            {(() => {
+                                                const startDate = receivedDate ? new Date(receivedDate) : new Date()
+                                                return `Start: ${startDate.toLocaleDateString()}`
+                                            })()}
+                                        </span>
+                                        <span className="text-gray-500 dark:text-gray-400">
+                                            {(() => {
+                                                const startDate = receivedDate ? new Date(receivedDate) : new Date()
+                                                const endDate = new Date(startDate)
+                                                endDate.setMonth(endDate.getMonth() + ownershipDurationGoalMonths)
+                                                return `End: ${endDate.toLocaleDateString()}`
+                                            })()}
+                                        </span>
                                     </div>
                                 </div>
                             )}

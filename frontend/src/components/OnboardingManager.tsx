@@ -23,11 +23,17 @@ export default function OnboardingManager() {
 
     const pathname = usePathname()
 
-    // Hide spotlight when navigating between pages
-    useEffect(() => {
-        setShowSpotlight(false)
 
-        // Show spotlight again after navigation completes
+
+    // Handle navigation during onboarding
+    useEffect(() => {
+        // For navigation overview, keep spotlight visible regardless of navigation
+        if (onboardingStep === 'navigation-overview') {
+            return
+        }
+
+        // For other onboarding steps, hide spotlight on navigation then show it again
+        setShowSpotlight(false)
         const timer = setTimeout(() => {
             if (isOnboarding) {
                 setShowSpotlight(true)
@@ -35,7 +41,9 @@ export default function OnboardingManager() {
         }, 500)
 
         return () => clearTimeout(timer)
-    }, [pathname, isOnboarding, setShowSpotlight])
+    }, [pathname, isOnboarding, onboardingStep, setShowSpotlight])
+
+    // No automatic navigation detection needed - Keep tab handles progression directly
 
     if (!isOnboarding) {
         return null
@@ -60,6 +68,21 @@ export default function OnboardingManager() {
         )
     }
 
+    // Always show navigation overview when it's the active step, regardless of showSpotlight
+    if (onboardingStep === 'navigation-overview') {
+        return (
+            <Spotlight
+                targetSelector="[data-onboarding='navigation-tabs']"
+                title="Welcome to Min-Now!"
+                description="Here are the three main sections: Keep ↓ (manage items you currently own), Give ↑ (items you may want to donate or sell away), and Gave 📦 (items you've already donated or sold). Begin by clicking on the Keep tab."
+                onSkip={skipOnboarding}
+                showNext={false} // No next button, user must click Keep
+                skipText="Skip tutorial"
+            />
+        )
+    }
+
+    // For other steps, check showSpotlight
     if (!showSpotlight) {
         return null
     }

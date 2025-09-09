@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import Image from 'next/image'
 import { useOnboarding } from '@/contexts/OnboardingContext'
 import {
@@ -14,13 +14,19 @@ import {
 
 export default function Navigation() {
     const pathname = usePathname()
-    const router = useRouter()
-    const { startOnboarding, hasCompletedTutorial } = useOnboarding()
+    const { startOnboarding, hasCompletedTutorial, isOnboarding, onboardingStep, nextStep } = useOnboarding()
 
     const handleStartTutorial = () => {
         startOnboarding()
-        if (pathname !== '/keep') {
-            router.push('/keep')
+        // Don't auto-navigate, let the navigation-overview step handle it
+    }
+
+    const handleKeepClick = () => {
+        // If user is in navigation overview and clicks Keep, progress to next step
+        if (isOnboarding && onboardingStep === 'navigation-overview') {
+            setTimeout(() => {
+                nextStep()
+            }, 500) // Small delay to allow navigation to complete
         }
     }
 
@@ -36,11 +42,14 @@ export default function Navigation() {
             <div className="max-w-10xl mx-auto px-2 sm:px-4 lg:px-8">
                 <div className="flex justify-between items-center h-16">
                     <div className="flex">
-                        <div className="flex space-x-2 sm:space-x-2 md:space-x-3">
+                        <div className="flex space-x-2 sm:space-x-2 md:space-x-3" data-onboarding="navigation-tabs">
                             {tabs.map((tab) => (
                                 <Link
                                     key={tab.name}
                                     href={tab.href}
+                                    // gives onboarding context of which tab is open
+                                    data-onboarding={`nav-${tab.name.toLowerCase()}`}
+                                    onClick={tab.name === 'Keep' ? handleKeepClick : undefined}
                                     className={`inline-flex items-center px-1 h-16 border-b-2 text-sm font-medium ${pathname === tab.href
                                         ? 'border-teal-500 text-gray-900 dark:text-gray-100'
                                         : 'border-transparent text-gray-500 dark:text-gray-400 hover:border-teal-300 dark:hover:border-teal-600 hover:text-teal-500 dark:hover:text-teal-400'
@@ -55,7 +64,7 @@ export default function Navigation() {
                     <div className="flex items-center space-x-2 sm:space-x-2 md:space-x-3">
                         {/* Flashing Tutorial Icon - only show for first-time users */}
                         <SignedIn>
-                            {!hasCompletedTutorial && (
+                            {hasCompletedTutorial === false && (
                                 <button
                                     onClick={handleStartTutorial}
                                     className="p-2 text-gray-900 dark:text-white hover:text-teal-500 dark:hover:text-teal-400 transition-colors relative"

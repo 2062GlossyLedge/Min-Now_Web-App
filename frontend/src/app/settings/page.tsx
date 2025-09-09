@@ -2,16 +2,14 @@
 
 import { useTheme } from '../../components/ThemeProvider'
 import { useOnboarding } from '@/contexts/OnboardingContext'
-import { useRouter } from 'next/navigation'
 
 export default function SettingsPage() {
     const { theme, toggleTheme } = useTheme()
     const { startOnboarding, tutorialCompletionCount } = useOnboarding()
-    const router = useRouter()
 
     const handleStartTutorial = () => {
         startOnboarding()
-        router.push('/keep')
+        // Don't auto-navigate, let the navigation-overview step handle it
     }
 
     return (

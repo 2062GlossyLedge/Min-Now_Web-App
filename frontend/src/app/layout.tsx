@@ -9,6 +9,7 @@ import { ItemUpdateProvider } from '../contexts/ItemUpdateContext'
 import { OnboardingProvider } from '../contexts/OnboardingContext'
 import { Toaster } from '@/components/ui/sonner'
 import { HydrationWrapper } from '@/app/HydrationWrapper'
+import OnboardingManager from '@/components/OnboardingManager'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -39,6 +40,8 @@ export default function RootLayout({
                                     <ConditionalMain>
                                         {children}
                                     </ConditionalMain>
+                                    {/* Onboarding Manager for tutorial spotlights */}
+                                    <OnboardingManager />
                                     {/* Sonner Toaster for notifications */}
                                     <Toaster />
                                 </ThemeProvider>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { InfoIcon, X } from 'lucide-react'
 // CSRF-based API imports (commented out - using JWT approach)
 // import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch"
 
@@ -69,6 +70,13 @@ type BadgeGroups = Record<string, Badge[]>
 
 // Badge summary component showing fraction of badges collected for each tier
 const BadgeSummary = ({ badgeGroups }: { badgeGroups: BadgeGroups }) => {
+    const [isTooltipModalOpen, setIsTooltipModalOpen] = useState(false)
+
+    // Get unearned item types for the modal
+    const allItemTypes = Object.keys(itemTypeDisplayNames)
+    const ownedItemTypes = Object.keys(badgeGroups)
+    const unearnedItemTypes = allItemTypes.filter(itemType => !ownedItemTypes.includes(itemType))
+
     // Calculate badge statistics for each item type and tier
     const badgeStats = Object.entries(badgeGroups).map(([itemType, badges]) => {
         const bronzeBadges = badges.filter(b => b.tier === 'bronze')
@@ -93,7 +101,15 @@ const BadgeSummary = ({ badgeGroups }: { badgeGroups: BadgeGroups }) => {
 
     return (
         <div className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Badge Progress Overview</h2>
+            <div className="flex items-center gap-2 mb-4">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Badge Progress Overview</h2>
+                <div className="relative">
+                    <InfoIcon
+                        className="h-5 w-5 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 cursor-pointer"
+                        onClick={() => setIsTooltipModalOpen(true)}
+                    />
+                </div>
+            </div>
             {/* Horizontal scrollable container */}
             <div className="overflow-x-auto pb-4">
                 <div className="flex space-x-4 min-w-max">
@@ -144,6 +160,63 @@ const BadgeSummary = ({ badgeGroups }: { badgeGroups: BadgeGroups }) => {
                     ))}
                 </div>
             </div>
+
+            {/* Tooltip Modal */}
+            {isTooltipModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Badge Progress Information</h3>
+                            <button
+                                onClick={() => setIsTooltipModalOpen(false)}
+                                className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                            >
+                                <X className="h-6 w-6" />
+                            </button>
+                        </div>
+
+                        {/* Explanation */}
+                        <p className="text-gray-600 dark:text-gray-400 mb-6">
+                            The Badge Progress Overview only shows item types where you have donated or sold at least one item.
+                            Below are all the item types where you haven't donated or sold any items yet - donate or sell items of these types to start earning badges!
+                        </p>
+                        {/* Unearned Badges Grid */}
+                        {unearnedItemTypes.length > 0 && (
+                            <div>
+                                <h4 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-3">Available Badge Categories</h4>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                    {unearnedItemTypes.map((itemType) => (
+                                        <div key={itemType} className="flex items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                                            <span className="text-2xl mr-3">{itemTypeEmojis[itemType] || "🏷️"}</span>
+                                            <div className="flex-1 min-w-0">
+                                                <span className="text-sm text-gray-700 dark:text-gray-300 font-medium block">
+                                                    {itemTypeDisplayNames[itemType]}
+                                                </span>
+                                                <div className="flex space-x-1 mt-1">
+                                                    {/* Show mini badge tier indicators */}
+                                                    <div className="w-2 h-2 rounded-full border border-[#cd7f32] opacity-70"></div>
+                                                    <div className="w-2 h-2 rounded-full border border-[#c0c0c0] opacity-70"></div>
+                                                    <div className="w-2 h-2 rounded-full border border-[#ffd700] opacity-70"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {unearnedItemTypes.length === 0 && (
+                            <div className="text-center py-8">
+                                <span className="text-4xl mb-2 block">🎉</span>
+                                <p className="text-gray-600 dark:text-gray-400">
+                                    Congratulations! You have donated items in all available categories and can earn all badge types.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

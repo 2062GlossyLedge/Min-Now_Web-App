@@ -63,7 +63,6 @@ export default function ItemReceivedDateSection({
     onEndYearChange,
     isDateValid,
     getDateString,
-    receivedDate: _receivedDate,
     onReceivedDateChange,
     variant = 'manual',
     months = [],

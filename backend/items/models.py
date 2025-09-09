@@ -156,21 +156,21 @@ KEEP_BADGE_TIERS = [
     {
         "tier": "bronze",
         "name": "Bronze {type} Keeper",
-        "description": "Owned for 1 year",
+        "description": "Owned an item for 1 year",
         "min": 12,
         "unit": "months",
     },
     {
         "tier": "silver",
         "name": "Silver {type} Keeper",
-        "description": "Owned for 5 years",
+        "description": "Owned an item for 5 years",
         "min": 60,
         "unit": "months",
     },
     {
         "tier": "gold",
         "name": "Gold {type} Keeper",
-        "description": "Owned for 10 years",
+        "description": "Owned an item for 10 years",
         "min": 120,
         "unit": "months",
     },
@@ -328,7 +328,7 @@ class OwnedItem(models.Model):
             result.append(
                 {
                     "tier": badge["tier"],
-                    "name": badge["name"].format(type=self.item_type),
+                    "name": badge["name"].format(type=self.get_item_type_display()),
                     "description": badge["description"],
                     "min": badge["min"],
                     "unit": badge.get("unit", None),
@@ -354,6 +354,8 @@ class OwnedItem(models.Model):
         # Only process item types that have at least one donated item
         for item_type, count in type_counts.items():
             if count > 0:  # Only include types with donated items
+                # Get display name for the item type
+                item_type_display = dict(ItemType.choices)[item_type]
                 badges = []
                 for badge in DONATED_BADGE_TIERS:
                     min_count = badge["min"]
@@ -362,9 +364,9 @@ class OwnedItem(models.Model):
                     badges.append(
                         {
                             "tier": badge["tier"],
-                            "name": badge["name"].format(type=item_type),
+                            "name": badge["name"].format(type=item_type_display),
                             "description": badge["description"].replace(
-                                "{type}", item_type.lower()
+                                "{type}", item_type_display.lower()
                             ),
                             "min": badge["min"],
                             "progress": round(progress, 2),

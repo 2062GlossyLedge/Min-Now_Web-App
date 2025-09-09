@@ -14,6 +14,8 @@ import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 import { useOnboarding } from '@/contexts/OnboardingContext'
 import { useUser, useAuth } from '@clerk/nextjs'
 import OnboardingExplanation from './OnboardingExplanation'
+import EmailSignupModal from './EmailSignupModal'
+import { HelpCircle, Settings } from 'lucide-react'
 
 // Map database values to display names
 const itemTypeDisplayNames: Record<string, string> = {
@@ -42,12 +44,13 @@ interface CheckupManagerProps {
 
 export default function CheckupManager({ checkupType, onClose }: CheckupManagerProps) {
     const router = useRouter()
-    const [interval, setInterval] = useState(1)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [items, setItems] = useState<Item[]>([])
     const [loading, setLoading] = useState(true)
     const [changedItems, setChangedItems] = useState<Set<string>>(new Set())
     const [itemStatusChanges, setItemStatusChanges] = useState<Map<string, 'used' | 'not_used' | 'donate'>>(new Map()) // Track pending status changes
+    const [showTooltip, setShowTooltip] = useState(false)
+    const [showEmailSignupModal, setShowEmailSignupModal] = useState(false)
     // const { authenticatedFetch } = useAuthenticatedFetch() // CSRF approach - commented out
     const { getToken } = useAuth() // JWT approach - get token from Clerk
     const { addUpdatedItem, triggerRefresh } = useItemUpdate()
@@ -79,6 +82,8 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
             setItems([])
         }
     }, [isLoaded, isSignedIn])
+
+
 
     useEffect(() => {
         const fetchCheckupInfo = async () => {
@@ -181,7 +186,7 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                     const targetStatus = (statusMap[checkupType] as Record<typeof newStatus, string>)[newStatus]
 
                     // If marking as used, set last_used to now
-                    let updatePayload: any = { status: targetStatus };
+                    const updatePayload: { status: string; lastUsedDate?: Date } = { status: targetStatus };
                     if (newStatus === 'used') {
                         updatePayload.lastUsedDate = new Date();
                     }
@@ -309,7 +314,8 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
             }
         } as const;
 
-        return (statusMap[checkupType] as any)[pendingStatus] || '';
+        const typeMap = statusMap[checkupType] as Record<string, string>;
+        return typeMap[pendingStatus] || '';
     };
 
     return (
@@ -319,21 +325,49 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                         {checkupType} Items Checkup
                     </h2>
-                    <div className="relative">
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-6 w-6 text-gray-600 dark:text-gray-400"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
+                    <div className="flex items-center space-x-3">
+                        {/* Tooltip Icon */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowTooltip(!showTooltip)}
+                                onMouseEnter={() => setShowTooltip(true)}
+                                onMouseLeave={() => setShowTooltip(false)}
+                                className="p-2 bg-gray-600 dark:bg-gray-500 hover:bg-gray-700 dark:hover:bg-gray-400 text-white rounded-full transition-colors shadow-sm"
+                            >
+                                <HelpCircle className="h-4 w-4" />
+                            </button>
+
+                            {/* Tooltip Content */}
+                            {showTooltip && (
+                                <div className="absolute top-full right-0 mt-1 w-48 p-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg shadow-lg z-50">
+                                    <div className="space-y-1">
+                                        <p className="font-semibold text-xs">Button Guide:</p>
+                                        {checkupType === 'Keep' ? (
+                                            <>
+                                                <p><span className="font-medium text-teal-300">Used:</span> Stay in Keep Section</p>
+                                                <p><span className="font-medium text-teal-300">Not Used:</span> Move to Give Section</p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <p><span className="font-medium text-teal-300">Used:</span> Move to Keep Section</p>
+                                                <p><span className="font-medium text-teal-300">Not Used:</span> Stay in Give Section</p>
+                                                <p><span className="font-medium text-teal-300">Gave:</span> Move to Gave Section</p>
+                                            </>
+                                        )}
+                                    </div>
+                                    {/* Tooltip Arrow */}
+                                    <div className="absolute bottom-full right-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-900 dark:border-b-gray-700"></div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Options Icon */}
+                        <button
+                            onClick={() => setShowEmailSignupModal(true)}
+                            className="p-2 bg-gray-600 dark:bg-gray-500 hover:bg-gray-700 dark:hover:bg-gray-400 text-white rounded-full transition-colors shadow-sm"
                         >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                            />
-                        </svg>
+                            <Settings className="h-4 w-4" />
+                        </button>
                     </div>
                 </div>
 
@@ -342,37 +376,6 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                 </p> */}
 
                 <div className="space-y-6">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Months Until Next Checkup
-                        </label>
-                        <div className="flex items-center space-x-4">
-                            <button
-                                type="button"
-                                onClick={() => setInterval(Math.max(1, interval - 1))}
-                                disabled={isSubmitting}
-                                className={`px-3 py-1 border border-teal-300 dark:border-teal-600 rounded-md ${isSubmitting
-                                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                                    : 'hover:bg-teal-50 dark:hover:bg-teal-900 text-teal-700 dark:text-teal-300'
-                                    }`}
-                            >
-                                -
-                            </button>
-                            <span className="text-lg font-medium text-gray-900 dark:text-gray-100">{interval}</span>
-                            <button
-                                type="button"
-                                onClick={() => setInterval(Math.min(12, interval + 1))}
-                                disabled={isSubmitting}
-                                className={`px-3 py-1 border border-teal-300 dark:border-teal-600 rounded-md ${isSubmitting
-                                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                                    : 'hover:bg-teal-50 dark:hover:bg-teal-900 text-teal-700 dark:text-teal-300'
-                                    }`}
-                            >
-                                +
-                            </button>
-                        </div>
-                    </div>
-
                     <div>
                         {/* Onboarding Explanation for Checkup - positioned before review items */}
                         {onboardingStep === 'checkup-review' && (
@@ -547,6 +550,14 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                     </div>
                 </div>
             </div>
+
+            {/* Email Signup Modal */}
+            {showEmailSignupModal && (
+                <EmailSignupModal
+                    onComplete={() => setShowEmailSignupModal(false)}
+                    onSkip={() => setShowEmailSignupModal(false)}
+                />
+            )}
         </div>
     )
 } 

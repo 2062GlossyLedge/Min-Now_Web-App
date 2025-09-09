@@ -11,7 +11,7 @@ interface EmailSignupModalProps {
 
 export default function EmailSignupModal({ onComplete, onSkip }: EmailSignupModalProps) {
     const { user } = useUser()
-    const [interval, setInterval] = useState(3) // Default to 3 months
+    const [interval, setInterval] = useState(1) // Default to 1 month
     const [emailNotifications, setEmailNotifications] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -97,7 +97,7 @@ export default function EmailSignupModal({ onComplete, onSkip }: EmailSignupModa
                         </p>
                     </div>
 
-                    {/* Email Notifications Toggle */}
+                    {/* Email Notifications Checkbox */}
                     <div>
                         <div className="flex items-center cursor-pointer" onClick={() => setEmailNotifications(!emailNotifications)}>
                             <input
@@ -105,20 +105,13 @@ export default function EmailSignupModal({ onComplete, onSkip }: EmailSignupModa
                                 checked={emailNotifications}
                                 onChange={(e) => setEmailNotifications(e.target.checked)}
                                 disabled={isSubmitting}
-                                className="sr-only"
+                                className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 dark:border-gray-600 rounded transition-colors duration-200"
                             />
-                            <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${emailNotifications ? 'bg-teal-600' : 'bg-gray-200 dark:bg-gray-700'
-                                }`}>
-                                <span
-                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${emailNotifications ? 'translate-x-6' : 'translate-x-1'
-                                        }`}
-                                />
-                            </div>
                             <span className="ml-3 text-sm font-medium text-gray-700 dark:text-gray-300">
                                 Email me when checkups are due
                             </span>
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-14">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-7">
                             We'll send you a friendly reminder when it's time to review your items
                         </p>
                     </div>

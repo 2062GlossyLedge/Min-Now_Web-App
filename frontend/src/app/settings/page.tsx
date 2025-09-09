@@ -30,8 +30,8 @@ export default function SettingsPage() {
                                 }`}
                         >
                             <span
-                                className={`${theme === 'dark' ? 'translate-x-6' : 'translate-x-1'
-                                    } inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200`}
+                                className={`inline-block h-4 w-4 rounded-full bg-white transition-all duration-200 ease-in-out transform ${theme === 'dark' ? 'translate-x-6' : 'translate-x-0'
+                                    }`}
                             />
                         </button>
                     </div>

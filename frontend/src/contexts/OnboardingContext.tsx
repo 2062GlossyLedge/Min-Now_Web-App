@@ -43,7 +43,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
             // This gives us a hint about whether this might be a returning user
             const hasAnyCompletionData = Object.keys(localStorage)
                 .some(key => key.startsWith('tutorial-completion-count-'))
-            
+
             if (hasAnyCompletionData) {
                 // Likely a returning user, assume completed to prevent flash
                 setHasCompletedTutorial(true)

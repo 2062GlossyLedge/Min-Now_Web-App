@@ -38,7 +38,7 @@ export default function KeepView() {
     const { refreshTrigger, clearUpdatedItems } = useItemUpdate()
     const [deletingItemId, setDeletingItemId] = useState<string | null>(null) // Track which item is being deleted
     const { onboardingStep, nextStep, setShowExplanation, setShowSpotlight } = useOnboarding()
-    
+
     // Get checkup context for refreshing checkup status
     let triggerCheckupRefresh: (() => void) | undefined
     try {

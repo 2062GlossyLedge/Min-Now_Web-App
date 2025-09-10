@@ -30,7 +30,7 @@ export default function GiveView() {
     const { refreshTrigger, clearUpdatedItems } = useItemUpdate()
     const { isSignedIn, isLoaded } = useUser() // Get user authentication status
     const [deletingItemId, setDeletingItemId] = useState<string | null>(null) // Track which item is being deleted
-    
+
     // Get checkup context for refreshing checkup status
     let triggerCheckupRefresh: (() => void) | undefined
     try {

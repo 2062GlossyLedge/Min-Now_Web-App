@@ -11,7 +11,7 @@ export const useCheckupStatus = (type: 'keep' | 'give') => {
     const { getToken } = useAuth() // JWT approach - get token from Clerk
     // const { isSignedIn, isLoaded } = useUser() // Get user authentication status // CSRF approach - commented out
     const { isSignedIn, isLoaded } = useAuth() // JWT approach - get auth status from Clerk
-    
+
     // Get refresh trigger from checkup context (optional - fallback if not in provider)
     let refreshTrigger = 0
     try {

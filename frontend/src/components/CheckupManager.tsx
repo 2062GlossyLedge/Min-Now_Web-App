@@ -40,9 +40,10 @@ const itemTypeDisplayNames: Record<string, string> = {
 interface CheckupManagerProps {
     checkupType: 'Keep' | 'Give'
     onClose: () => void
+    onCheckupComplete?: () => void // Callback to notify parent when checkup is completed
 }
 
-export default function CheckupManager({ checkupType, onClose }: CheckupManagerProps) {
+export default function CheckupManager({ checkupType, onClose, onCheckupComplete }: CheckupManagerProps) {
     const router = useRouter()
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [items, setItems] = useState<Item[]>([])
@@ -267,6 +268,9 @@ export default function CheckupManager({ checkupType, onClose }: CheckupManagerP
                 // Don't complete onboarding yet, move to email signup
                 nextStep()
             }
+
+            // Notify parent component that checkup is complete (to refresh checkup status)
+            onCheckupComplete?.()
 
             // Trigger refresh immediately since no animation
             triggerRefresh()

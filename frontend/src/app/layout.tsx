@@ -7,6 +7,7 @@ import ConditionalMain from '@/components/ConditionalMain'
 import { ClerkProvider } from '@clerk/nextjs'
 import { ItemUpdateProvider } from '../contexts/ItemUpdateContext'
 import { OnboardingProvider } from '../contexts/OnboardingContext'
+import { CheckupProvider } from '../contexts/CheckupContext'
 import { Toaster } from '@/components/ui/sonner'
 import { HydrationWrapper } from '@/app/HydrationWrapper'
 import OnboardingManager from '@/components/OnboardingManager'
@@ -35,16 +36,18 @@ export default function RootLayout({
                     <HydrationWrapper>
                         <OnboardingProvider>
                             <ItemUpdateProvider>
-                                <ThemeProvider>
-                                    <ConditionalNavigation />
-                                    <ConditionalMain>
-                                        {children}
-                                    </ConditionalMain>
-                                    {/* Onboarding Manager for tutorial spotlights */}
-                                    <OnboardingManager />
-                                    {/* Sonner Toaster for notifications */}
-                                    <Toaster />
-                                </ThemeProvider>
+                                <CheckupProvider>
+                                    <ThemeProvider>
+                                        <ConditionalNavigation />
+                                        <ConditionalMain>
+                                            {children}
+                                        </ConditionalMain>
+                                        {/* Onboarding Manager for tutorial spotlights */}
+                                        <OnboardingManager />
+                                        {/* Sonner Toaster for notifications */}
+                                        <Toaster />
+                                    </ThemeProvider>
+                                </CheckupProvider>
                             </ItemUpdateProvider>
                         </OnboardingProvider>
                     </HydrationWrapper>

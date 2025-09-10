@@ -15,6 +15,7 @@ import { useCheckupStatus } from '@/hooks/useCheckupStatus'
 import { SignedIn, SignedOut, useUser, useAuth } from '@clerk/nextjs'
 // import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch' // Not needed for JWT approach
 import { useItemUpdate } from '@/contexts/ItemUpdateContext'
+import { useCheckupContext } from '@/contexts/CheckupContext'
 
 export default function GiveView() {
     const [items, setItems] = useState<Item[]>([])
@@ -29,6 +30,15 @@ export default function GiveView() {
     const { refreshTrigger, clearUpdatedItems } = useItemUpdate()
     const { isSignedIn, isLoaded } = useUser() // Get user authentication status
     const [deletingItemId, setDeletingItemId] = useState<string | null>(null) // Track which item is being deleted
+    
+    // Get checkup context for refreshing checkup status
+    let triggerCheckupRefresh: (() => void) | undefined
+    try {
+        const checkupContext = useCheckupContext()
+        triggerCheckupRefresh = checkupContext.triggerCheckupRefresh
+    } catch {
+        // Context not available, checkup refresh will not work
+    }
 
     // Separate effect to handle authentication state changes
     useEffect(() => {
@@ -228,6 +238,10 @@ export default function GiveView() {
                     <CheckupManager
                         checkupType="Give"
                         onClose={() => setShowCheckupManager(false)}
+                        onCheckupComplete={() => {
+                            // Trigger checkup status refresh to remove red dot
+                            triggerCheckupRefresh?.()
+                        }}
                     />
                 )}
             </SignedIn>

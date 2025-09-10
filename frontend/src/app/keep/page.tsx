@@ -19,6 +19,7 @@ import { SignedIn, SignedOut, useUser, useAuth } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 import { useOnboarding } from '@/contexts/OnboardingContext'
+import { useCheckupContext } from '@/contexts/CheckupContext'
 
 export default function KeepView() {
     const [items, setItems] = useState<Item[]>([])
@@ -37,6 +38,15 @@ export default function KeepView() {
     const { refreshTrigger, clearUpdatedItems } = useItemUpdate()
     const [deletingItemId, setDeletingItemId] = useState<string | null>(null) // Track which item is being deleted
     const { onboardingStep, nextStep, setShowExplanation, setShowSpotlight } = useOnboarding()
+    
+    // Get checkup context for refreshing checkup status
+    let triggerCheckupRefresh: (() => void) | undefined
+    try {
+        const checkupContext = useCheckupContext()
+        triggerCheckupRefresh = checkupContext.triggerCheckupRefresh
+    } catch {
+        // Context not available, checkup refresh will not work
+    }
 
     // Separate effect to handle authentication state changes
     useEffect(() => {
@@ -536,6 +546,10 @@ export default function KeepView() {
                     <CheckupManager
                         checkupType="Keep"
                         onClose={() => setShowCheckupManager(false)}
+                        onCheckupComplete={() => {
+                            // Trigger checkup status refresh to remove red dot
+                            triggerCheckupRefresh?.()
+                        }}
                     />
                 )}
 

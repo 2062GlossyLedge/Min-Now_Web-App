@@ -95,6 +95,20 @@ export default function EmailSignupModal({ onComplete, onSkip }: EmailSignupModa
                         <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
                             This will be your default interval for future checkups
                         </p>
+                        {/* Show next checkup date */}
+                        <div className="text-center mt-3 p-2 bg-teal-50 dark:bg-teal-900/30 rounded-lg">
+                            <p className="text-sm font-medium text-teal-700 dark:text-teal-300">
+                                Next checkup: {(() => {
+                                    const today = new Date()
+                                    const nextCheckup = new Date(today.getFullYear(), today.getMonth() + interval, today.getDate())
+                                    return nextCheckup.toLocaleDateString('en-US', {
+                                        month: 'long',
+                                        day: 'numeric',
+                                        year: 'numeric'
+                                    })
+                                })()}
+                            </p>
+                        </div>
                     </div>
 
                     {/* Email Notifications Checkbox */}

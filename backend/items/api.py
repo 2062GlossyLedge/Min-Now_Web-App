@@ -60,10 +60,10 @@ except Exception as e:
 #     from backend.minNow.auth import ClerkAuth
 # else:
 #     from minNow.auth import DevClerkAuth as ClerkAuth
-if prod:
-    from backend.minNow.auth import ClerkAuth
-else:
-    from minNow.auth import ClerkAuth
+# if prod:
+#     from backend.minNow.auth import ClerkAuth
+# else:
+#     from minNow.auth import ClerkAuth
 
 
 # Main router for production routes

@@ -1,17 +1,29 @@
+"""
+This module contains the Celery app configuration and task definition
+for background addition processing.
+"""
+
 import os
 import logging
 from celery import Celery
-from celery.signals import worker_ready, worker_process_init
+from datetime import datetime
 from dotenv import load_dotenv
+from celery.schedules import crontab
 
-# Configure logging for production
+# Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
 
 # Load environment variables from the backend directory
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
+
+# Redis configuration with Upstash support
+upstash_url = os.environ.get("UPSTASH_REDIS_REST_URL")
+upstash_token = os.environ.get("UPSTASH_REDIS_REST_TOKEN")
 
 # Detect if running in production (Railway sets RAILWAY_ENVIRONMENT)
 is_production = os.environ.get("RAILWAY_ENVIRONMENT") is not None
@@ -20,21 +32,17 @@ if is_production:
 else:
     logger.info("🔧 Starting Celery worker in DEVELOPMENT mode")
 
-# Get Redis configuration from environment variables
-upstash_url = os.environ.get("UPSTASH_REDIS_REST_URL")
-upstash_token = os.environ.get("UPSTASH_REDIS_REST_TOKEN")
 
 # Create connection string for Upstash Redis
 if upstash_url and upstash_token:
-    # Parse the Upstash URL to extract hostname
     hostname = upstash_url.replace("https://", "").replace("http://", "")
-    # Upstash Redis uses port 6379 for SSL connections with SSL cert requirements
     connection_link = (
         f"rediss://default:{upstash_token}@{hostname}:6379?ssl_cert_reqs=CERT_REQUIRED"
     )
     logger.info(f"✅ Connected to Upstash Redis: {hostname}")
     if is_production:
         logger.info("🔐 Using SSL connection for production Redis")
+
     print(f"Using Upstash Redis: {hostname}")
     print(
         f"Connection string: rediss://default:***@{hostname}:6379?ssl_cert_reqs=CERT_REQUIRED"
@@ -50,76 +58,88 @@ else:
     print("Using local Redis")
     print(f"Connection string: {connection_link}")
 
+# Create Celery app instance
 app = Celery("tasks")
 
-# Configure Celery settings based on environment
-if is_production:
-    # Production settings for Railway deployment
-    app.conf.update(
-        # Connection settings
-        broker_url=connection_link,
-        result_backend=connection_link,
-        # Serialization settings
-        task_serializer="json",
-        accept_content=["json"],
-        result_serializer="json",
-        timezone="UTC",
-        enable_utc=True,
-        # Production-optimized settings
-        worker_pool="prefork",  # Use prefork pool for better performance in production
-        worker_concurrency=1,  # Adjust based on Railway's CPU allocation
-        task_always_eager=False,
-        worker_prefetch_multiplier=1,  # Prevent worker overload
-        task_acks_late=True,  # Ensure task reliability
-        worker_disable_rate_limits=False,
-    )
-    logger.info("⚙️  Celery configured for PRODUCTION with prefork pool and 4 workers")
-else:
-    # Development settings (Windows compatibility)
-    app.conf.update(
-        # Connection settings
-        broker_url=connection_link,
-        result_backend=connection_link,
-        # Serialization settings
-        task_serializer="json",
-        accept_content=["json"],
-        result_serializer="json",
-        timezone="UTC",
-        enable_utc=True,
-        # Windows-specific settings
-        worker_pool="solo",  # Use solo pool on Windows to avoid multiprocessing issues
-        worker_concurrency=1,
-        task_always_eager=False,  # Set to True for testing without broker
-    )
-    logger.info("⚙️  Celery configured for DEVELOPMENT with solo pool")
+# Basic Celery configuration
+app.conf.update(
+    broker_url=connection_link,
+    result_backend=connection_link,
+    task_serializer="json",
+    accept_content=["json"],
+    result_serializer="json",
+    timezone="UTC",
+    enable_utc=True,
+    # Windows-specific settings
+    worker_pool="solo",  # Use solo pool on Windows to avoid multiprocessing issues
+    worker_concurrency=1,
+    task_always_eager=False,  # Set to True for testing without broker
+)
+
+# Autodiscover tasks in this module
+app.autodiscover_tasks()
 
 
-# Celery signal handlers for production logging
-@worker_ready.connect
-def worker_ready_handler(sender=None, **kwargs):
-    """Signal handler for when worker is ready"""
-    if is_production:
-        logger.info("🚀 Celery worker is READY and connected to Redis in PRODUCTION")
-        logger.info(f"Worker PID: {os.getpid()}")
-        logger.info("Worker is now accepting tasks...")
-    else:
-        logger.info("🔧 Celery worker is READY in DEVELOPMENT mode")
+@app.on_after_configure.connect
+def setup_periodic_tasks(sender, **kwargs):
+    """Setup periodic tasks when Celery is configured."""
+    logger.info("🔧 Setting up periodic tasks...")
+
+    # Add numbers every minute (60 seconds)
+    sender.add_periodic_task(60.0, add.s(16, 16), name="add every minute")
+
+    logger.info("✅ Periodic tasks configured successfully")
 
 
-@worker_process_init.connect
-def worker_process_init_handler(sender=None, **kwargs):
-    """Signal handler for when worker process initializes"""
-    if is_production:
-        logger.info("🔄 Celery worker process initialized in PRODUCTION")
-        logger.info("Redis connection established and worker ready for tasks")
-    else:
-        logger.info("🔄 Celery worker process initialized in DEVELOPMENT")
+@app.task
+def test(arg):
+    logger.info(f"🧪 Test task executed with argument: {arg}")
+    print(f"🧪 TEST TASK RUNNING: {arg} at {datetime.utcnow().strftime('%H:%M:%S')}")
+    return f"Test completed with: {arg}"
 
 
 @app.task
 def add(x, y):
-    """Simple test task for Celery"""
-    result = x + y
-    if is_production:
-        logger.info(f"📋 Task 'add' executed in PRODUCTION: {x} + {y} = {result}")
-    return result
+    """
+    Add two numbers together with logging.
+
+    Args:
+        x (int): First number to add
+        y (int): Second number to add
+
+    Returns:
+        dict: Result containing the sum and calculation details
+    """
+    logger.info(f"🔢 Starting addition task: {x} + {y}")
+    print(
+        f"🔢 ADDITION TASK RUNNING: {x} + {y} at {datetime.utcnow().strftime('%H:%M:%S')}"
+    )
+
+    try:
+        z = x + y
+
+        result = {
+            "num1": x,
+            "num2": y,
+            "result": z,
+            "timestamp": datetime.utcnow().isoformat(),
+            "status": "success",
+        }
+
+        logger.info(f"✅ Addition completed successfully: {x} + {y} = {z}")
+        print(f"✅ ADDITION RESULT: {x} + {y} = {z}")
+
+        return result
+
+    except Exception as exc:
+        error_result = {
+            "num1": x,
+            "num2": y,
+            "error": str(exc),
+            "timestamp": datetime.utcnow().isoformat(),
+            "status": "error",
+        }
+
+        logger.error(f"❌ Addition task failed: {x} + {y} - Error: {str(exc)}")
+        print(f"❌ ADDITION ERROR: {str(exc)}")
+        raise exc

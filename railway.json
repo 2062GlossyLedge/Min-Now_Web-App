@@ -3,6 +3,6 @@
         "builder": "nixpacks"
     },
     "deploy": {
-        "startCommand": "cd backend/items/background && celery -A tasks worker --loglevel=INFO --concurrency=1 --pool=prefork"
+        "startCommand": "cd backend/items/background && chmod +x start_celery_production.sh && ./start_celery_production.sh"
     }
 }

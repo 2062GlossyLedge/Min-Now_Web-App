@@ -75,7 +75,8 @@ class Command(BaseCommand):
             # You can save to database, send notifications, etc. here
             # Example: TaskResult.objects.create(**result)
 
-            return result
+            # Return a string summary instead of the dictionary
+            return f"Addition task completed: {x} + {y} = {z} at {result['timestamp']}"
 
         except Exception as exc:
             error_msg = f"❌ Addition task failed: {x} + {y} - Error: {str(exc)}"

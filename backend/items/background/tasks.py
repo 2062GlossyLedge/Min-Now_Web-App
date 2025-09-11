@@ -1,6 +1,10 @@
 """
 This module contains the Celery app configuration and task definition
 for background addition processing.
+
+NOTE: Periodic tasks have been migrated to Django management commands + Windows Task Scheduler.
+This Celery setup is now OPTIONAL and only used for manual task execution.
+For scheduled tasks, use: python manage.py run_addition_task
 """
 
 import os
@@ -9,6 +13,8 @@ from celery import Celery
 from datetime import datetime
 from dotenv import load_dotenv
 from celery.schedules import crontab
+import os
+import logging
 
 # Configure logging
 logging.basicConfig(
@@ -70,25 +76,26 @@ app.conf.update(
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
-    # Windows-specific settings
+    # Windows-specific setting
     worker_pool="solo",  # Use solo pool on Windows to avoid multiprocessing issues
-    worker_concurrency=1,
-    task_always_eager=False,  # Set to True for testing without broker
+    broker_transport_options={"visibility_timeout": 3600},
+    result_backend_transport_options={"visibility_timeout": 3600},
+    visibility_timeout=3600,
 )
 
-# Autodiscover tasks in this module
+# Autodiscover tasks in this module - Searches a list of packages for a "tasks.py" module (or use related_name argument).
 app.autodiscover_tasks()
 
 
-@app.on_after_configure.connect
-def setup_periodic_tasks(sender, **kwargs):
-    """Setup periodic tasks when Celery is configured."""
-    logger.info("🔧 Setting up periodic tasks...")
-
-    # Add numbers every minute (60 seconds)
-    sender.add_periodic_task(60.0, add.s(16, 16), name="add every minute")
-
-    logger.info("✅ Periodic tasks configured successfully")
+# @app.on_after_configure.connect
+# def setup_periodic_tasks(sender, **kwargs):
+#     """Setup periodic tasks when Celery is configured."""
+#     logger.info("🔧 Celery periodic tasks disabled - using Django management commands with Windows Task Scheduler instead")
+#
+#     # Celery periodic tasks disabled in favor of Windows Task Scheduler + Django management commands
+#     # Original periodic task: sender.add_periodic_task(60.0, add.s(16, 16), name="add every minute")
+#
+#     logger.info("✅ Celery configured for manual tasks only (no periodic tasks)")
 
 
 @app.task

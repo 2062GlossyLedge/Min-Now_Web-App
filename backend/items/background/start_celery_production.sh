@@ -17,6 +17,22 @@ echo "🔧 Python version: $(python --version)"
 echo "📦 Celery version: $(celery --version)"
 echo ""
 
+echo "🧹 Cleaning up any existing beat schedule and processes..."
+
+# Remove any existing beat schedule file to prevent duplicate tasks
+rm -f /tmp/celerybeat-schedule*
+rm -f celerybeat-schedule*
+rm -f /tmp/celerybeat.pid
+rm -f celerybeat.pid
+
+# Kill any existing celery processes
+echo "🛑 Stopping any existing Celery processes..."
+pkill -f "celery.*beat" || true
+pkill -f "celery.*worker" || true
+
+# Wait for cleanup
+sleep 2
+
 # Check if we can import our tasks
 echo "🔍 Checking if tasks module can be imported..."
 python -c "import tasks; print('✅ Tasks module imported successfully')" || {
@@ -25,7 +41,7 @@ python -c "import tasks; print('✅ Tasks module imported successfully')" || {
 }
 
 echo ""
-echo "🚀 Starting Celery worker and beat processes..."
+echo "🚀 Starting fresh Celery worker and beat processes..."
 echo ""
 
 # Create a function to handle graceful shutdown

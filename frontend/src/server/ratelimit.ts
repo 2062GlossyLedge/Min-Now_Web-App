@@ -17,7 +17,7 @@ export const ratelimit = {
     // File upload rate limiting - 40 uploads per day
     fileUpload: new Ratelimit({
         redis,
-        limiter: Ratelimit.slidingWindow(40, "24 h"),
+        limiter: Ratelimit.slidingWindow(20, "24 h"),
         analytics: true,
         prefix: "@upstash/ratelimit/file-upload",
     }),

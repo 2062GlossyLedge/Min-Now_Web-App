@@ -224,7 +224,7 @@ MIDDLEWARE = [
 
 # Authentication backends - add the new JWT backend for alternative authentication
 AUTHENTICATION_BACKENDS = [
-    # "django.contrib.auth.backends.ModelBackend",  # Default Django backend
+    "django.contrib.auth.backends.ModelBackend",  # Default Django backend
     "minNow.auth.JwtAuthBackend",  # New JWT authentication backend for alternative approach
 ]
 

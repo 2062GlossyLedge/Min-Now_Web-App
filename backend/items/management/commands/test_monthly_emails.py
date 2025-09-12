@@ -70,13 +70,23 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS("✅ MONTHLY EMAIL TEST COMPLETED"))
                 self.stdout.write("📊 TEST RESULTS:")
                 self.stdout.write(f"   Total users: {results['total_users']}")
-                self.stdout.write(f"   Users with email notifications: {results['eligible_users']}")
-                self.stdout.write(f"   Users with due checkups: {results['users_with_due_checkups']}")
-                self.stdout.write(f"   Checkups that are due: {results['due_checkups_count']}")
+                self.stdout.write(
+                    f"   Users with email notifications: {results['eligible_users']}"
+                )
+                self.stdout.write(
+                    f"   Users with due checkups: {results['users_with_due_checkups']}"
+                )
+                self.stdout.write(
+                    f"   Checkups that are due: {results['due_checkups_count']}"
+                )
                 self.stdout.write("")
                 self.stdout.write("🎯 TO RUN ACTUAL EMAIL TEST:")
-                self.stdout.write("   python manage.py run_email_notifications --test-monthly --dry-run")
-                self.stdout.write("   python manage.py run_email_notifications --test-monthly")
+                self.stdout.write(
+                    "   python manage.py run_email_notifications --test-monthly --dry-run"
+                )
+                self.stdout.write(
+                    "   python manage.py run_email_notifications --test-monthly"
+                )
 
             return f"Monthly test analysis: {results['eligible_users']} eligible users, {results['users_with_due_checkups']} with due checkups"
 
@@ -100,7 +110,9 @@ class Command(BaseCommand):
             if not users.exists():
                 raise CommandError(f"User with email {user_email} not found")
         else:
-            users = User.objects.filter(clerk_id__isnull=False).exclude(clerk_id="")[:5]  # Test with first 5 users
+            users = User.objects.filter(clerk_id__isnull=False).exclude(clerk_id="")[
+                :5
+            ]  # Test with first 5 users
 
         test_count = 0
         for user in users:
@@ -112,18 +124,22 @@ class Command(BaseCommand):
                     defaults={
                         "last_checkup_date": timezone.now(),
                         "checkup_interval_months": 1,
-                    }
+                    },
                 )
 
                 # Make the checkup due by setting last_checkup_date to 2 months ago
-                checkup.last_checkup_date = timezone.now() - timedelta(days=60)  # 2 months ago
+                checkup.last_checkup_date = timezone.now() - timedelta(
+                    days=60
+                )  # 2 months ago
                 checkup.checkup_interval_months = 1  # 1 month interval
                 checkup.save()
 
                 test_count += 1
 
                 if verbose:
-                    self.stdout.write(f"   ✅ Created/updated {checkup_type} checkup for {user.username} (due: {checkup.is_checkup_due})")
+                    self.stdout.write(
+                        f"   ✅ Created/updated {checkup_type} checkup for {user.username} (due: {checkup.is_checkup_due})"
+                    )
 
         if verbose:
             self.stdout.write(f"🎯 Created {test_count} test checkups")
@@ -150,9 +166,13 @@ class Command(BaseCommand):
 
         # Get users
         if user_email:
-            users_with_clerk_id = User.objects.filter(email=user_email, clerk_id__isnull=False).exclude(clerk_id="")
+            users_with_clerk_id = User.objects.filter(
+                email=user_email, clerk_id__isnull=False
+            ).exclude(clerk_id="")
         else:
-            users_with_clerk_id = User.objects.filter(clerk_id__isnull=False).exclude(clerk_id="")
+            users_with_clerk_id = User.objects.filter(clerk_id__isnull=False).exclude(
+                clerk_id=""
+            )
 
         eligible_users = []
         users_with_due_checkups = []
@@ -164,7 +184,9 @@ class Command(BaseCommand):
                 sdk = Clerk(bearer_auth=os.getenv("CLERK_SECRET_KEY"))
                 user_obj = sdk.users.get(user_id=user.clerk_id)
                 unsafe_metadata = getattr(user_obj, "unsafe_metadata", {})
-                has_email_notifications = unsafe_metadata.get("emailNotifications") == True
+                has_email_notifications = (
+                    unsafe_metadata.get("emailNotifications") == True
+                )
 
                 if has_email_notifications:
                     eligible_users.append(user)
@@ -182,9 +204,13 @@ class Command(BaseCommand):
                         users_with_due_checkups.append(user)
 
                     if verbose:
-                        status = "✅ ELIGIBLE" if has_email_notifications else "❌ NO EMAIL"
+                        status = (
+                            "✅ ELIGIBLE" if has_email_notifications else "❌ NO EMAIL"
+                        )
                         due_status = "⏰ HAS DUE" if has_due_checkup else "⏳ NO DUE"
-                        self.stdout.write(f"   {user.username} ({user.email}): {status}, {due_status}")
+                        self.stdout.write(
+                            f"   {user.username} ({user.email}): {status}, {due_status}"
+                        )
 
             except Exception as e:
                 if verbose:

@@ -165,7 +165,9 @@ export default function ItemCard({
 
     // Helper function to calculate total ownership duration in months
     const calculateOwnershipDurationMonths = (): number => {
-        return ownershipGoalUnit === 'years' ? ownershipGoalValue * 12 : ownershipGoalValue
+        // Use 1 as minimum if value is 0 (empty input state)
+        const effectiveValue = Math.max(1, ownershipGoalValue)
+        return ownershipGoalUnit === 'years' ? effectiveValue * 12 : effectiveValue
     }
 
     // Helper function to format ownership goal value input (max 3 digits, remove leading zeros when >= 2 digits)

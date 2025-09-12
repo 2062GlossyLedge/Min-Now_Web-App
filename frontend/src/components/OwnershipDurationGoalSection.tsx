@@ -34,9 +34,20 @@ export default function OwnershipDurationGoalSection({
     const handleOwnershipGoalValueChange = (valueString: string) => {
         // Remove non-numeric characters and limit to 3 digits
         const numericValue = valueString.replace(/\D/g, '').slice(0, 3)
-        // Convert to number and ensure minimum value of 1
-        const parsedValue = Math.max(1, parseInt(numericValue || '1', 10))
-        onOwnershipGoalValueChange(parsedValue)
+        // Allow empty input temporarily, but convert to number for parent component
+        if (numericValue === '') {
+            onOwnershipGoalValueChange(0) // Temporary empty state
+        } else {
+            const parsedValue = Math.max(1, parseInt(numericValue, 10))
+            onOwnershipGoalValueChange(parsedValue)
+        }
+    }
+
+    const handleOwnershipGoalValueBlur = () => {
+        // Ensure minimum value of 1 when user finishes editing
+        if (ownershipGoalValue === 0) {
+            onOwnershipGoalValueChange(1)
+        }
     }
 
     const handleUnitChange = (newUnit: 'months' | 'years') => {
@@ -103,8 +114,9 @@ export default function OwnershipDurationGoalSection({
             <div className="flex items-center space-x-3">
                 <input
                     type="text"
-                    value={ownershipGoalValue.toString()}
+                    value={ownershipGoalValue === 0 ? '' : ownershipGoalValue.toString()}
                     onChange={(e) => handleOwnershipGoalValueChange(e.target.value)}
+                    onBlur={handleOwnershipGoalValueBlur}
                     placeholder="1"
                     maxLength={3}
                     className={`block w-24 rounded-md border-gray-300 dark:border-gray-600 shadow-sm ${inputStyles[variant]} bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3`}
@@ -116,8 +128,8 @@ export default function OwnershipDurationGoalSection({
                     className={`rounded-md border-gray-300 dark:border-gray-600 shadow-sm ${inputStyles[variant]} bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3`}
                     {...(variant === 'edit' ? { onClick: (e: React.MouseEvent) => e.stopPropagation() } : {})}
                 >
-                    <option value="months">months</option>
-                    <option value="years">years</option>
+                    <option value="months">{ownershipGoalValue === 1 ? 'month' : 'months'}</option>
+                    <option value="years">{ownershipGoalValue === 1 ? 'year' : 'years'}</option>
                 </select>
             </div>
         </div>

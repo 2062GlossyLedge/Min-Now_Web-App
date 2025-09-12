@@ -251,41 +251,15 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     // Helper function to calculate total ownership duration in months
     const calculateOwnershipDurationMonths = (): number => {
         const numericValue = parseInt(ownershipGoalValue || '1', 10)
-        return ownershipGoalUnit === 'years' ? numericValue * 12 : numericValue
-    }
-
-    // Helper function to handle ownership goal value input changes
-    const handleOwnershipGoalValueChange = (value: string): void => {
-        // Remove non-numeric characters and limit to 3 digits
-        const numericValue = value.replace(/\D/g, '').slice(0, 3)
-        setOwnershipGoalValue(numericValue)
-    }
-
-    // Helper function to ensure valid ownership goal value (called on blur)
-    const ensureValidOwnershipGoalValue = (): void => {
-        const numericValue = parseInt(ownershipGoalValue || '0', 10)
-        if (numericValue === 0 || isNaN(numericValue)) {
-            setOwnershipGoalValue('1')
-        }
+        const effectiveValue = Math.max(1, numericValue) // Ensure minimum of 1
+        return ownershipGoalUnit === 'years' ? effectiveValue * 12 : effectiveValue
     }
 
     // Helper functions for quick add ownership goal
     const calculateQuickOwnershipDurationMonths = (): number => {
         const numericValue = parseInt(quickOwnershipGoalValue || '1', 10)
-        return quickOwnershipGoalUnit === 'years' ? numericValue * 12 : numericValue
-    }
-
-    const handleQuickOwnershipGoalValueChange = (value: string): void => {
-        // Remove non-numeric characters and limit to 3 digits
-        const numericValue = value.replace(/\D/g, '').slice(0, 3)
-        setQuickOwnershipGoalValue(numericValue)
-    }
-
-    const ensureValidQuickOwnershipGoalValue = (): void => {
-        const numericValue = parseInt(quickOwnershipGoalValue || '0', 10)
-        if (numericValue === 0 || isNaN(numericValue)) {
-            setQuickOwnershipGoalValue('1')
-        }
+        const effectiveValue = Math.max(1, numericValue) // Ensure minimum of 1
+        return quickOwnershipGoalUnit === 'years' ? effectiveValue * 12 : effectiveValue
     }
 
     // Fetch user item stats on component mount

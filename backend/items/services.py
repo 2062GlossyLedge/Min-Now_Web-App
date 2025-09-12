@@ -144,49 +144,110 @@ class CheckupService:
         Returns a tuple (status_code, message_id, error) for debugging.
         """
         api_key = os.getenv("MAILERSEND_API_TOKEN")
+
+        # Validate API key exists
+        if not api_key:
+            error_msg = "MAILERSEND_API_TOKEN environment variable not set"
+            logging.error(error_msg)
+            return None, None, error_msg
+
+        # Validate user email
+        if not user.email:
+            error_msg = f"User {user.username} has no email address"
+            logging.error(error_msg)
+            return None, None, error_msg
+
         mailer = mailersend_emails.NewEmail(api_key)
         mail_body = {}
-        # print(mailer.send(mail_body))
-        # print(user.email)
+
         mail_from = {
-            "name": os.getenv("DEFAULT_FROM_NAME"),
-            "email": os.getenv("MAILERSEND_SMTP_USERNAME"),
+            "name": os.getenv("DEFAULT_FROM_NAME", "Min-Now"),
+            "email": os.getenv("MAILERSEND_SMTP_USERNAME", "MS_cGIzxA@min-now.store"),
         }
+
+        # Validate sender email
+        if not mail_from["email"]:
+            error_msg = "MAILERSEND_SMTP_USERNAME environment variable not set"
+            logging.error(error_msg)
+            return None, None, error_msg
+
         recipients = [
             {
                 "name": user.username,
                 "email": user.email,
             }
         ]
-        # reply_to = [
-        #     {
-        #         "name": os.getenv("DEFAULT_FROM_NAME", "MinNow"),
-        #         "email": os.getenv("DEFAULT_FROM_EMAIL", "noreply@min-now.store"),
-        #     }
-        # ]
+
         subject = f"Your {checkup_type.capitalize()} Checkup Reminder"
         if due:
-            text_content = f"Hi {user.username}, your {checkup_type} checkup is due! Please log in to your account to complete your checkup."
+            text_content = f"Hi, your {checkup_type} checkup is due! Please log in to your account to complete your checkup."
         else:
-            text_content = f"Hi {user.username}, your {checkup_type} checkup is not due yet. Time left: {time_left} months."
+            text_content = f"Hi, your {checkup_type} checkup is not due yet. Time left: {time_left} months."
         html_content = f"<p>{text_content}</p>"
+
         try:
             mailer.set_mail_from(mail_from, mail_body)
             mailer.set_mail_to(recipients, mail_body)
             mailer.set_subject(subject, mail_body)
             mailer.set_html_content(html_content, mail_body)
             mailer.set_plaintext_content(text_content, mail_body)
-            # mailer.set_reply_to(reply_to, mail_body)
-            response = mailer.send(mail_body)
-            # response is a requests.Response object
 
-            # sent email meta data. See x-message-id if need more data
-            print(response)
+            response = mailer.send(mail_body)
+
+            # Handle case where response might be a string (error message)
+            if isinstance(response, str):
+                error_msg = f"MailerSend API error: {response}"
+                logging.error(error_msg)
+                return None, None, error_msg
+
+            # Check if response has status_code attribute
+            if not hasattr(response, "status_code"):
+                error_msg = (
+                    f"Unexpected response type from MailerSend: {type(response)}"
+                )
+                logging.error(error_msg)
+                logging.error(f"Response content: {response}")
+                return None, None, error_msg
+
+            # Log response details for debugging
+            logging.info(f"MailerSend response status: {response.status_code}")
+            if hasattr(response, "headers"):
+                logging.info(f"MailerSend response headers: {response.headers}")
+
+            if response.status_code == 401:
+                error_msg = "MailerSend API authentication failed - check API token"
+                logging.error(error_msg)
+                if hasattr(response, "text"):
+                    logging.error(f"Response body: {response.text}")
+                return response.status_code, None, error_msg
+            elif response.status_code == 422:
+                error_msg = "MailerSend API validation error - check email format and sender domain"
+                logging.error(error_msg)
+                if hasattr(response, "text"):
+                    logging.error(f"Response body: {response.text}")
+                return response.status_code, None, error_msg
+            elif response.status_code >= 400:
+                error_msg = f"MailerSend API error: {response.status_code}"
+                logging.error(error_msg)
+                if hasattr(response, "text"):
+                    logging.error(f"Response body: {response.text}")
+                return response.status_code, None, error_msg
+            else:
+                # Success case
+                message_id = None
+                if hasattr(response, "headers") and response.headers:
+                    message_id = response.headers.get("x-message-id")
+                logging.info(
+                    f"Email sent successfully to {user.email}, message ID: {message_id}"
+                )
+                return response.status_code, message_id, None
+
         except Exception as e:
-            logging.error(
-                f"Failed to send {checkup_type} checkup email to {user.email}: {e}"
+            error_msg = (
+                f"Failed to send {checkup_type} checkup email to {user.email}: {str(e)}"
             )
-            return None, None, str(e)
+            logging.error(error_msg)
+            return None, None, error_msg
 
     @staticmethod
     def check_and_send_due_emails(user):

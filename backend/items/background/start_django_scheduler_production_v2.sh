@@ -12,18 +12,18 @@ export RAILWAY_ENVIRONMENT=production
 # Change to the backend directory
 cd /app/backend
 
-echo "🚂 Starting Django Task Scheduler in PRODUCTION mode..."
+echo "🚂 Starting Django Email Notification Scheduler in PRODUCTION mode..."
 echo "📍 Current directory: $(pwd)"
 echo "🔧 Python version: $(python --version)"
 echo "📦 Django version: $(python -c 'import django; print(django.get_version())')"
-echo "🎯 Mode: Django Management Commands (No Celery/Redis required)"
+echo "🎯 Mode: Django Management Commands (Email Notifications)"
 echo ""
 
 # Create logs directory if it doesn't exist
 mkdir -p /app/logs
 
 # Set the log file path
-LOG_FILE="/app/logs/periodic_tasks.log"
+LOG_FILE="/app/logs/email_notifications.log"
 
 echo "📝 Log file: $LOG_FILE"
 echo ""
@@ -32,19 +32,19 @@ echo ""
 export DJANGO_SETTINGS_MODULE=minNow.settings
 
 # Test the Django management command first
-echo "🧪 Testing Django management command..."
-python manage.py run_addition_task --verbose || {
-    echo "❌ Failed to run Django management command"
+echo "🧪 Testing Django email notification command..."
+python manage.py run_email_notifications --verbose --dry-run || {
+    echo "❌ Failed to run Django email notification command"
     exit 1
 }
 
-echo "✅ Django management command test successful"
+echo "✅ Django email notification command test successful"
 echo ""
 
 # Create a function to handle graceful shutdown
 cleanup() {
     echo ""
-    echo "🛑 Shutting down Django Task Scheduler..."
+    echo "🛑 Shutting down Django Email Notification Scheduler..."
     if [ ! -z "$SCHEDULER_PID" ]; then
         kill $SCHEDULER_PID 2>/dev/null
         wait $SCHEDULER_PID 2>/dev/null
@@ -59,21 +59,19 @@ cleanup() {
 # Set up signal handlers for graceful shutdown
 trap cleanup SIGTERM SIGINT EXIT
 
-echo "🚀 Starting Django Task Scheduler loop..."
-echo "⏰ Tasks will run every 60 seconds"
+echo "🚀 Starting Django Email Notification Scheduler loop..."
+echo "⏰ Email notifications will be checked every 60 seconds"
 echo "📊 To monitor: tail -f $LOG_FILE"
 echo "🔄 Press Ctrl+C to stop"
 echo ""
 
-# Function to run the periodic task
-run_periodic_task() {
+# Function to run the periodic email notification task
+run_periodic_email_task() {
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    echo "$timestamp - 🔄 Running periodic addition task..."
+    echo "$timestamp - � Running periodic email notification task..."
     
     # Run the Django management command with logging
-    python manage.py run_addition_task \
-        --x 16 \
-        --y 16 \
+    python manage.py run_email_notifications \
         --verbose \
         --log-file "$LOG_FILE" 2>&1 | while IFS= read -r line; do
         echo "$timestamp - $line"
@@ -81,15 +79,15 @@ run_periodic_task() {
     
     local exit_code=${PIPESTATUS[0]}
     if [ $exit_code -ne 0 ]; then
-        echo "$timestamp - ❌ Task execution failed with exit code: $exit_code"
+        echo "$timestamp - ❌ Email notification task execution failed with exit code: $exit_code"
         return $exit_code
     else
-        echo "$timestamp - ✅ Task execution completed successfully"
+        echo "$timestamp - ✅ Email notification task execution completed successfully"
         return 0
     fi
 }
 
-# Start the periodic task scheduler
+# Start the periodic email notification scheduler
 (
     # Initial delay to ensure Django is fully loaded
     sleep 5
@@ -98,10 +96,10 @@ run_periodic_task() {
     while true; do
         task_count=$((task_count + 1))
         echo "=================================="
-        echo "Task Execution #$task_count"
+        echo "Email Notification Check #$task_count"
         echo "=================================="
         
-        run_periodic_task
+        run_periodic_email_task
         
         echo ""
         echo "⏳ Waiting 60 seconds until next execution..."
@@ -114,14 +112,14 @@ run_periodic_task() {
 
 SCHEDULER_PID=$!
 
-echo "✅ Django Task Scheduler started successfully!"
+echo "✅ Django Email Notification Scheduler started successfully!"
 echo "🆔 Scheduler PID: $SCHEDULER_PID"
 echo ""
 echo "📊 Process status:"
 ps -p $SCHEDULER_PID -o pid,ppid,cmd 2>/dev/null || echo "Process status not available"
 
 echo ""
-echo "🎯 Django Task Scheduler is running."
+echo "🎯 Django Email Notification Scheduler is running."
 echo "📝 Live logs from $LOG_FILE:"
 echo "=================================="
 

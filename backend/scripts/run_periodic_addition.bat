@@ -1,5 +1,10 @@
 @echo off
-REM ========================================
+REM# Change to the Django project directory
+cd /d "C:\Min-Now_Web-App-1\backend"
+
+REM Run the Django management command using virtual environment Python directly
+echo %date% %time% - Executing addition task command >> "C:\Min-Now_Web-App-1\logs\periodic_tasks.log"
+"C:\Min-Now_Web-App-1\backend\venv\Scripts\python.exe" manage.py run_addition_task --x 16 --y 16 --verbose --log-file "C:\Min-Now_Web-App-1\logs\periodic_tasks.log" >> "C:\Min-Now_Web-App-1\logs\periodic_tasks.log" 2>&1=============================
 REM     DJANGO PERIODIC ADDITION TASK
 REM ========================================
 REM This batch script runs the Django management command
@@ -28,8 +33,3 @@ python manage.py run_addition_task --x 16 --y 16 --verbose --log-file "C:\Min-No
 REM Log completion
 echo %date% %time% - Periodic addition task completed >> "C:\Min-Now_Web-App-1\logs\periodic_tasks.log"
 echo. >> "C:\Min-Now_Web-App-1\logs\periodic_tasks.log"
-
-REM Deactivate virtual environment if it was activated
-if exist "venv\Scripts\deactivate.bat" (
-    call venv\Scripts\deactivate.bat
-)

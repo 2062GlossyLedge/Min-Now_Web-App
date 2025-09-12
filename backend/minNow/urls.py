@@ -49,6 +49,7 @@ from items.api import (
     send_test_checkup_email_django,
     agent_add_item_django,
     agent_add_item_batch_django,
+    sync_user_preferences_django,
 )
 
 load_dotenv()
@@ -154,5 +155,11 @@ urlpatterns = [
         "django-api/agent-add-item-batch",
         agent_add_item_batch_django,
         name="agent_add_item_batch_django",
+    ),
+    # User preferences sync endpoint
+    path(
+        "django-api/sync-preferences",
+        sync_user_preferences_django,
+        name="sync_user_preferences_django",
     ),
 ]

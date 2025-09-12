@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { useUser } from '@clerk/nextjs'
+import { useState, useEffect } from 'react'
+import { useUser, useAuth } from '@clerk/nextjs'
 import { CheckCircle2, Mail, Calendar } from 'lucide-react'
+import { syncUserPreferences } from '@/utils/api'
 
 interface EmailSignupModalProps {
     onComplete: () => void
@@ -11,9 +12,26 @@ interface EmailSignupModalProps {
 
 export default function EmailSignupModal({ onComplete, onSkip }: EmailSignupModalProps) {
     const { user } = useUser()
+    const { getToken } = useAuth()
     const [interval, setInterval] = useState(1) // Default to 1 month
     const [emailNotifications, setEmailNotifications] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
+
+    // Load existing preferences from Clerk metadata when component mounts
+    useEffect(() => {
+        if (user?.unsafeMetadata) {
+            const existingEmailNotifications = user.unsafeMetadata.emailNotifications
+            const existingInterval = user.unsafeMetadata.checkupInterval
+
+            if (typeof existingEmailNotifications === 'boolean') {
+                setEmailNotifications(existingEmailNotifications)
+            }
+
+            if (typeof existingInterval === 'number' && existingInterval >= 1 && existingInterval <= 12) {
+                setInterval(existingInterval)
+            }
+        }
+    }, [user?.unsafeMetadata])
 
     const handleSubmit = async () => {
         if (!user) return
@@ -29,6 +47,22 @@ export default function EmailSignupModal({ onComplete, onSkip }: EmailSignupModa
                     checkupInterval: interval
                 }
             })
+
+            // Sync preferences with Django backend to update checkup intervals
+            const syncResult = await syncUserPreferences(
+                {
+                    checkupInterval: interval,
+                    emailNotifications
+                },
+                getToken
+            )
+
+            if (syncResult.error) {
+                console.error('Failed to sync preferences with backend:', syncResult.error)
+                // Still complete onboarding even if backend sync fails
+            } else {
+                console.log('Preferences synced successfully:', syncResult.data)
+            }
 
             // Complete the onboarding process
             onComplete()
@@ -55,7 +89,7 @@ export default function EmailSignupModal({ onComplete, onSkip }: EmailSignupModa
                 </h2>
 
                 <p className="text-gray-600 dark:text-gray-400 text-center mb-6">
-                    Get reminded when it's time for your next checkup so you can understand what items you use and don't use.
+                    Get reminded on the 1st of each month when it's time for your checkup so you can understand what items you use and don't use.
                 </p>
 
                 <div className="space-y-6">
@@ -63,7 +97,7 @@ export default function EmailSignupModal({ onComplete, onSkip }: EmailSignupModa
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                             <Calendar className="w-4 h-4 inline mr-2" />
-                            Default Checkup Interval
+                            Checkup Interval (Months)
                         </label>
                         <div className="flex items-center justify-center space-x-4">
                             <button
@@ -93,14 +127,29 @@ export default function EmailSignupModal({ onComplete, onSkip }: EmailSignupModa
                             </button>
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
-                            This will be your default interval for future checkups
+                            Checkups happen on the 1st of each month. This sets how often you'll be reminded.
                         </p>
                         {/* Show next checkup date */}
                         <div className="text-center mt-3 p-2 bg-teal-50 dark:bg-teal-900/30 rounded-lg">
                             <p className="text-sm font-medium text-teal-700 dark:text-teal-300">
                                 Next checkup: {(() => {
                                     const today = new Date()
-                                    const nextCheckup = new Date(today.getFullYear(), today.getMonth() + interval, today.getDate())
+                                    // Calculate the next 1st day of the month based on interval
+                                    const currentMonth = today.getMonth()
+                                    const currentYear = today.getFullYear()
+
+                                    // If today is before or on the 1st, next checkup is this month's 1st + interval
+                                    // If today is after the 1st, next checkup is next month's 1st + interval
+                                    let nextCheckupMonth = currentMonth + interval
+                                    let nextCheckupYear = currentYear
+
+                                    // Handle year overflow
+                                    while (nextCheckupMonth > 11) {
+                                        nextCheckupMonth -= 12
+                                        nextCheckupYear += 1
+                                    }
+
+                                    const nextCheckup = new Date(nextCheckupYear, nextCheckupMonth, 1)
                                     return nextCheckup.toLocaleDateString('en-US', {
                                         month: 'long',
                                         day: 'numeric',
@@ -126,7 +175,7 @@ export default function EmailSignupModal({ onComplete, onSkip }: EmailSignupModa
                             </span>
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-7">
-                            We'll send you a friendly reminder when it's time to review your items
+                            We'll send you a reminder on the 1st of the month when your checkup is due
                         </p>
                     </div>
                 </div>

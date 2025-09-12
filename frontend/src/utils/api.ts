@@ -913,3 +913,52 @@ export const isHEIC = (file: File): boolean => {
         errorMessage: `File format "${file.type || 'unknown'}" is not supported. Please use JPEG, PNG, GIF, WebP, or SVG formats.`
     };
 };
+
+// Sync user preferences to Django backend
+export const syncUserPreferences = async (
+    preferences: {
+        checkupInterval: number;
+        emailNotifications: boolean;
+    },
+    getToken: () => Promise<string | null>
+): Promise<ApiResponse<{
+    message: string;
+    email_notifications: boolean;
+    checkup_interval: number;
+    updated_checkups: Checkup[];
+}>> => {
+    try {
+        const token = await getToken();
+
+        if (!token) {
+            throw new Error('No authentication token available');
+        }
+
+        // Get CSRF token for this POST request
+        const csrfToken = await getCSRFTokenFromJWT(getToken);
+
+        const response = await fetchWithJWTAndCSRF(
+            `${process.env.NEXT_PUBLIC_API_URL}/django-api/sync-preferences`,
+            token,
+            csrfToken || undefined,
+            {
+                method: 'POST',
+                body: JSON.stringify(preferences),
+            }
+        );
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return { data };
+
+    } catch (error) {
+        console.error('Failed to sync user preferences:', error);
+        return {
+            error: error instanceof Error ? error.message : 'Failed to sync user preferences'
+        };
+    }
+};

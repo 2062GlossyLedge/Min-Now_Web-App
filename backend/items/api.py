@@ -1055,6 +1055,86 @@ def agent_add_item_batch_django(request):
         return JsonResponse({"error": "Internal server error"}, status=500)
 
 
+@jwt_required
+@require_http_methods(["POST"])
+def sync_user_preferences_django(request):
+    """
+    Django view to sync user preferences from Clerk metadata to Django checkup intervals.
+    This endpoint should be called when user saves email preferences in the frontend.
+    """
+    try:
+        # Parse JSON payload
+        data = json.loads(request.body)
+
+        checkup_interval = data.get("checkupInterval", 1)
+        email_notifications = data.get("emailNotifications", False)
+
+        # Validate checkup_interval
+        if (
+            not isinstance(checkup_interval, int)
+            or checkup_interval < 1
+            or checkup_interval > 12
+        ):
+            return JsonResponse(
+                {"error": "checkupInterval must be an integer between 1 and 12"},
+                status=400,
+            )
+
+        # Get all checkups for the user (both 'keep' and 'give')
+        all_checkups = CheckupService.get_all_checkups(user=request.user)
+
+        updated_checkups = []
+
+        # Update interval for all existing checkups
+        for checkup in all_checkups:
+            updated_checkup = CheckupService.update_checkup_interval(
+                checkup.id, checkup_interval
+            )
+            updated_checkups.append(
+                {
+                    "id": updated_checkup.id,
+                    "checkup_type": updated_checkup.checkup_type,
+                    "last_checkup_date": updated_checkup.last_checkup_date.isoformat(),
+                    "checkup_interval_months": updated_checkup.checkup_interval_months,
+                    "is_checkup_due": updated_checkup.is_checkup_due,
+                }
+            )
+
+        # If no checkups exist, they will be created automatically by the signal
+        # when the user was created, so we should try to get them again
+        if not updated_checkups:
+            # Try to get checkups again in case they were just created
+            all_checkups = CheckupService.get_all_checkups(user=request.user)
+            for checkup in all_checkups:
+                updated_checkup = CheckupService.update_checkup_interval(
+                    checkup.id, checkup_interval
+                )
+                updated_checkups.append(
+                    {
+                        "id": updated_checkup.id,
+                        "checkup_type": updated_checkup.checkup_type,
+                        "last_checkup_date": updated_checkup.last_checkup_date.isoformat(),
+                        "checkup_interval_months": updated_checkup.checkup_interval_months,
+                        "is_checkup_due": updated_checkup.is_checkup_due,
+                    }
+                )
+
+        return JsonResponse(
+            {
+                "message": "User preferences synced successfully",
+                "email_notifications": email_notifications,
+                "checkup_interval": checkup_interval,
+                "updated_checkups": updated_checkups,
+            }
+        )
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
+    except Exception as e:
+        log.error(f"Error in sync_user_preferences_django: {str(e)}")
+        return JsonResponse({"error": "Internal server error"}, status=500)
+
+
 """
 Django JWT Authenticated Endpoints Summary
 ==========================================
@@ -1077,6 +1157,7 @@ Available endpoints under /django-api/:
 - POST   /send-test-email          - Send test checkup email (dev/testing)
 - POST   /agent-add-item           - AI agent item creation
 - POST   /agent-add-item-batch     - Batch AI agent item creation
+- POST   /sync-preferences         - Sync user email preferences and checkup intervals
 
 Usage:
 ------

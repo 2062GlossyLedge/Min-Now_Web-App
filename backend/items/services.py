@@ -286,3 +286,30 @@ class CheckupService:
                 }
             )
         return results
+
+    @staticmethod
+    def check_and_send_only_due_emails(user):
+        """
+        Only send emails for checkups that are actually due.
+        This method only sends emails when checkups are due, not when they're not due.
+        """
+        print("user.email", user.email)
+        results = []
+        for checkup_type in ["keep", "give"]:
+            checkups = Checkup.objects.filter(user=user, checkup_type=checkup_type)
+            if checkups.exists():
+                checkup = checkups.first()
+                if checkup.is_checkup_due:
+                    CheckupService.send_checkup_due_email(user, checkup_type, due=True)
+                    status = "due - email sent"
+                    results.append(
+                        {
+                            "checkup_type": checkup_type,
+                            "status": status,
+                            "recipient_email": user.email,
+                            "recipient_username": user.username,
+                        }
+                    )
+                # Don't send emails or add to results if checkup is not due
+            # Don't process users with no checkups set
+        return results

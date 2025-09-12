@@ -129,13 +129,61 @@ class Command(BaseCommand):
                 f"📤 Found {len(eligible_users)} users eligible for email notifications"
             )
 
-            # Send emails to eligible users
+            # Check which users have due checkups and send emails only to those
+            users_with_due_checkups = []
+            
+            # First, check which users actually have due checkups
+            for user in eligible_users:
+                try:
+                    from items.models import Checkup
+                    user_checkups = Checkup.objects.filter(user=user)
+                    has_due_checkup = False
+                    
+                    for checkup in user_checkups:
+                        if checkup.is_checkup_due:
+                            has_due_checkup = True
+                            break
+                    
+                    if has_due_checkup:
+                        users_with_due_checkups.append(user)
+                        if verbose:
+                            self.stdout.write(
+                                f"⏰ User {user.username} ({user.email}) has due checkups"
+                            )
+                        logger.info(
+                            f"⏰ User {user.username} ({user.email}) has due checkups"
+                        )
+                    else:
+                        if verbose:
+                            self.stdout.write(
+                                f"⏭️  User {user.username} ({user.email}) has no due checkups - skipping"
+                            )
+                        logger.info(
+                            f"⏭️  User {user.username} ({user.email}) has no due checkups - skipping"
+                        )
+                        
+                except Exception as e:
+                    logger.warning(f"❌ Error checking due checkups for user {user.username}: {str(e)}")
+                    if verbose:
+                        self.stdout.write(
+                            f"❌ Error checking due checkups for user {user.username}: {str(e)}"
+                        )
+
+            if verbose:
+                self.stdout.write(
+                    f"⏰ Found {len(users_with_due_checkups)} users with due checkups"
+                )
+            logger.info(
+                f"⏰ Found {len(users_with_due_checkups)} users with due checkups"
+            )
+
+            # Send emails to users with due checkups
             if dry_run:
                 if verbose:
                     self.stdout.write("🔍 DRY RUN MODE - No emails will be sent")
                 logger.info("🔍 DRY RUN MODE - No emails will be sent")
 
-                for user in eligible_users:
+                for user in users_with_due_checkups:
                     logger.info(
                         f"Would send checkup email to: {user.username} ({user.email})"
                     )
@@ -144,18 +192,18 @@ class Command(BaseCommand):
                             f"Would send checkup email to: {user.username} ({user.email})"
                         )
             else:
-                for user in eligible_users:
+                for user in users_with_due_checkups:
                     try:
-                        # Send checkup emails for this user
-                        email_results = CheckupService.check_and_send_due_emails(user)
+                        # Send checkup emails only for due checkups for this user
+                        email_results = CheckupService.check_and_send_only_due_emails(user)
                         notification_results.extend(email_results)
 
                         if verbose:
                             self.stdout.write(
-                                f"📧 Sent checkup emails to {user.username} ({user.email})"
+                                f"📧 Sent due checkup emails to {user.username} ({user.email})"
                             )
                         logger.info(
-                            f"📧 Sent checkup emails to {user.username} ({user.email})"
+                            f"📧 Sent due checkup emails to {user.username} ({user.email})"
                         )
 
                     except Exception as e:
@@ -169,6 +217,7 @@ class Command(BaseCommand):
                 "timestamp": datetime.utcnow().isoformat(),
                 "total_users_checked": users_with_clerk_id.count(),
                 "eligible_users": len(eligible_users),
+                "users_with_due_checkups": len(users_with_due_checkups) if 'users_with_due_checkups' in locals() else 0,
                 "emails_sent": len(notification_results) if not dry_run else 0,
                 "dry_run": dry_run,
                 "status": "success",
@@ -185,11 +234,12 @@ class Command(BaseCommand):
                     f"📊 Total users checked: {result['total_users_checked']}"
                 )
                 self.stdout.write(f"📤 Eligible users: {result['eligible_users']}")
+                self.stdout.write(f"⏰ Users with due checkups: {result['users_with_due_checkups']}")
                 self.stdout.write(f"📧 Emails sent: {result['emails_sent']}")
                 self.stdout.write(f"🕒 Timestamp: {result['timestamp']}")
 
             # Return a string summary instead of the dictionary
-            return f"Email notification task completed: {result['eligible_users']} eligible users, {result['emails_sent']} emails sent at {result['timestamp']}"
+            return f"Email notification task completed: {result['eligible_users']} eligible users, {result['users_with_due_checkups']} users with due checkups, {result['emails_sent']} emails sent at {result['timestamp']}"
 
         except Exception as exc:
             error_msg = f"❌ Email notification task failed: {str(exc)}"

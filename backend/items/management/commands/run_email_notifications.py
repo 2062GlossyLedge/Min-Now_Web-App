@@ -54,12 +54,18 @@ class Command(BaseCommand):
             action="store_true",
             help="Show what would be sent without actually sending emails",
         )
+        parser.add_argument(
+            "--test-monthly",
+            action="store_true",
+            help="Test mode: simulate first day of month behavior for testing the monthly email system",
+        )
 
     def handle(self, *args, **options):
         """Execute the email notification task."""
         verbose = options["verbose"]
         log_file = options.get("log_file")
         dry_run = options.get("dry_run", False)
+        test_monthly = options.get("test_monthly", False)
 
         # Set up file logging if specified
         if log_file:
@@ -72,10 +78,16 @@ class Command(BaseCommand):
             file_handler.setFormatter(formatter)
             logger.addHandler(file_handler)
 
-        if verbose:
-            self.stdout.write("📧 Starting email notification task...")
-
-        logger.info("📧 Starting email notification task...")
+        if test_monthly:
+            if verbose:
+                self.stdout.write("🧪 Starting MONTHLY EMAIL TEST mode...")
+                self.stdout.write("� Simulating first day of month behavior")
+            logger.info("🧪 Starting MONTHLY EMAIL TEST mode...")
+            logger.info("📅 Simulating first day of month behavior")
+        else:
+            if verbose:
+                self.stdout.write("�📧 Starting email notification task...")
+            logger.info("📧 Starting email notification task...")
 
         try:
             # Get all users who have clerk_id set
@@ -218,6 +230,7 @@ class Command(BaseCommand):
                             self.stdout.write(error_msg)
 
             # Summary
+            task_type = "MONTHLY EMAIL TEST" if test_monthly else "EMAIL NOTIFICATION TASK"
             result = {
                 "timestamp": datetime.utcnow().isoformat(),
                 "total_users_checked": users_with_clerk_id.count(),
@@ -229,16 +242,19 @@ class Command(BaseCommand):
                 ),
                 "emails_sent": len(notification_results) if not dry_run else 0,
                 "dry_run": dry_run,
+                "test_monthly": test_monthly,
                 "status": "success",
             }
 
-            logger.info(f"✅ Email notification task completed successfully")
+            logger.info(f"✅ {task_type} completed successfully")
             logger.info(f"📊 Summary: {result}")
 
             if verbose:
                 self.stdout.write(
-                    self.style.SUCCESS(f"✅ EMAIL NOTIFICATION TASK COMPLETED")
+                    self.style.SUCCESS(f"✅ {task_type} COMPLETED")
                 )
+                if test_monthly:
+                    self.stdout.write("🧪 TEST MODE RESULTS:")
                 self.stdout.write(
                     f"📊 Total users checked: {result['total_users_checked']}"
                 )
@@ -248,12 +264,25 @@ class Command(BaseCommand):
                 )
                 self.stdout.write(f"📧 Emails sent: {result['emails_sent']}")
                 self.stdout.write(f"🕒 Timestamp: {result['timestamp']}")
+                
+                if test_monthly:
+                    self.stdout.write("")
+                    self.stdout.write("📅 MONTHLY SCHEDULER INFO:")
+                    self.stdout.write("   - Production runs on 1st of each month")
+                    self.stdout.write("   - Only users with emailNotifications=true get emails")
+                    self.stdout.write("   - Only sends when checkups are actually due")
+                    if dry_run:
+                        self.stdout.write("   - This was a DRY RUN (no emails sent)")
+                    else:
+                        self.stdout.write("   - Real emails were sent to users with due checkups")
 
             # Return a string summary instead of the dictionary
-            return f"Email notification task completed: {result['eligible_users']} eligible users, {result['users_with_due_checkups']} users with due checkups, {result['emails_sent']} emails sent at {result['timestamp']}"
+            mode_prefix = "Monthly test: " if test_monthly else "Email notification task completed: "
+            return f"{mode_prefix}{result['eligible_users']} eligible users, {result['users_with_due_checkups']} users with due checkups, {result['emails_sent']} emails sent at {result['timestamp']}"
 
         except Exception as exc:
-            error_msg = f"❌ Email notification task failed: {str(exc)}"
+            task_type = "MONTHLY EMAIL TEST" if test_monthly else "EMAIL NOTIFICATION TASK"
+            error_msg = f"❌ {task_type} failed: {str(exc)}"
             logger.error(error_msg)
 
             if verbose:

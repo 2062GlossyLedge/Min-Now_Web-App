@@ -1,5 +1,5 @@
 ---
-applyTo: '*.py'
+applyTo: '*.py, *.bat'
 ---
 
 # Django-Ninja Development Guidelines
@@ -9,6 +9,7 @@ applyTo: '*.py'
 - Don't create another settings.py file. 
 - Do not delete or overwrite any comments. 
 - do not suggest or execute commands in the terminal
+- A python test file must end with _test.py
 
 
 ### Key Principles

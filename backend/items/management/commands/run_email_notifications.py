@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 def has_email_notifications_enabled(user) -> bool:
     """
     Check if a user has email notifications enabled by fetching their Clerk metadata.
-    Returns True if user has emailNotifications set to true in public metadata.
+    Returns True if user has emailNotifications set to true in unsafe metadata.
     """
     try:
         if not user or not hasattr(user, "clerk_id") or not user.clerk_id:
@@ -131,19 +131,20 @@ class Command(BaseCommand):
 
             # Check which users have due checkups and send emails only to those
             users_with_due_checkups = []
-            
+
             # First, check which users actually have due checkups
             for user in eligible_users:
                 try:
                     from items.models import Checkup
+
                     user_checkups = Checkup.objects.filter(user=user)
                     has_due_checkup = False
-                    
+
                     for checkup in user_checkups:
                         if checkup.is_checkup_due:
                             has_due_checkup = True
                             break
-                    
+
                     if has_due_checkup:
                         users_with_due_checkups.append(user)
                         if verbose:
@@ -161,9 +162,11 @@ class Command(BaseCommand):
                         logger.info(
                             f"⏭️  User {user.username} ({user.email}) has no due checkups - skipping"
                         )
-                        
+
                 except Exception as e:
-                    logger.warning(f"❌ Error checking due checkups for user {user.username}: {str(e)}")
+                    logger.warning(
+                        f"❌ Error checking due checkups for user {user.username}: {str(e)}"
+                    )
                     if verbose:
                         self.stdout.write(
                             f"❌ Error checking due checkups for user {user.username}: {str(e)}"
@@ -195,7 +198,9 @@ class Command(BaseCommand):
                 for user in users_with_due_checkups:
                     try:
                         # Send checkup emails only for due checkups for this user
-                        email_results = CheckupService.check_and_send_only_due_emails(user)
+                        email_results = CheckupService.check_and_send_only_due_emails(
+                            user
+                        )
                         notification_results.extend(email_results)
 
                         if verbose:
@@ -217,7 +222,11 @@ class Command(BaseCommand):
                 "timestamp": datetime.utcnow().isoformat(),
                 "total_users_checked": users_with_clerk_id.count(),
                 "eligible_users": len(eligible_users),
-                "users_with_due_checkups": len(users_with_due_checkups) if 'users_with_due_checkups' in locals() else 0,
+                "users_with_due_checkups": (
+                    len(users_with_due_checkups)
+                    if "users_with_due_checkups" in locals()
+                    else 0
+                ),
                 "emails_sent": len(notification_results) if not dry_run else 0,
                 "dry_run": dry_run,
                 "status": "success",
@@ -234,7 +243,9 @@ class Command(BaseCommand):
                     f"📊 Total users checked: {result['total_users_checked']}"
                 )
                 self.stdout.write(f"📤 Eligible users: {result['eligible_users']}")
-                self.stdout.write(f"⏰ Users with due checkups: {result['users_with_due_checkups']}")
+                self.stdout.write(
+                    f"⏰ Users with due checkups: {result['users_with_due_checkups']}"
+                )
                 self.stdout.write(f"📧 Emails sent: {result['emails_sent']}")
                 self.stdout.write(f"🕒 Timestamp: {result['timestamp']}")
 

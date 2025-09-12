@@ -60,10 +60,54 @@ cleanup() {
 trap cleanup SIGTERM SIGINT EXIT
 
 echo "🚀 Starting Django Email Notification Scheduler loop..."
-echo "⏰ Email notifications will be checked every 60 seconds"
+echo "⏰ Email notifications will be checked once per month on the 1st day"
 echo "📊 To monitor: tail -f $LOG_FILE"
 echo "🔄 Press Ctrl+C to stop"
 echo ""
+
+# Function to check if today is the first day of the month
+is_first_day_of_month() {
+    local day_of_month=$(date '+%d')
+    [ "$day_of_month" == "01" ]
+}
+
+# Function to calculate seconds until next first day of month
+seconds_until_next_first() {
+    local current_date=$(date '+%Y-%m-%d')
+    local current_year=$(date '+%Y')
+    local current_month=$(date '+%m')
+    local current_day=$(date '+%d')
+    
+    if [ "$current_day" == "01" ]; then
+        # If today is the 1st, next first day is next month
+        local next_month=$((current_month + 1))
+        local next_year=$current_year
+        
+        if [ $next_month -gt 12 ]; then
+            next_month=1
+            next_year=$((current_year + 1))
+        fi
+        
+        local next_first=$(printf "%04d-%02d-01" $next_year $next_month)
+    else
+        # Next first day is first day of next month
+        local next_month=$((current_month + 1))
+        local next_year=$current_year
+        
+        if [ $next_month -gt 12 ]; then
+            next_month=1
+            next_year=$((current_year + 1))
+        fi
+        
+        local next_first=$(printf "%04d-%02d-01" $next_year $next_month)
+    fi
+    
+    local current_timestamp=$(date '+%s')
+    local next_timestamp=$(date -d "$next_first" '+%s')
+    local seconds_diff=$((next_timestamp - current_timestamp))
+    
+    echo $seconds_diff
+}
 
 # Function to run the periodic email notification task
 run_periodic_email_task() {
@@ -93,20 +137,49 @@ run_periodic_email_task() {
     sleep 5
     
     local task_count=0
-    while true; do
+    
+    echo "🗓️  Checking if today is the first day of the month..."
+    
+    # Check if today is the first day of the month and run immediately if so
+    if is_first_day_of_month; then
         task_count=$((task_count + 1))
+        echo "✅ Today is the 1st! Running email notification task..."
         echo "=================================="
         echo "Email Notification Check #$task_count"
         echo "=================================="
         
         run_periodic_email_task
-        
         echo ""
-        echo "⏳ Waiting 60 seconds until next execution..."
-        echo ""
+    else
+        echo "📅 Today is not the 1st day of the month. Waiting for next occurrence..."
+    fi
+    
+    # Main scheduling loop
+    while true; do
+        local seconds_to_wait=$(seconds_until_next_first)
+        local days_to_wait=$((seconds_to_wait / 86400))
+        local hours_to_wait=$(((seconds_to_wait % 86400) / 3600))
+        local minutes_to_wait=$(((seconds_to_wait % 3600) / 60))
         
-        # Wait 60 seconds before next execution
-        sleep 60
+        echo "⏳ Next execution in: ${days_to_wait}d ${hours_to_wait}h ${minutes_to_wait}m"
+        echo "📅 Next run date: $(date -d "+${seconds_to_wait} seconds" '+%Y-%m-%d %H:%M:%S')"
+        
+        # Sleep until the first day of next month
+        sleep $seconds_to_wait
+        
+        # Run the task when we wake up (should be 1st of the month)
+        if is_first_day_of_month; then
+            task_count=$((task_count + 1))
+            echo "=================================="
+            echo "Email Notification Check #$task_count"
+            echo "$(date '+%Y-%m-%d') - First day of the month!"
+            echo "=================================="
+            
+            run_periodic_email_task
+            echo ""
+        else
+            echo "⚠️  Woke up but it's not the 1st day of the month. Recalculating..."
+        fi
     done
 ) &
 

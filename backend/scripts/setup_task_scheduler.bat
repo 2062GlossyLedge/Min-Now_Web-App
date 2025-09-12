@@ -24,12 +24,12 @@ echo ✅ Cleanup completed
 echo.
 
 echo 📅 Creating Django Periodic Email Notification Task...
-echo    - Will run every minute
-echo    - Sends emails to users with emailNotifications enabled
+echo    - Will run monthly on the 1st day of each month
+echo    - Sends emails to users with emailNotifications enabled and due checkups
 echo.
 
-REM Create the periodic email notification task (every minute) for current user
-schtasks /create /tn "Django Periodic Email Notification Task" /tr "C:\Min-Now_Web-App-1\backend\scripts\run_email_notifications.bat" /sc minute /mo 1 /f
+REM Create the periodic email notification task (monthly on 1st day) for current user
+schtasks /create /tn "Django Periodic Email Notification Task" /tr "C:\Min-Now_Web-App-1\backend\scripts\run_email_notifications.bat" /sc monthly /d 1 /f
 
 if %errorLevel% == 0 (
     echo ✅ Django Periodic Email Notification Task created successfully
@@ -55,8 +55,8 @@ echo 4. To disable: schtasks /change /tn "Django Periodic Email Notification Tas
 echo 5. To enable: schtasks /change /tn "Django Periodic Email Notification Task" /enable
 echo 6. To delete: schtasks /delete /tn "Django Periodic Email Notification Task" /f
 echo.
-echo ℹ️  Note: Task runs under your user account (no admin privileges needed)
-echo ℹ️  Only users with emailNotifications=true in Clerk metadata will receive emails
+echo ℹ️  Note: Task runs on the 1st of each month under your user account
+echo ℹ️  Only users with emailNotifications=true and due checkups will receive emails
 echo.
 
 pause

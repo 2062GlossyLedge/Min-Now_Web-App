@@ -109,6 +109,7 @@ class Checkup(models.Model):
     @property
     def is_checkup_due(self):
         now = timezone.now()
+        # won't pre fire and give false positives that checkup is due if checkup due date always on first day of month
         months_since_last_checkup = (now.year - self.last_checkup_date.year) * 12 + (
             now.month - self.last_checkup_date.month
         )

@@ -11,6 +11,7 @@ import { CheckupProvider } from '../contexts/CheckupContext'
 import { Toaster } from '@/components/ui/sonner'
 import { HydrationWrapper } from '@/app/HydrationWrapper'
 import OnboardingManager from '@/components/OnboardingManager'
+import { CSPostHogProvider } from './_analytics/provider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -30,29 +31,31 @@ export default function RootLayout({
 }) {
     return (
         <ClerkProvider dynamic>
-            <html lang="en" suppressHydrationWarning>
-                <body className={inter.className}>
-                    {/* HydrationWrapper mounts first, blocking all children until mounted */}
-                    <HydrationWrapper>
-                        <OnboardingProvider>
-                            <ItemUpdateProvider>
-                                <CheckupProvider>
-                                    <ThemeProvider>
-                                        <ConditionalNavigation />
-                                        <ConditionalMain>
-                                            {children}
-                                        </ConditionalMain>
-                                        {/* Onboarding Manager for tutorial spotlights */}
-                                        <OnboardingManager />
-                                        {/* Sonner Toaster for notifications */}
-                                        <Toaster />
-                                    </ThemeProvider>
-                                </CheckupProvider>
-                            </ItemUpdateProvider>
-                        </OnboardingProvider>
-                    </HydrationWrapper>
-                </body>
-            </html>
+            <CSPostHogProvider>
+                <html lang="en" suppressHydrationWarning>
+                    <body className={inter.className}>
+                        {/* HydrationWrapper mounts first, blocking all children until mounted */}
+                        <HydrationWrapper>
+                            <OnboardingProvider>
+                                <ItemUpdateProvider>
+                                    <CheckupProvider>
+                                        <ThemeProvider>
+                                            <ConditionalNavigation />
+                                            <ConditionalMain>
+                                                {children}
+                                            </ConditionalMain>
+                                            {/* Onboarding Manager for tutorial spotlights */}
+                                            <OnboardingManager />
+                                            {/* Sonner Toaster for notifications */}
+                                            <Toaster />
+                                        </ThemeProvider>
+                                    </CheckupProvider>
+                                </ItemUpdateProvider>
+                            </OnboardingProvider>
+                        </HydrationWrapper>
+                    </body>
+                </html>
+            </CSPostHogProvider>
         </ClerkProvider>
     )
 }

@@ -12,6 +12,7 @@ export default clerkMiddleware(
         if (
             pathname.startsWith('/api/') ||
             pathname.startsWith('/_next/') ||
+            // pathname.startsWith('/ingest/') ||
             pathname.includes('Min-NowDarkLogoCropped.ico') ||
             pathname.includes('Min-NowDarkLogoCropped.jpg') ||
             pathname.includes('gaveBadge2.png') ||
@@ -39,7 +40,12 @@ export default clerkMiddleware(
                     'https://utfs.io',
                     'https://*.ufs.sh',
                     'https://uploadthing.com',
-                    'https://*.uploadthing.com'
+                    'https://*.uploadthing.com',
+                    // 'https://*.posthog.com',
+                    'https://us.i.posthog.com',
+                    'https://us-assets.i.posthog.com',
+                    'https://app.posthog.com',
+
                 ],
                 'img-src': [
                     'self',

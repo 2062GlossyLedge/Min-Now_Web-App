@@ -22,6 +22,7 @@ import { DatePickerState, calculateReceivedDate, isDateValid, initializeDatePick
 import { toast } from 'sonner'
 import ItemReceivedDateSection from '@/components/ItemReceivedDateSection'
 import OwnershipDurationGoalSection from '@/components/OwnershipDurationGoalSection'
+import { usePostHog } from 'posthog-js/react'
 
 
 
@@ -31,7 +32,7 @@ interface AddItemFormProps {
 }
 
 export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) {
-    const router = useRouter()
+    // const router = useRouter()
     const { triggerRefresh } = useItemUpdate()
     const [name, setName] = useState('')
     const [pictureEmoji, setPictureEmoji] = useState('')
@@ -43,7 +44,6 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     // const { authenticatedFetch } = useAuthenticatedFetch() // CSRF approach - commented out
     const { getToken } = useAuth() // JWT approach - get token from Clerk
     const { user } = useUser() // Get user data from Clerk to check admin status
-    const [open, setOpen] = useState(false)
     const [activeTab, setActiveTab] = useState<'manual' | 'quick'>('manual')
     const [showQuickAddForm, setShowQuickAddForm] = useState(false)
     const [quickItemName, setQuickItemName] = useState('')
@@ -292,8 +292,15 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     // Helper function to check if user can add more items
     const canAddMoreItems = (additionalCount = 1): boolean => {
         // Admin users bypass item limits
-        if (isUserAdmin()) return true
+  
         if (!itemStats) return true // Allow if stats not loaded yet
+        if (additionalCount <= 0) {
+            posthog?.capture('manual_add_limit', {
+                item_count: itemStats.current_count,
+                max_items: itemStats.max_items
+            })
+            return false
+        }
         return itemStats.remaining_slots >= additionalCount
     }
 
@@ -324,6 +331,13 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
         if (!itemStats) return true // Allow if stats not loaded yet
         const itemsInQuickAdd = quickItemsToAdd.length
         const totalItemsAfterAdding = itemStats.current_count + itemsInQuickAdd + 1
+     
+        if (totalItemsAfterAdding === itemStats.max_items) {
+            posthog?.capture('reached_item_limit', {
+                item_count: totalItemsAfterAdding,
+                max_items: itemStats.max_items
+            })
+        }
         return totalItemsAfterAdding <= itemStats.max_items
     }
 
@@ -410,6 +424,17 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
             }
 
             if (data) {
+                // Capture PostHog event for manual add
+                posthog?.capture('item_added_manual', {
+                    item_name: name,
+                    item_type: itemTypeToDbValue(itemType),
+                    tracking_mode: trackingMode,
+                    date_selection_mode: trackingMode === 'received' ? datePickerState.dateSelectionMode : undefined,
+                    ownership_goal_months: calculateOwnershipDurationMonths(),
+                    picture_type: useEmoji ? 'emoji' : 'image',
+                    user_id: user?.id
+                })
+
                 // Dismiss loading toast and show success toast
                 toast.dismiss(loadingToastId)
                 toast.success('Item added successfully!', {
@@ -523,6 +548,18 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                 getToken, // JWT approach - using getToken from Clerk
                 {
                     onSuccess: async () => {
+                        // Capture PostHog event for quick add batch
+                        posthog?.capture('items_added_quick_batch', {
+                            batch_size: quickItemsToAdd.length,
+                            items: quickItemsToAdd.map(item => ({
+                                name: item.name,
+                                tracking_mode: item.trackingMode,
+                                date_mode: item.dateMode,
+                                ownership_goal_months: item.ownershipGoalMonths
+                            })),
+                            user_id: user?.id
+                        })
+
                         // Refresh item stats after successful batch creation
                         const { data: newStats } = await fetchUserItemStatsJWT(getToken)
                         if (newStats) {
@@ -561,6 +598,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const currentYear = new Date().getFullYear()
     const years = Array.from({ length: 201 }, (_, i) => `${currentYear - i}`)
 
+    const posthog = usePostHog()
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white dark:bg-gray-800 rounded-lg p-4 w-full max-w-sm max-h-[90vh] overflow-y-auto">
@@ -694,6 +732,14 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                                 onClientUploadComplete={(res: any) => {
                                                     setUploadedImageUrl(res?.[0]?.ufsUrl ?? res?.[0]?.fileUrl ?? null)
                                                     setIsUploading(false)
+
+                                                    // Log event to PostHog
+                                                    posthog?.capture('image_uploaded', {
+                                                        source: 'AddItemForm',
+                                                        method: 'uploadthing',
+                                                        fileType: res?.[0]?.fileType || 'unknown',
+                                                        fileSize: res?.[0]?.fileSize || 0,
+                                                    })
 
                                                 }}
                                                 onUploadError={(error: Error) => {

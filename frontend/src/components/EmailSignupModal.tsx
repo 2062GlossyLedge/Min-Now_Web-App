@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useUser, useAuth } from '@clerk/nextjs'
 import { CheckCircle2, Mail, Calendar } from 'lucide-react'
 import { syncUserPreferences } from '@/utils/api'
+import { usePostHog } from 'posthog-js/react'
 
 interface EmailSignupModalProps {
     onComplete: () => void
@@ -16,6 +17,8 @@ export default function EmailSignupModal({ onComplete, onSkip }: EmailSignupModa
     const [interval, setInterval] = useState(1) // Default to 1 month
     const [emailNotifications, setEmailNotifications] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
+
+    const posthog = usePostHog()
 
     // Load existing preferences from Clerk metadata when component mounts
     useEffect(() => {
@@ -47,6 +50,10 @@ export default function EmailSignupModal({ onComplete, onSkip }: EmailSignupModa
                     checkupInterval: interval
                 }
             })
+
+            if (emailNotifications && posthog) {
+                posthog.capture('enabled_email_notifications', { checkupInterval: interval })
+            }
 
             // Sync preferences with Django backend to update checkup intervals
             const syncResult = await syncUserPreferences(

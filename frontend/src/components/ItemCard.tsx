@@ -622,7 +622,7 @@ export default function ItemCard({
                                                 return files; // Return files to proceed with upload
                                             }}
                                             onClientUploadComplete={(res: any) => {
-                                                setEditedUploadedImageUrl(res?.[0]?.url ?? res?.[0]?.fileUrl ?? null)
+                                                setEditedUploadedImageUrl(res?.[0]?.ufsUrl ?? res?.[0]?.fileUrl ?? null)
                                                 setIsUploading(false)
                                             }}
                                             onUploadError={(error: Error) => {

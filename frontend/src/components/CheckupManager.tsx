@@ -16,6 +16,7 @@ import { useUser, useAuth } from '@clerk/nextjs'
 import OnboardingExplanation from './OnboardingExplanation'
 import EmailSignupModal from './EmailSignupModal'
 import { HelpCircle, Settings } from 'lucide-react'
+import { usePostHog } from 'posthog-js/react'
 
 // Map database values to display names
 const itemTypeDisplayNames: Record<string, string> = {
@@ -57,6 +58,9 @@ export default function CheckupManager({ checkupType, onClose, onCheckupComplete
     const { addUpdatedItem, triggerRefresh } = useItemUpdate()
     const { isSignedIn, isLoaded } = useUser() // Get user authentication status
     const { onboardingStep, nextStep } = useOnboarding()
+
+    const postHog = usePostHog()
+
 
     // Disable body scroll when modal is open
     useEffect(() => {
@@ -227,35 +231,10 @@ export default function CheckupManager({ checkupType, onClose, onCheckupComplete
                 // JWT approach - using completeCheckupJWT
                 await completeCheckupJWT(existingCheckup[0].id, getToken)
 
-                // CSRF approach (commented out)
-                // await completeCheckup(existingCheckup[0].id, authenticatedFetch)
-                // A user will always have a checkup, so we don't need to create a new one
-                // } else {
-                //     // If no checkup exists, create and complete a new one
-                //     // JWT approach - using createCheckupJWT
-                //     const { data: newCheckup, error } = await createCheckupJWT({
-                //         checkup_type: checkupType.toLowerCase(),
-                //         interval_months: interval
-                //     }, getToken)
 
-                // CSRF approach (commented out)
-                // const { data: newCheckup, error } = await createCheckup({
-                //     checkup_type: checkupType.toLowerCase(),
-                //     interval_months: interval
-                // }, authenticatedFetch)
-
-                // if (error) {
-                //     throw new Error(error)
-                // }
-
-                // if (newCheckup) {
-                //     // JWT approach - using completeCheckupJWT
-                //     await completeCheckupJWT(newCheckup.id, getToken)
-
-                //     // CSRF approach (commented out)
-                //     // await completeCheckup(newCheckup.id, authenticatedFetch)
-                // }
             }
+
+            postHog?.capture('completed_checkup', { checkupType, itemsReviewed: itemStatusChanges.size })
 
             // Show success toast
             toast.success('Checkup Complete!', {

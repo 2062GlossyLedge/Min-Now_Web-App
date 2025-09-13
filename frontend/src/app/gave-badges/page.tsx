@@ -299,8 +299,8 @@ const GaveBadgesPage = () => {
             setError(null)
             try {
                 // Test JWT authentication first
-                const jwtTest = await testClerkJWT(getToken)
-                console.log('GaveBadges JWT Test Result:', jwtTest)
+                //const jwtTest = await testClerkJWT(getToken)
+                //console.log('GaveBadges JWT Test Result:', jwtTest)
 
                 // JWT approach - using fetchDonatedBadgesJWT
                 const { data, error: apiError } = await fetchDonatedBadgesJWT(getToken)

@@ -46,8 +46,8 @@ export default function DonatedView() {
             setError(null)
             try {
                 // Test JWT authentication first
-                const jwtTest = await testClerkJWT(getToken)
-                console.log('JWT Test Result:', jwtTest)
+                //const jwtTest = await testClerkJWT(getToken)
+                //console.log('JWT Test Result:', jwtTest)
 
                 // JWT approach - using fetchItemsByStatusJWT
                 const { data, error } = await fetchItemsByStatusJWT('Donate', getToken)

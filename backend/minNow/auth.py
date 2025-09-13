@@ -15,7 +15,65 @@ import jwt
 from django.conf import settings
 from functools import wraps
 
+# Rate limiting imports
+from upstash_ratelimit import Ratelimit, FixedWindow
+from upstash_redis import Redis
+
 logger = logging.getLogger("minNow")
+
+# Initialize Rate Limiter for JWT authentication
+try:
+    logger.debug("Initializing Upstash rate limiter for JWT auth...")
+    redis = Redis.from_env()
+    jwt_rate_limiter = Ratelimit(
+        redis=redis,
+        limiter=FixedWindow(max_requests=100, window=60),
+        prefix="jwt_rate_limit",
+    )
+    logger.info("JWT rate limiter initialized successfully")
+except Exception as e:
+    logger.warning(
+        f"Failed to initialize JWT rate limiter: {e}. Rate limiting will be disabled."
+    )
+    jwt_rate_limiter = None
+
+
+def check_jwt_rate_limit(request):
+    """
+    Helper function to check rate limit for JWT authenticated requests.
+    Returns tuple: (is_allowed: bool, error_response: dict or None)
+    """
+    if jwt_rate_limiter is None:
+        return True, None
+
+    # Get user ID from request
+    user_id = None
+    if hasattr(request, "user") and request.user and hasattr(request.user, "clerk_id"):
+        user_id = str(request.user.clerk_id)
+
+    # Fallback to IP address if no user ID available
+    if not user_id:
+        user_id = request.META.get(
+            "HTTP_X_FORWARDED_FOR", request.META.get("REMOTE_ADDR", "unknown")
+        )
+        if "," in user_id:
+            user_id = user_id.split(",")[0].strip()
+
+    try:
+        response = jwt_rate_limiter.limit(user_id)
+        print("API requests remaining", response.remaining)
+        if not response.allowed:
+            reset_time = response.reset
+            return False, {
+                "detail": f"Rate limit exceeded. Try again after {reset_time} seconds.",
+                "reset_time": reset_time,
+            }
+        return True, None
+    except Exception as e:
+        logger.warning(
+            f"JWT rate limiting check failed: {e}. Allowing request to proceed."
+        )
+        return True, None
 
 
 class ClerkAuth(HttpBearer):
@@ -248,17 +306,26 @@ class JwtAuthBackend(BaseBackend):
 
 def jwt_required(view_func):
     """
-    Decorator for Django views that require JWT authentication.
+    Decorator for Django views that require JWT authentication and rate limiting.
     Alternative to ninja-based authentication for regular Django views.
+
+    Rate limiting: 20 requests per 50 seconds per user/IP.
     """
 
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
+        # First check authentication
         user = authenticate(request)
         if not user:
             error = getattr(request, "error_message", "User not authenticated")
             return JsonResponse({"detail": error}, status=401)
         request.user = user
+
+        # Then check rate limiting
+        is_allowed, error_response = check_jwt_rate_limit(request)
+        if not is_allowed:
+            return JsonResponse(error_response, status=429)
+
         return view_func(request, *args, **kwargs)
 
     return _wrapped_view

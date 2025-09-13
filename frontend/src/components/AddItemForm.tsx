@@ -285,14 +285,14 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
 
     // Helper function to check if user is admin
     const isUserAdmin = (): boolean => {
-        console.log(user?.publicMetadata)
+        //console.log(user?.publicMetadata)
         return (user as any)?.publicMetadata?.['is-admin'] === true
     }
 
     // Helper function to check if user can add more items
     const canAddMoreItems = (additionalCount = 1): boolean => {
         // Admin users bypass item limits
-  
+
         if (!itemStats) return true // Allow if stats not loaded yet
         if (additionalCount <= 0) {
             posthog?.capture('manual_add_limit', {
@@ -331,7 +331,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
         if (!itemStats) return true // Allow if stats not loaded yet
         const itemsInQuickAdd = quickItemsToAdd.length
         const totalItemsAfterAdding = itemStats.current_count + itemsInQuickAdd + 1
-     
+
         if (totalItemsAfterAdding === itemStats.max_items) {
             posthog?.capture('reached_item_limit', {
                 item_count: totalItemsAfterAdding,

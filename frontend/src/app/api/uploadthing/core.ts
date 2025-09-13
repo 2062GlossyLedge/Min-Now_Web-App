@@ -48,26 +48,14 @@ export const ourFileRouter = {
             const isAdmin = await isUserAdmin(user.userId);
 
             if (!isAdmin) {
-                // Check rate limit status without consuming tokens first
-                // We use a direct Redis check to avoid consuming tokens in middleware
-                const { Redis } = await import("@upstash/redis");
-                const redis = Redis.fromEnv();
 
-                const key = `@upstash/ratelimit/file-upload:${user.userId}`;
-                const now = Date.now();
-                const windowStart = now - (24 * 60 * 60 * 1000); // 24 hours ago
-
-                try {
-                    // Count current uploads in the sliding window
-                    const tokensUsed = await redis.zcount(key, windowStart, now);
-                    if (tokensUsed >= 40) {
-                        throw new UploadThingError(`Rate limit exceeded. You can only upload 40 files per day. You have used ${tokensUsed}/40 uploads. Please try again tomorrow.`);
-                    }
-                } catch (error) {
-                    // If Redis check fails, allow upload but it will be rate limited in onUploadComplete
-                    console.warn("Rate limit check failed in middleware:", error);
+                const { success, remaining, limit } = await ratelimit.fileUpload.limit(user.userId);
+                if (!success) {
+                    throw new UploadThingError(`Rate limit exceeded. You can only upload ${limit} files per day. Please try again tomorrow.`);
                 }
+                console.log("Number of uploads left: ", remaining);
             }
+
 
             // Whatever is returned here is accessible in onUploadComplete as `metadata`
             return { userId: user.userId, isAdmin };
@@ -78,7 +66,7 @@ export const ourFileRouter = {
 
             // Only consume rate limit token for non-admin users
             if (!metadata.isAdmin) {
-                await ratelimit.fileUpload.limit(metadata.userId);
+                // await ratelimit.fileUpload.limit(metadata.userId);
             } else {
                 console.log("Admin user - bypassing rate limit");
             }

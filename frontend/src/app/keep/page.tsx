@@ -115,17 +115,17 @@ export default function KeepView() {
             setError(null)
             try {
                 // Test JWT authentication first
-                const jwtTest = await testClerkJWT(getToken)
-                console.log('JWT Test Result:', jwtTest)
+                //const jwtTest = await testClerkJWT(getToken)
+                //console.log('JWT Test Result:', jwtTest)
 
                 // Fetch items using JWT
                 const { data, error } = await fetchItemsByStatusJWT('Keep', getToken)
                 if (error) {
-                    console.error('JWT Fetch Error:', error)
+                    //console.error('JWT Fetch Error:', error)
                     setError(error)
                     setItems([])
                 } else {
-                    console.log('JWT Fetch Success:', data)
+                    //console.log('JWT Fetch Success:', data)
                     // Map API response to frontend format
                     const mappedItems = (data || []).map((item: any) => ({
                         ...item,

@@ -52,7 +52,7 @@ const deleteUploadthingFile = async (fileKey: string): Promise<boolean> => {
             return false
         }
 
-        console.log('Successfully deleted file from uploadthing:', fileKey)
+        //console.log('Successfully deleted file from uploadthing:', fileKey)
         return true
     } catch (error) {
         console.error('Error calling uploadthing delete API:', error)
@@ -694,7 +694,7 @@ export const agentAddItemJWT = async (
         // Get CSRF token for this POST request
         const csrfToken = await getCSRFTokenFromJWT(getToken)
 
-        console.log('prompt to be sent:', prompt)
+        //console.log('prompt to be sent:', prompt)
         const response = await fetchWithJWTAndCSRF(
             `${process.env.NEXT_PUBLIC_API_URL}/django-api/agent-add-item`,
             token,
@@ -732,7 +732,7 @@ export const agentAddItemsBatchJWT = async (
         // Get CSRF token for this POST request
         const csrfToken = await getCSRFTokenFromJWT(getToken)
 
-        console.log('prompts to be sent:', prompts)
+        //console.log('prompts to be sent:', prompts)
         const response = await fetchWithJWTAndCSRF(
             `${process.env.NEXT_PUBLIC_API_URL}/django-api/agent-add-item-batch`,
             token,

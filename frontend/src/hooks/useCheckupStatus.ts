@@ -30,7 +30,7 @@ export const useCheckupStatus = (type: 'keep' | 'give') => {
             try {
                 // const { data, error } = await fetchCheckup(type, authenticatedFetch) // CSRF approach - commented out
                 const { data } = await fetchCheckupJWT(type, getToken) // JWT approach - using getToken from Clerk
-                console.log(`Checkup status for ${type}:`, data)
+                //console.log(`Checkup status for ${type}:`, data)
                 if (data && Array.isArray(data) && data.length > 0) {
                     // Get the most recent checkup
                     const mostRecentCheckup = data[0]

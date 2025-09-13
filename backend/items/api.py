@@ -40,20 +40,20 @@ prod = os.getenv("PROD") == "True"
 log.info(f"API Environment: {'Production' if prod else 'Development'}")
 
 # Initialize Upstash Rate Limiter
-try:
-    print("Initializing Upstash rate limiter...")
-    redis = Redis.from_env()
-    rate_limiter = Ratelimit(
-        redis=redis,
-        limiter=FixedWindow(max_requests=10, window=10),
-        prefix="api_rate_limit",
-    )
-    log.info("Upstash rate limiter initialized successfully")
-except Exception as e:
-    log.warning(
-        f"Failed to initialize Upstash rate limiter: {e}. Rate limiting will be disabled."
-    )
-    rate_limiter = None
+# try:
+#     print("Initializing Upstash rate limiter...")
+#     redis = Redis.from_env()
+#     rate_limiter = Ratelimit(
+#         redis=redis,
+#         limiter=FixedWindow(max_requests=100, window=60),
+#         prefix="api_rate_limit",
+#     )
+#     log.info("Upstash rate limiter initialized successfully")
+# except Exception as e:
+#     log.warning(
+#         f"Failed to initialize Upstash rate limiter: {e}. Rate limiting will be disabled."
+#     )
+#     rate_limiter = None
 
 # Use when testing swagger docs in dev. Testing frontend dev with this running will result in invalid alg for dev tokens
 # if prod:
@@ -77,6 +77,7 @@ dev_router = Router()
 def check_rate_limit(request):
     """
     Helper function to check rate limit for a request.
+    Rate limiting: 20 requests per 50 seconds per user/IP.
     Returns tuple: (is_allowed: bool, error_response: dict or None)
     """
     if rate_limiter is None:

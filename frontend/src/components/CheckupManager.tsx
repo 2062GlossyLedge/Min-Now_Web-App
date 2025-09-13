@@ -99,8 +99,8 @@ export default function CheckupManager({ checkupType, onClose, onCheckupComplete
 
             try {
                 // Test JWT authentication first
-                const jwtTest = await testClerkJWT(getToken)
-                console.log('CheckupManager JWT Test Result:', jwtTest)
+                //const jwtTest = await testClerkJWT(getToken)
+                //console.log('CheckupManager JWT Test Result:', jwtTest)
 
                 // JWT approach - using fetchCheckupJWT
                 const { error } = await fetchCheckupJWT(checkupType.toLowerCase(), getToken)

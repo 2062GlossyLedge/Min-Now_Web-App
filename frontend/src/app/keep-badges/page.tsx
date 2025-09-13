@@ -319,8 +319,8 @@ const KeepBadgesPage = () => {
             setError(null)
             try {
                 // Test JWT authentication first
-                const jwtTest = await testClerkJWT(getToken)
-                console.log('KeepBadges JWT Test Result:', jwtTest)
+                //const jwtTest = await testClerkJWT(getToken)
+                //console.log('KeepBadges JWT Test Result:', jwtTest)
 
                 // JWT approach - using fetchItemsByStatusJWT
                 const { data: items, error: apiError } = await fetchItemsByStatusJWT('Keep', getToken)

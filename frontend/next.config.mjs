@@ -11,12 +11,6 @@
 const config = {
     // Vercel Cron Jobs Configuration
     // Prevents Upstash Redis from auto-deactivating due to inactivity
-    crons: [
-        {
-            path: '/api/cron/redis-heartbeat',
-            schedule: '0 0 * * 0' // Every Sunday at midnight UTC
-        }
-    ],
 
     images: {
         remotePatterns: [

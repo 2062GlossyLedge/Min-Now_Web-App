@@ -1,12 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import ItemCard from '../../components/ItemCard'
-import AddItemForm from '../../components/AddItemForm'
-import FilterBar from '../../components/FilterBar'
-import CheckupManager from '../../components/CheckupManager'
-import OnboardingManager from '../../components/OnboardingManager'
-import AuthMessage from '../../components/AuthMessage'
+import ItemCard from '../../components/item_view/ItemCard'
+import AddItemForm from '../../components/item_creation/AddItemForm'
+import FilterBar from '../../components/item_view/FilterBar'
+import CheckupManager from '../../components/item_view/CheckupManager'
+import OnboardingManager from '../../components/onboarding/OnboardingManager'
+import AuthMessage from '../../components/landing/AuthMessage'
 // CSRF-based API imports (commented out - using JWT approach)
 // import { updateItem, deleteItem, fetchItemsByStatus, createItem, sendTestCheckupEmail, agentAddItem, createHandleEdit } from '@/utils/api'
 

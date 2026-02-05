@@ -7,7 +7,7 @@ import { InfoIcon, X } from 'lucide-react'
 
 // JWT-based API imports (new approach)
 import { fetchDonatedBadgesJWT, testClerkJWT } from "@/utils/api"
-import AuthMessage from "@/components/AuthMessage"
+import AuthMessage from "@/components/landing/AuthMessage"
 import { SignedIn, SignedOut, useUser, useAuth } from '@clerk/nextjs'
 
 // Map database values to display names

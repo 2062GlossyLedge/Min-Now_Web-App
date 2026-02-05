@@ -29,6 +29,7 @@ export const useCheckupStatus = (type: 'keep' | 'give') => {
         const checkCheckupStatus = async () => {
             try {
                 // const { data, error } = await fetchCheckup(type, authenticatedFetch) // CSRF approach - commented out
+                console.log('type of type and getToken:', typeof type, typeof getToken)
                 const { data } = await fetchCheckupJWT(type, getToken) // JWT approach - using getToken from Clerk
                 //console.log(`Checkup status for ${type}:`, data)
                 if (data && Array.isArray(data) && data.length > 0) {

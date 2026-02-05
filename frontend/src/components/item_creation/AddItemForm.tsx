@@ -17,11 +17,11 @@ import type { OurFileRouter } from '@/app/api/uploadthing/core'
 import { twMerge } from 'tailwind-merge'
 import "@uploadthing/react/styles.css";
 import { useAuth, useUser } from '@clerk/nextjs'
-import DatePickerComponent from '@/components/DatePickerComponent'
+import DatePickerComponent from '@/components/item_creation/DatePickerComponent'
 import { DatePickerState, calculateReceivedDate, isDateValid, initializeDatePickerState } from '@/utils/datePickerHelpers'
 import { toast } from 'sonner'
-import ItemReceivedDateSection from '@/components/ItemReceivedDateSection'
-import OwnershipDurationGoalSection from '@/components/OwnershipDurationGoalSection'
+import ItemReceivedDateSection from '@/components/item_creation/ItemReceivedDateSection'
+import OwnershipDurationGoalSection from '@/components/item_creation/OwnershipDurationGoalSection'
 import { usePostHog } from 'posthog-js/react'
 
 

@@ -13,8 +13,8 @@ import { updateItemJWT, fetchCheckupJWT, completeCheckupJWT, testClerkJWT, fetch
 import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 import { useOnboarding } from '@/contexts/OnboardingContext'
 import { useUser, useAuth } from '@clerk/nextjs'
-import OnboardingExplanation from './OnboardingExplanation'
-import EmailSignupModal from './EmailSignupModal'
+import OnboardingExplanation from '../onboarding/OnboardingExplanation'
+import EmailSignupModal from '../onboarding/EmailSignupModal'
 import { HelpCircle, Settings } from 'lucide-react'
 import { usePostHog } from 'posthog-js/react'
 

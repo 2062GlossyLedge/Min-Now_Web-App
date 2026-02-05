@@ -1,6 +1,6 @@
 'use client'
 
-import DatePickerComponent from '@/components/DatePickerComponent'
+import DatePickerComponent from '@/components/item_creation/DatePickerComponent'
 import { DatePickerState } from '@/utils/datePickerHelpers'
 
 interface ItemReceivedDateSectionProps {

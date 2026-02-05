@@ -171,3 +171,5 @@ backend/staticfiles/*
 .cursor/*
 
 graph_output.png
+
+experiments/*

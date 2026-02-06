@@ -12,17 +12,17 @@ export default clerkMiddleware(
         //CSP not applied to these routes
         if (
             pathname.startsWith('/api/') ||
-            pathname.startsWith('/_next/')
+            pathname.startsWith('/_next/') ||
             //post hog ingest routes  
             //pathname.startsWith('/ingest/') ||
             // Static files from /public folder (images, fonts, etc)
-            // pathname.includes('Min-NowDarkLogoCropped.ico') ||
-            // pathname.includes('Min-NowDarkLogoCropped.jpg') ||
-            // pathname.includes('gaveBadge2.png') ||
-            // pathname.includes('itemCheckup4.png') ||
-            // pathname.includes('keepBadge.png') ||
-            // pathname.includes('ownedItemExpanded3.png') ||
-            // pathname.includes('ownedItems2.png')
+            pathname.includes('Min-NowDarkLogoCropped.ico') ||
+            pathname.includes('Min-NowDarkLogoCropped.jpg') ||
+            pathname.includes('gaveBadge2.png') ||
+            pathname.includes('itemCheckup4.png') ||
+            pathname.includes('keepBadge.png') ||
+            pathname.includes('ownedItemExpanded3.png') ||
+            pathname.includes('ownedItems2.png')
 
         ) {
             return;
@@ -40,7 +40,8 @@ export default clerkMiddleware(
                     'self',
 
                     //production domain for clerk auth handling
-                    'https://accounts.min-now.store/*', 'https://sea1.ingest.uploadthing.com',
+                    'https://accounts.min-now.store/*',
+                    'https://sea1.ingest.uploadthing.com',
                     'https://utfs.io',
                     'https://*.ufs.sh',
                     'https://uploadthing.com',
@@ -56,6 +57,7 @@ export default clerkMiddleware(
 
                 ],
                 'img-src': [
+                    //unsure why self or sites domain doesn't prevent public/ imgs to have to be ignored in the middleware
                     'self',
                     'https://www.min-now.store/*',
                     'https://sea1.ingest.uploadthing.com',

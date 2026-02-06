@@ -37,14 +37,15 @@ const config = {
                 source: '/django-api/:slug*',
                 destination: `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/django-api/:slug*`,
             },
-            {
-                source: "/ingest/static/:path*",
-                destination: "https://us-assets.i.posthog.com/static/:path*",
-            },
-            {
-                source: "/ingest/:path*",
-                destination: "https://us.i.posthog.com/:path*",
-            },
+            //proxies routes from post hog to be from this sites domain to avoid ad blockers and CORS issues.
+            // {
+            //     source: "/ingest/static/:path*",
+            //     destination: "https://us-assets.i.posthog.com/static/:path*",
+            // },
+            // {
+            //     source: "/ingest/:path*",
+            //     destination: "https://us.i.posthog.com/:path*",
+            // },
         ]
     },
     async headers() {

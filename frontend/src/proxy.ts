@@ -14,7 +14,15 @@ export default clerkMiddleware(
             pathname.startsWith('/api/') ||
             pathname.startsWith('/_next/')
             //post hog ingest routes  
-            //pathname.startsWith('/ingest/')
+            //pathname.startsWith('/ingest/') ||
+            // Static files from /public folder (images, fonts, etc)
+            // pathname.includes('Min-NowDarkLogoCropped.ico') ||
+            // pathname.includes('Min-NowDarkLogoCropped.jpg') ||
+            // pathname.includes('gaveBadge2.png') ||
+            // pathname.includes('itemCheckup4.png') ||
+            // pathname.includes('keepBadge.png') ||
+            // pathname.includes('ownedItemExpanded3.png') ||
+            // pathname.includes('ownedItems2.png')
 
         ) {
             return;
@@ -30,6 +38,7 @@ export default clerkMiddleware(
             directives: {
                 'connect-src': [
                     'self',
+
                     //production domain for clerk auth handling
                     'https://accounts.min-now.store/*', 'https://sea1.ingest.uploadthing.com',
                     'https://utfs.io',
@@ -47,8 +56,8 @@ export default clerkMiddleware(
 
                 ],
                 'img-src': [
-                    // Allow images from the same origin and Clerk's image domains
                     'self',
+                    'https://www.min-now.store/*',
                     'https://sea1.ingest.uploadthing.com',
                     'https://utfs.io',
                     'https://*.ufs.sh',

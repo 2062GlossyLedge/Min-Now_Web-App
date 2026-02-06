@@ -1,3 +1,4 @@
+// clerk with csp setup: https://clerk.com/docs/guides/secure/best-practices/csp-headers#default-configuration
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 
 
@@ -7,21 +8,14 @@ export default clerkMiddleware(
     async (auth, request) => {
         const { pathname } = request.nextUrl;
 
-        // Completely skip middleware for these paths
+        // Completely skip middleware for these paths to avoid being redirected to clerk auth domain auth checker
         //CSP not applied to these routes
         if (
             pathname.startsWith('/api/') ||
-            pathname.startsWith('/_next/') ||
-            // pathname.startsWith('/ingest/') ||
-            pathname.includes('Min-NowDarkLogoCropped.ico') ||
-            pathname.includes('Min-NowDarkLogoCropped.jpg') ||
-            pathname.includes('gaveBadge2.png') ||
-            pathname.includes('itemCheckup4.png') ||
-            pathname.includes('keepBadge.png') ||
-            pathname.includes('ownedItemExpanded3.png') ||
-            pathname.includes('ownedItems2.png') ||
-            pathname.endsWith('.jpg')
-            //pathname.includes('.') // Skip all other files with extensions
+            pathname.startsWith('/_next/')
+            //post hog ingest routes  
+            //pathname.startsWith('/ingest/')
+
         ) {
             return;
         }
@@ -36,22 +30,30 @@ export default clerkMiddleware(
             directives: {
                 'connect-src': [
                     'self',
-                    'https://sea1.ingest.uploadthing.com',
+                    //production domain for clerk auth handling
+                    'https://accounts.min-now.store/*', 'https://sea1.ingest.uploadthing.com',
                     'https://utfs.io',
                     'https://*.ufs.sh',
                     'https://uploadthing.com',
                     'https://*.uploadthing.com',
-                    // 'https://*.posthog.com',
-                    'https://us.i.posthog.com',
+                    'https://accounts.min-now.store', 'https://us.i.posthog.com',
                     'https://us-assets.i.posthog.com',
                     'https://app.posthog.com',
+                    //clerk sign in page in dev
+                    'https://teaching-sturgeon-25.accounts.dev/*',
+                    //clerk sign in page in prod
+                    'https://accounts.min-now.store/*'
+
 
                 ],
                 'img-src': [
+                    // Allow images from the same origin and Clerk's image domains
                     'self',
                     'https://sea1.ingest.uploadthing.com',
                     'https://utfs.io',
-                    'https://*.ufs.sh'
+                    'https://*.ufs.sh',
+                    'https://teaching-sturgeon-25.accounts.dev',
+                    'https://accounts.min-now.store/*',
                 ]
             },
         },
@@ -59,72 +61,3 @@ export default clerkMiddleware(
 )
 
 
-export const config = {
-    matcher: [
-        // /*
-        //     * Match all request paths except for the ones starting with:
-        //     * - api (API routes)
-        //     * - _next/static (static files)
-        //     * - _next/image (image optimization files)
-        //     * - favicon.ico (favicon file)
-        //     */
-        // {
-        //     source: '/((?!api|_next/static|_next/image|Min-NowDarkLogoCropped.ico|Min-NowDarkLogoCropped.jpg|gaveBadge2.png|itemCheckup4.png|keepBadge.png|ownedItemExpanded3.png|ownedItems2.png).*)',
-        //     // Always run for API routes
-        //     missing: [
-        //         { type: 'header', key: 'next-router-prefetch' },
-        //         { type: 'header', key: 'purpose', value: 'prefetch' },
-        //     ],
-        // },
-        // '/(api|trpc)(.*)',
-        //above approach did not exlude the api call /api/uploadthing to run through middleware, causing csp to block uploadthing callbacks to local host
-        //middleware runs on all routes
-        "/(.*)",
-    ]
-}
-
-//next js manual csp approach
-
-//import { NextRequest, NextResponse } from 'next/server'
-
-// export function middleware(request: NextRequest) {
-//     // Generate a nonce for Content Security Policy (CSP)
-//     const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
-//     const isDev = process.env.NEXT_PUBLIC_PROD_FE !== 'true'
-//     const cspHeader = `
-//     default-src 'self';
-//     script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${isDev ? "'unsafe-eval'" : ''};
-//     style-src 'self' 'nonce-${nonce}' ${isDev ? "'unsafe-inline'" : ''};
-//     img-src 'self' blob: data:;
-//     font-src 'self';
-//     object-src 'none';
-//     base-uri 'self';
-//     form-action 'self';
-//     frame-ancestors 'none';
-//     upgrade-insecure-requests;
-// `
-//     // Replace newline characters and spaces
-//     const contentSecurityPolicyHeaderValue = cspHeader
-//         .replace(/\s{2,}/g, ' ')
-//         .trim()
-
-//     const requestHeaders = new Headers(request.headers)
-//     requestHeaders.set('x-nonce', nonce)
-
-//     requestHeaders.set(
-//         'Content-Security-Policy',
-//         contentSecurityPolicyHeaderValue
-//     )
-
-//     const response = NextResponse.next({
-//         request: {
-//             headers: requestHeaders,
-//         },
-//     })
-//     response.headers.set(
-//         'Content-Security-Policy',
-//         contentSecurityPolicyHeaderValue
-//     )
-
-//     return response
-// }

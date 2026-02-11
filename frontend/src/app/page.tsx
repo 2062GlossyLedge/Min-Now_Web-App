@@ -70,7 +70,7 @@ export default function HomePage() {
         }
     }
 
-    // Auto-advance sections every 10 seconds
+    // Auto-advance sections given set interval
     useEffect(() => {
         const interval = setInterval(() => {
             if (currentSection < 4) {
@@ -92,14 +92,16 @@ export default function HomePage() {
     }, [])
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-teal-400 via-teal-500 to-teal-600 dark:from-teal-600 dark:via-teal-700 dark:to-teal-800 relative overflow-hidden">
+        <div className="h-screen flex flex-col bg-gradient-to-br from-teal-400 via-teal-500 to-teal-600 dark:from-teal-600 dark:via-teal-700 dark:to-teal-800 relative overflow-hidden">
             {/* Background decoration */}
+            {/* bg saturation intensity */}
             <div className="absolute inset-0 bg-white/10 dark:bg-black/20" />
+
             <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-t from-transparent via-transparent to-white/5 dark:to-black/10" />
 
             {/* Header with logo and navigation */}
-            <header className="relative z-10 p-4 sm:p-6">
-                <div className="max-w-6xl mx-auto flex items-center justify-between">
+            <header className="w-9/10 relative mt-4 mb-8 mx-auto ">
+                <div className=" mx-auto flex items-center justify-between">
                     <div className="flex items-center space-x-2 sm:space-x-4">
                         <div className="relative w-8 h-8 sm:w-12 sm:h-12 rounded-lg overflow-hidden shadow-lg">
                             <Image
@@ -107,6 +109,7 @@ export default function HomePage() {
                                 alt="Min-Now Logo"
                                 fill
                                 className="object-cover"
+
                                 sizes="(max-width: 640px) 32px, 48px"
                             />
                         </div>
@@ -147,9 +150,9 @@ export default function HomePage() {
             </header>
 
             {/* Main content area */}
-            <main className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+            <main className="flex-1 flex flex-col w-9/10 relative mx-auto">
                 {/* Progress indicators */}
-                <div className="flex justify-center mb-8 sm:mb-12">
+                <div className="flex justify-center mb-8 sm:mb-8">
                     <div className="flex space-x-2 sm:space-x-3">
                         {[0, 1, 2, 3, 4].map((index) => (
                             <button
@@ -166,33 +169,34 @@ export default function HomePage() {
                 </div>
 
                 {/* Content sections */}
-                <div className="min-h-[400px] sm:min-h-[500px] flex items-center justify-center">
+                <div className=" w-full flex flex-1 items-center">
                     {currentSection < 4 ? (
-                        <div className={`transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'} w-full`}>
-                            <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 items-center">
+                        <div className={`transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'} w-full h-full`}>
+                            <div className="flex flex-col  sm:flex-row gap-8 items-center h-full">
                                 {/* Text content */}
-                                <div className="text-center lg:text-left order-2 lg:order-1">
+                                <div className="flex-1 text-center lg:text-left order-2 lg:order-1 ">
                                     <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-white mb-4 sm:mb-6 leading-tight">
                                         {sections[currentSection].title}
                                     </h2>
-                                    <p className="text-base sm:text-lg lg:text-xl text-white/90 leading-relaxed">
+                                    <p className="text-sm sm:text-lg lg:text-xl text-white/90 leading-relaxed">
                                         {sections[currentSection].content}
                                     </p>
                                 </div>
 
                                 {/* Images */}
-                                <div className="flex flex-wrap gap-4 justify-center lg:justify-end order-1 lg:order-2">
+                                <div className="flex-1 flex items-center w-full h-full  ">
                                     {sections[currentSection].images.map((image, index) => (
                                         <div
                                             key={`section-${currentSection}-image-${index}`}
-                                            className="relative w-80 h-60 sm:w-96 sm:h-72 lg:w-[500px] lg:h-[350px] xl:w-[600px] xl:h-[400px] rounded-2xl overflow-hidden shadow-2xl bg-white/10 backdrop-blur-sm border border-white/20"
+                                            className="relative w-full h-full rounded-2xl overflow-hidden shadow-2xl bg-white/10 backdrop-blur-sm border border-white/20"
                                         >
                                             <Image
                                                 src={image}
                                                 alt={`Screenshot ${index + 1} for ${sections[currentSection].title}`}
                                                 fill
                                                 className="object-contain transition-opacity duration-300"
-                                                sizes="(max-width: 640px) 320px, (max-width: 1024px) 384px, 600px"
+                                                sizes="(max-width: 640px) 90vw, (max-width: 1024px) 60vw, 50vw"
+                                                quality={100}
                                                 priority={currentSection === 0 && index === 0}
                                             />
 
@@ -258,7 +262,7 @@ export default function HomePage() {
                 </div>
 
                 {/* Navigation buttons */}
-                <div className="flex justify-between items-center mt-8 sm:mt-12 px-4">
+                <div className="flex justify-between items-center mt-8 ">
                     <button
                         onClick={prevSection}
                         disabled={currentSection === 0}
@@ -287,7 +291,7 @@ export default function HomePage() {
             </main>
 
             {/* Footer */}
-            <footer className="relative z-10 text-center text-white/70 py-2 sm:py-1 px-4">
+            <footer className="w-9/10 relative text-center text-white/70 mb-4 mt-8 mx-auto">
                 <p className="text-xs sm:text-sm">&copy; 2025 Min-Now. Organize your life, one item at a time.</p>
             </footer>
         </div>

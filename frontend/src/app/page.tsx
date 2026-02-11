@@ -48,6 +48,8 @@ const sections = [
 export default function HomePage() {
     const [currentSection, setCurrentSection] = useState(0)
     const [isVisible, setIsVisible] = useState(true)
+    const [imagesLoaded, setImagesLoaded] = useState(false)
+    const [loadedImageUrls, setLoadedImageUrls] = useState<Set<string>>(new Set())
 
     // Handle section transitions with fade effect
     const goToSection = (index: number) => {
@@ -81,14 +83,36 @@ export default function HomePage() {
         return () => clearInterval(interval)
     }, [currentSection])
 
-    // Preload all section images to prevent loading delays during transitions
+    // Preload all section images with load tracking to prevent loading delays during transitions
     useEffect(() => {
-        sections.forEach(section => {
-            section.images.forEach(imageSrc => {
-                const img = new window.Image()
-                img.src = imageSrc
-            })
+        const imageUrls = sections.flatMap(section => section.images)
+        let loadedCount = 0
+        const totalImages = imageUrls.length
+        const loadedUrls = new Set<string>()
+
+        const handleImageLoad = (url: string) => {
+            loadedCount++
+            loadedUrls.add(url)
+            setLoadedImageUrls(new Set(loadedUrls))
+
+            if (loadedCount === totalImages) {
+                setImagesLoaded(true)
+            }
+        }
+
+        imageUrls.forEach(imageSrc => {
+            const img = new window.Image()
+            img.onload = () => handleImageLoad(imageSrc)
+            img.onerror = () => handleImageLoad(imageSrc) // Still mark as "loaded" even on error
+            img.src = imageSrc
         })
+
+        // Fallback timeout to prevent infinite loading
+        const timeout = setTimeout(() => {
+            setImagesLoaded(true)
+        }, 5000)
+
+        return () => clearTimeout(timeout)
     }, [])
 
     return (
@@ -188,16 +212,22 @@ export default function HomePage() {
                                     {sections[currentSection].images.map((image, index) => (
                                         <div
                                             key={`section-${currentSection}-image-${index}`}
-                                            className="relative w-full h-full rounded-2xl overflow-hidden shadow-2xl bg-white/10 backdrop-blur-sm border border-white/20"
+                                            className="relative w-full h-full xl:h-3/4 rounded-2xl overflow-hidden shadow-2xl bg-white/10 backdrop-blur-sm border border-white/20"
                                         >
+                                            {!loadedImageUrls.has(image) && (
+                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                    <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin" />
+                                                </div>
+                                            )}
                                             <Image
                                                 src={image}
                                                 alt={`Screenshot ${index + 1} for ${sections[currentSection].title}`}
                                                 fill
-                                                className="object-contain transition-opacity duration-300"
+                                                className={`object-contain transition-opacity duration-500 ${loadedImageUrls.has(image) ? 'opacity-100' : 'opacity-0'}`}
                                                 sizes="(max-width: 640px) 90vw, (max-width: 1024px) 60vw, 50vw"
-                                                quality={100}
-                                                priority={currentSection === 0 && index === 0}
+                                                quality={95}
+                                                priority={currentSection <= 1}
+                                                loading={currentSection <= 1 ? 'eager' : 'lazy'}
                                             />
 
                                         </div>

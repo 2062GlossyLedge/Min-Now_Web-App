@@ -288,7 +288,12 @@ if not prod:
         message: str = "Use this JWT token in Swagger Authorize button"
 
     # auth dev get route to fetch an auth user's items
-    @dev_router.get("/auth/items", response=List[OwnedItemSchema], auth=ClerkAuth())
+    @dev_router.get(
+        "/auth/items",
+        response=List[OwnedItemSchema],
+        auth=ClerkAuth(),
+        tags=["Development"],
+    )
     def auth_items(
         request, status: Optional[str] = None, item_type: Optional[str] = None
     ):
@@ -328,6 +333,7 @@ if not prod:
         "/auth/clerk-login",
         response={200: ClerkLoginResponse, 401: dict, 429: dict},
         auth=None,
+        tags=["Development"],
     )
     def clerk_login(request, data: ClerkLoginRequest):
         """
@@ -536,7 +542,7 @@ if not prod:
 
 
 # Items Endpoints
-@router.get("/items", response=List[OwnedItemSchema], auth=ClerkAuth())
+@router.get("/items", response=List[OwnedItemSchema], auth=ClerkAuth(), tags=["Items"])
 def list_items(request, status: Optional[str] = None, item_type: Optional[str] = None):
     """
     Get all items for the authenticated user with optional filters.
@@ -575,7 +581,7 @@ def list_items(request, status: Optional[str] = None, item_type: Optional[str] =
     return [OwnedItemSchema.from_orm(item) for item in items]
 
 
-@router.post("/items", response=OwnedItemSchema, auth=ClerkAuth())
+@router.post("/items", response=OwnedItemSchema, auth=ClerkAuth(), tags=["Items"])
 def create_item(request, data: OwnedItemCreateSchema):
     """
     Create a new item for the authenticated user.
@@ -603,7 +609,7 @@ def create_item(request, data: OwnedItemCreateSchema):
         raise HttpError(400, str(e))
 
 
-@router.get("/items/stats", auth=ClerkAuth())
+@router.get("/items/stats", auth=ClerkAuth(), tags=["Items"])
 def get_user_item_stats(request):
     """
     Get user item statistics including count, limit, and remaining slots.
@@ -619,7 +625,9 @@ def get_user_item_stats(request):
     return stats
 
 
-@router.get("/items/{item_id}", response=OwnedItemSchema, auth=ClerkAuth())
+@router.get(
+    "/items/{item_id}", response=OwnedItemSchema, auth=ClerkAuth(), tags=["Items"]
+)
 def get_item(request, item_id: UUID):
     """
     Get a specific item by ID.
@@ -637,7 +645,9 @@ def get_item(request, item_id: UUID):
     return OwnedItemSchema.from_orm(item)
 
 
-@router.put("/items/{item_id}", response=OwnedItemSchema, auth=ClerkAuth())
+@router.put(
+    "/items/{item_id}", response=OwnedItemSchema, auth=ClerkAuth(), tags=["Items"]
+)
 def update_item(request, item_id: UUID, data: OwnedItemUpdateSchema):
     """
     Update a specific item.
@@ -658,7 +668,7 @@ def update_item(request, item_id: UUID, data: OwnedItemUpdateSchema):
     return OwnedItemSchema.from_orm(item)
 
 
-@router.delete("/items/{item_id}", auth=ClerkAuth())
+@router.delete("/items/{item_id}", auth=ClerkAuth(), tags=["Items"])
 def delete_item(request, item_id: UUID):
     """
     Delete a specific item.
@@ -677,7 +687,12 @@ def delete_item(request, item_id: UUID):
 
 
 # Badges Endpoints
-@router.get("/badges/donated", response=DonatedBadgesResponseSchema, auth=ClerkAuth())
+@router.get(
+    "/badges/donated",
+    response=DonatedBadgesResponseSchema,
+    auth=ClerkAuth(),
+    tags=["Badges"],
+)
 def get_donated_badges(request):
     """
     Get donated badge progress for the authenticated user.
@@ -694,7 +709,9 @@ def get_donated_badges(request):
 
 
 # Checkups Endpoints
-@router.get("/checkups", response=List[CheckupSchema], auth=ClerkAuth())
+@router.get(
+    "/checkups", response=List[CheckupSchema], auth=ClerkAuth(), tags=["Checkups"]
+)
 def list_checkups(request, type: Optional[str] = None):
     """
     Get checkups for the authenticated user with optional type filter.
@@ -726,7 +743,7 @@ def list_checkups(request, type: Optional[str] = None):
     ]
 
 
-@router.post("/checkups", response=CheckupSchema, auth=ClerkAuth())
+@router.post("/checkups", response=CheckupSchema, auth=ClerkAuth(), tags=["Checkups"])
 def create_checkup(request, data: CheckupCreateSchema):
     """
     Create a new checkup for the authenticated user.
@@ -760,7 +777,12 @@ def create_checkup(request, data: CheckupCreateSchema):
     )
 
 
-@router.get("/checkups/{checkup_id}", response=CheckupSchema, auth=ClerkAuth())
+@router.get(
+    "/checkups/{checkup_id}",
+    response=CheckupSchema,
+    auth=ClerkAuth(),
+    tags=["Checkups"],
+)
 def get_checkup(request, checkup_id: int):
     """
     Get a specific checkup by ID.
@@ -783,7 +805,12 @@ def get_checkup(request, checkup_id: int):
     )
 
 
-@router.put("/checkups/{checkup_id}/interval", response=CheckupSchema, auth=ClerkAuth())
+@router.put(
+    "/checkups/{checkup_id}/interval",
+    response=CheckupSchema,
+    auth=ClerkAuth(),
+    tags=["Checkups"],
+)
 def update_checkup_interval(request, checkup_id: int, data: CheckupUpdateSchema):
     """
     Update checkup interval for a specific checkup.
@@ -811,7 +838,10 @@ def update_checkup_interval(request, checkup_id: int, data: CheckupUpdateSchema)
 
 
 @router.post(
-    "/checkups/{checkup_id}/complete", response=CheckupSchema, auth=ClerkAuth()
+    "/checkups/{checkup_id}/complete",
+    response=CheckupSchema,
+    auth=ClerkAuth(),
+    tags=["Checkups"],
 )
 def complete_checkup(request, checkup_id: int):
     """
@@ -840,7 +870,12 @@ def complete_checkup(request, checkup_id: int):
 
 
 # Email Endpoints
-@router.post("/send-test-email", response=List[EmailResponseSchema], auth=ClerkAuth())
+@router.post(
+    "/send-test-email",
+    response=List[EmailResponseSchema],
+    auth=ClerkAuth(),
+    tags=["Email & Notifications"],
+)
 def send_test_checkup_email(request):
     """
     Send test checkup email to the authenticated user.
@@ -870,7 +905,7 @@ class AgentAddItemRequest(Schema):
     prompt: str
 
 
-@router.post("/agent-add-item", auth=ClerkAuth())
+@router.post("/agent-add-item", auth=ClerkAuth(), tags=["AI Agent"])
 def agent_add_item(request, data: AgentAddItemRequest):
     """
     Add an item using AI agent.
@@ -895,7 +930,7 @@ def agent_add_item(request, data: AgentAddItemRequest):
     return result
 
 
-@router.post("/agent-add-item-batch", auth=ClerkAuth())
+@router.post("/agent-add-item-batch", auth=ClerkAuth(), tags=["AI Agent"])
 def agent_add_item_batch(request, data: AgentBatchPromptsSchema):
     """
     Add multiple items in batch using AI agent.
@@ -939,7 +974,12 @@ class SyncPreferencesResponse(Schema):
     updated_checkups: List[CheckupSchema]
 
 
-@router.post("/sync-preferences", response=SyncPreferencesResponse, auth=ClerkAuth())
+@router.post(
+    "/sync-preferences",
+    response=SyncPreferencesResponse,
+    auth=ClerkAuth(),
+    tags=["User Preferences"],
+)
 def sync_user_preferences(request, data: SyncPreferencesRequest):
     """
     Sync user preferences from Clerk metadata to Django checkup intervals.

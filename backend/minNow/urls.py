@@ -22,6 +22,7 @@ from dotenv import load_dotenv
 from ninja import NinjaAPI
 from django.http import HttpResponse
 from django.conf import settings
+from minNow.auth import JwtAuthBackend, ClerkAuth
 from items.api import router as items_router
 from django.contrib.auth import authenticate
 import jwt
@@ -65,6 +66,7 @@ api = NinjaAPI(
     csrf=True,
     docs_url="/docs" if debug else None,
     openapi_url="/openapi.json" if debug else None,
+    auth=ClerkAuth(),  # Use ClerkAuth for Ninja API (shows auth in Swagger docs)
 )
 
 # Add the main items router to the API

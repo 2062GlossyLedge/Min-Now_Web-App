@@ -1,4 +1,5 @@
 import { Item } from '@/types/item'
+import { METHODS } from 'http';
 
 interface ApiResponse<T> {
     data?: T
@@ -125,7 +126,7 @@ const fetchWithJWTAndCSRF = async (url: string, token: string, csrfToken?: strin
     }
 
     // Add CSRF token for mutating operations
-    if (csrfToken && ['POST', 'PUT', 'DELETE'].includes(options.method || 'GET')) {
+    if (csrfToken && ['POST', 'PUT', 'DELETE', 'GET'].includes(options.method || 'GET')) {
         headers['X-CSRFToken'] = csrfToken
     }
 
@@ -160,10 +161,16 @@ export const fetchItemsByStatus = async (
     try {
         const token = await getJWT(getToken)
 
+        const csrfToken = await getCSRFToken(getToken)
+
         const params = new URLSearchParams({ status })
-        const response = await fetchWithJWT(
-            `${process.env.NEXT_PUBLIC_API_URL}/django-api/items?${params}`,
-            token
+        const response = await fetchWithJWTAndCSRF(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/items?${params}`,
+            token,
+            csrfToken || undefined,
+            {
+                method: 'GET',
+            }
         )
 
         if (!response.ok) {
@@ -201,7 +208,7 @@ export const createItem = async (
         const csrfToken = await getCSRFToken(getToken)
 
         const response = await fetchWithJWTAndCSRF(
-            `${process.env.NEXT_PUBLIC_API_URL}/django-api/items/create`,
+            `${process.env.NEXT_PUBLIC_API_URL}/api/items`,
             token,
             csrfToken || undefined,
             {
@@ -247,7 +254,7 @@ export const fetchUserItemStats = async (
         const token = await getJWT(getToken)
 
         const response = await fetchWithJWT(
-            `${process.env.NEXT_PUBLIC_API_URL}/django-api/items/stats`,
+            `${process.env.NEXT_PUBLIC_API_URL}/api/items/stats`,
             token,
             {
                 method: 'GET',
@@ -276,7 +283,7 @@ export const fetchItemById = async (
         const token = await getJWT(getToken)
 
         const response = await fetchWithJWT(
-            `${process.env.NEXT_PUBLIC_API_URL}/django-api/items/${id}`,
+            `${process.env.NEXT_PUBLIC_API_URL}/api/items/${id}`,
             token
         )
 
@@ -334,7 +341,7 @@ export const updateItem = async (
         }
 
         const response = await fetchWithJWTAndCSRF(
-            `${process.env.NEXT_PUBLIC_API_URL}/django-api/items/${id}/update`,
+            `${process.env.NEXT_PUBLIC_API_URL}/api/items/${id}`,
             token,
             csrfToken || undefined,
             {
@@ -401,7 +408,7 @@ export const deleteItem = async (
         const csrfToken = await getCSRFToken(getToken)
 
         const response = await fetchWithJWTAndCSRF(
-            `${process.env.NEXT_PUBLIC_API_URL}/django-api/items/${id}/delete`,
+            `${process.env.NEXT_PUBLIC_API_URL}/api/items/${id}`,
             token,
             csrfToken || undefined,
             {
@@ -428,7 +435,7 @@ export const fetchDonatedBadges = async (
         const token = await getJWT(getToken)
 
         const response = await fetchWithJWT(
-            `${process.env.NEXT_PUBLIC_API_URL}/django-api/badges/donated`,
+            `${process.env.NEXT_PUBLIC_API_URL}/api/badges/donated`,
             token
         )
 
@@ -456,7 +463,7 @@ export const createCheckup = async (
         const csrfToken = await getCSRFToken(getToken)
 
         const response = await fetchWithJWTAndCSRF(
-            `${process.env.NEXT_PUBLIC_API_URL}/django-api/checkups/create`,
+            `${process.env.NEXT_PUBLIC_API_URL}/api/checkups`,
             token,
             csrfToken || undefined,
             {
@@ -488,7 +495,7 @@ export const fetchCheckup = async (
 
         const params = new URLSearchParams({ type: type.toLowerCase() })
         const response = await fetchWithJWT(
-            `${process.env.NEXT_PUBLIC_API_URL}/django-api/checkups?${params}`,
+            `${process.env.NEXT_PUBLIC_API_URL}/api/checkups?${params}`,
             token
         )
 
@@ -513,7 +520,7 @@ export const getCheckupById = async (
         const token = await getJWT(getToken)
 
         const response = await fetchWithJWT(
-            `${process.env.NEXT_PUBLIC_API_URL}/django-api/checkups/${checkupId}`,
+            `${process.env.NEXT_PUBLIC_API_URL}/api/checkups/${checkupId}`,
             token
         )
 
@@ -542,7 +549,7 @@ export const updateCheckupInterval = async (
         const csrfToken = await getCSRFToken(getToken)
 
         const response = await fetchWithJWTAndCSRF(
-            `${process.env.NEXT_PUBLIC_API_URL}/django-api/checkups/${checkupId}/interval`,
+            `${process.env.NEXT_PUBLIC_API_URL}/api/checkups/${checkupId}/interval`,
             token,
             csrfToken || undefined,
             {
@@ -576,7 +583,7 @@ export const completeCheckup = async (
         const csrfToken = await getCSRFToken(getToken)
 
         const response = await fetchWithJWTAndCSRF(
-            `${process.env.NEXT_PUBLIC_API_URL}/django-api/checkups/${checkupId}/complete`,
+            `${process.env.NEXT_PUBLIC_API_URL}/api/checkups/${checkupId}/complete`,
             token,
             csrfToken || undefined,
             {
@@ -607,7 +614,7 @@ export const sendTestCheckupEmail = async (
         const csrfToken = await getCSRFToken(getToken)
 
         const response = await fetchWithJWTAndCSRF(
-            `${process.env.NEXT_PUBLIC_API_URL}/django-api/send-test-email`,
+            `${process.env.NEXT_PUBLIC_API_URL}/api/send-test-email`,
             token,
             csrfToken || undefined,
             {
@@ -640,7 +647,7 @@ export const agentAddItem = async (
 
         //console.log('prompt to be sent:', prompt)
         const response = await fetchWithJWTAndCSRF(
-            `${process.env.NEXT_PUBLIC_API_URL}/django-api/agent-add-item`,
+            `${process.env.NEXT_PUBLIC_API_URL}/api/agent-add-item`,
             token,
             csrfToken || undefined,
             {
@@ -675,7 +682,7 @@ export const agentAddItemsBatch = async (
 
         //console.log('prompts to be sent:', prompts)
         const response = await fetchWithJWTAndCSRF(
-            `${process.env.NEXT_PUBLIC_API_URL}/django-api/agent-add-item-batch`,
+            `${process.env.NEXT_PUBLIC_API_URL}/api/agent-add-item-batch`,
             token,
             csrfToken || undefined,
             {
@@ -850,7 +857,7 @@ export const syncUserPreferences = async (
         const csrfToken = await getCSRFToken(getToken);
 
         const response = await fetchWithJWTAndCSRF(
-            `${process.env.NEXT_PUBLIC_API_URL}/django-api/sync-preferences`,
+            `${process.env.NEXT_PUBLIC_API_URL}/api/sync-preferences`,
             token,
             csrfToken || undefined,
             {

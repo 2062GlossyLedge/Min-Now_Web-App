@@ -14,11 +14,11 @@ setup.describe.configure({
 setup("global setup", async () => {
     await clerkSetup();
     if (
-        !process.env.CLERK_USER_EMAIL ||
+        !process.env.CLERK_USER_USERNAME ||
         !process.env.CLERK_USER_PASSWORD
     ) {
         throw new Error(
-            "Please provide CLERK_USER_EMAIL and CLERK_USER_PASSWORD environment variables."
+            "Please provide CLERK_USER_USERNAME and CLERK_USER_PASSWORD environment variables."
         );
     }
 });
@@ -31,9 +31,7 @@ setup("authenticate", async ({ page }) => {
         page,
         signInParams: {
             strategy: "password",
-            identifier:
-
-                process.env.CLERK_USER_EMAIL!,
+            identifier: process.env.CLERK_USER_USERNAME!,
             password: process.env.CLERK_USER_PASSWORD!,
         },
     });

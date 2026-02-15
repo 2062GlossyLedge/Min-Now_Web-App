@@ -2,14 +2,53 @@
 MinNow API - Items and Checkups Management
 
 This module implements the Django-Ninja API for the MinNow application.
-All endpoints are protected with Upstash rate limiting.
+All endpoints are protected with Upstash rate limiting and Clerk JWT authentication.
+
+API Routes (accessible at /api/):
+=================================
+Items:
+  GET    /items                      - List items with optional status/item_type filters
+  POST   /items                      - Create a new item
+  GET    /items/stats                - Get user item statistics (count, limit, remaining)
+  GET    /items/{item_id}            - Get specific item by UUID
+  PUT    /items/{item_id}            - Update specific item
+  DELETE /items/{item_id}            - Delete specific item
+
+Badges:
+  GET    /badges/donated             - Get donated badge progress
+
+Checkups:
+  GET    /checkups                   - List checkups with optional type filter
+  POST   /checkups                   - Create a new checkup
+  GET    /checkups/{checkup_id}      - Get specific checkup
+  PUT    /checkups/{checkup_id}/interval - Update checkup interval
+  POST   /checkups/{checkup_id}/complete - Mark checkup as complete
+
+Email & Notifications:
+  POST   /send-test-email            - Send test checkup email
+
+AI Agent:
+  POST   /agent-add-item             - AI agent item creation
+  POST   /agent-add-item-batch       - Batch AI agent item creation
+
+User Preferences:
+  POST   /sync-preferences           - Sync user email preferences and checkup intervals
+
+Authentication:
+  GET    /clerk-jwt                  - Test JWT authentication and get user info with CSRF token
+
+  All endpoints require JWT authentication via Authorization header:
+  Authorization: Bearer <clerk_jwt_token>
+
+Rate Limiting:
+  100 requests per 60 seconds per user/IP
 
 """
 
 from ninja import Router, Schema
 from ninja.errors import HttpError
 from typing import List, Optional, Dict
-from pydantic import RootModel, BaseModel
+from pydantic import RootModel
 from .models import ItemType, ItemStatus, TimeSpan, OwnedItem
 from .services import ItemService, CheckupService
 from datetime import datetime
@@ -17,22 +56,14 @@ from uuid import UUID
 from dotenv import load_dotenv
 import os
 import logging
-import json
 from .addItemAgent import run_agent
-from django.contrib.auth import authenticate
-from django.http import JsonResponse
 from django.core.exceptions import ValidationError
 import jwt
 from django.conf import settings
-from datetime import datetime, timedelta
-from django.middleware.csrf import get_token
+from datetime import datetime
 from upstash_ratelimit import Ratelimit, FixedWindow
 from upstash_redis import Redis
 
-from django.views.decorators.http import require_http_methods
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
-from minNow.auth import jwt_required
 
 log = logging.getLogger(__name__)
 load_dotenv()
@@ -40,36 +71,41 @@ prod = os.getenv("PROD") == "True"
 log.info(f"API Environment: {'Production' if prod else 'Development'}")
 
 # Initialize Upstash Rate Limiter
-# try:
-#     print("Initializing Upstash rate limiter...")
-#     redis = Redis.from_env()
-#     rate_limiter = Ratelimit(
-#         redis=redis,
-#         limiter=FixedWindow(max_requests=100, window=60),
-#         prefix="api_rate_limit",
-#     )
-#     log.info("Upstash rate limiter initialized successfully")
-# except Exception as e:
-#     log.warning(
-#         f"Failed to initialize Upstash rate limiter: {e}. Rate limiting will be disabled."
-#     )
-#     rate_limiter = None
+try:
+    print("Initializing Upstash rate limiter...")
+    redis = Redis.from_env()
+    rate_limiter = Ratelimit(
+        redis=redis,
+        limiter=FixedWindow(max_requests=100, window=60),
+        prefix="api_rate_limit",
+    )
+    log.info("Upstash rate limiter initialized successfully")
+except Exception as e:
+    log.warning(
+        f"Failed to initialize Upstash rate limiter: {e}. Rate limiting will be disabled."
+    )
+    rate_limiter = None
 
-# Use when testing swagger docs in dev. Testing frontend dev with this running will result in invalid alg for dev tokens
-# if prod:
-#     from backend.minNow.auth import ClerkAuth
-# else:
-#     from minNow.auth import DevClerkAuth as ClerkAuth
-# if prod:
-#     from backend.minNow.auth import ClerkAuth
-# else:
-#     from minNow.auth import ClerkAuth
+# Use when testing swagger docs in dev. Allows authenticating in swagger
+# Uses HS256 dev token
+# from minNow.auth import DevClerkAuth as ClerkAuth
+
+# Use this for production with real Clerk JWTs
+# Uses RS256 Clerk tokens
+if prod:
+    from backend.minNow.auth import ClerkAuth
+else:
+    from minNow.auth import ClerkAuth
 
 
-# Main router for production routes
+# ============================================================================
+# API Routers
+# ============================================================================
+# Main router for production routes - accessible at /api/
+# These routes use Django Ninja with ClerkAuth() for JWT authentication
 router = Router()
 
-# Development-only router (will be conditionally added)
+# Development-only router (will be conditionally added) - accessible at /api/dev/
 dev_router = Router()
 
 
@@ -245,8 +281,53 @@ if not prod:
         email: str
         message: str = "Use this JWT token in Swagger Authorize button"
 
+    # auth dev get route to fetch an auth user's items
+    @dev_router.get(
+        "/auth/items",
+        response=List[OwnedItemSchema],
+        auth=ClerkAuth(),
+        tags=["Development"],
+    )
+    def auth_items(
+        request, status: Optional[str] = None, item_type: Optional[str] = None
+    ):
+        """
+        Development-only endpoint to test JWT authentication and fetching items for the authenticated user.
+        Requires a valid JWT token in the Authorization header.
+
+        Query parameters:
+        - status: Optional filter by item status (keep, give, donate)
+        - item_type: Optional filter by item type (clothing, book, toy, etc.)
+        """
+        # Convert string parameters to enum values if provided
+        status_enum = None
+        if status:
+            try:
+                status_enum = ItemStatus(status)
+            except ValueError:
+                raise HttpError(400, "Invalid status value")
+
+        item_type_enum = None
+        if item_type:
+            try:
+                item_type_enum = ItemType(item_type)
+            except ValueError:
+                raise HttpError(400, "Invalid item_type value")
+
+        # Get items for the authenticated user
+        user = request.user
+        items = ItemService.get_items_for_user(
+            user, status=status_enum, item_type=item_type_enum
+        )
+
+        # Convert to OwnedItemSchema and return (Ninja handles serialization)
+        return [OwnedItemSchema.from_orm(item) for item in items]
+
     @dev_router.post(
-        "/auth/clerk-login", response={200: ClerkLoginResponse, 401: dict, 429: dict}
+        "/auth/clerk-login",
+        response={200: ClerkLoginResponse, 401: dict, 429: dict},
+        auth=None,
+        tags=["Development"],
     )
     def clerk_login(request, data: ClerkLoginRequest):
         """
@@ -447,728 +528,546 @@ if not prod:
             return 401, {"detail": f"JWT creation failed: {str(e)}"}
 
 
-# New Django-based JWT authenticated endpoints (alternative approach)
+# ============================================================================
+# Django Ninja REST API Routes (Production)
+# ============================================================================
+# These routes replace the Django view functions with Django Ninja routes for
+# cleaner API handling and automatic OpenAPI/Swagger documentation
 
 
-@jwt_required
+# Items Endpoints
+@router.get("/items", response=List[OwnedItemSchema], auth=ClerkAuth(), tags=["Items"])
+def list_items(request, status: Optional[str] = None, item_type: Optional[str] = None):
+    """
+    Get all items for the authenticated user with optional filters.
+    Rate limit: 100 requests per 60 seconds
+
+    Query parameters:
+    - status: Optional filter by item status (keep, give, donate)
+    - item_type: Optional filter by item type (clothing, book, toy, etc.)
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+
+    # Convert string parameters to enum values if provided
+    status_enum = None
+    if status:
+        try:
+            status_enum = ItemStatus(status)
+        except ValueError:
+            raise HttpError(400, "Invalid status value")
+
+    item_type_enum = None
+    if item_type:
+        try:
+            item_type_enum = ItemType(item_type)
+        except ValueError:
+            raise HttpError(400, "Invalid item_type value")
+
+    # Get items for the authenticated user
+    user = request.user
+    items = ItemService.get_items_for_user(
+        user, status=status_enum, item_type=item_type_enum
+    )
+
+    return [OwnedItemSchema.from_orm(item) for item in items]
+
+
+@router.post("/items", response=OwnedItemSchema, auth=ClerkAuth(), tags=["Items"])
+def create_item(request, data: OwnedItemCreateSchema):
+    """
+    Create a new item for the authenticated user.
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+
+    user = request.user
+    try:
+        item = ItemService.create_item(
+            user=user,
+            name=data.name,
+            picture_url=data.picture_url,
+            item_type=data.item_type,
+            status=data.status,
+            item_received_date=data.item_received_date,
+            last_used=data.last_used,
+            ownership_duration_goal_months=data.ownership_duration_goal_months,
+        )
+        return OwnedItemSchema.from_orm(item)
+    except ValidationError as e:
+        raise HttpError(400, str(e))
+
+
+@router.get("/items/stats", auth=ClerkAuth(), tags=["Items"])
+def get_user_item_stats(request):
+    """
+    Get user item statistics including count, limit, and remaining slots.
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+
+    user = request.user
+    stats = ItemService.get_user_item_stats(user)
+    return stats
+
+
+@router.get(
+    "/items/{item_id}", response=OwnedItemSchema, auth=ClerkAuth(), tags=["Items"]
+)
+def get_item(request, item_id: UUID):
+    """
+    Get a specific item by ID.
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+
+    item = ItemService.get_item(item_id)
+    if not item:
+        raise HttpError(404, "Item not found")
+
+    return OwnedItemSchema.from_orm(item)
+
+
+@router.put(
+    "/items/{item_id}", response=OwnedItemSchema, auth=ClerkAuth(), tags=["Items"]
+)
+def update_item(request, item_id: UUID, data: OwnedItemUpdateSchema):
+    """
+    Update a specific item.
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+
+    # Prepare update data (filter out None values)
+    update_data = {k: v for k, v in data.dict().items() if v is not None}
+
+    item = ItemService.update_item(item_id, **update_data)
+    if not item:
+        raise HttpError(404, "Item not found")
+
+    return OwnedItemSchema.from_orm(item)
+
+
+@router.delete("/items/{item_id}", auth=ClerkAuth(), tags=["Items"])
+def delete_item(request, item_id: UUID):
+    """
+    Delete a specific item.
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+
+    success = ItemService.delete_item(item_id)
+    if not success:
+        raise HttpError(404, "Item not found")
+
+    return {"detail": "Item deleted successfully"}
+
+
+# Badges Endpoints
+@router.get(
+    "/badges/donated",
+    response=DonatedBadgesResponseSchema,
+    auth=ClerkAuth(),
+    tags=["Badges"],
+)
+def get_donated_badges(request):
+    """
+    Get donated badge progress for the authenticated user.
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+
+    user = request.user
+    donated_badges = OwnedItem.donated_badge_progress(user)
+    return donated_badges
+
+
+# Checkups Endpoints
+@router.get(
+    "/checkups", response=List[CheckupSchema], auth=ClerkAuth(), tags=["Checkups"]
+)
+def list_checkups(request, type: Optional[str] = None):
+    """
+    Get checkups for the authenticated user with optional type filter.
+    Rate limit: 100 requests per 60 seconds
+
+    Query parameters:
+    - type: Optional filter by checkup type (keep, give)
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+
+    user = request.user
+
+    if type:
+        checkups = CheckupService.get_checkups_by_type(user=user, checkup_type=type)
+    else:
+        checkups = CheckupService.get_all_checkups(user=user)
+
+    return [
+        CheckupSchema(
+            id=checkup.id,
+            last_checkup_date=checkup.last_checkup_date,
+            checkup_interval_months=checkup.checkup_interval_months,
+            is_checkup_due=checkup.is_checkup_due,
+        )
+        for checkup in checkups
+    ]
+
+
+@router.post("/checkups", response=CheckupSchema, auth=ClerkAuth(), tags=["Checkups"])
+def create_checkup(request, data: CheckupCreateSchema):
+    """
+    Create a new checkup for the authenticated user.
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+
+    user = request.user
+
+    # Check if user already has a checkup of this type
+    existing_checkup = CheckupService.get_checkups_by_type(
+        user, data.checkup_type
+    ).first()
+    if existing_checkup:
+        raise HttpError(400, f"User already has a {data.checkup_type} checkup")
+
+    checkup = CheckupService.create_checkup(
+        user=user,
+        interval_months=data.interval_months,
+        checkup_type=data.checkup_type,
+    )
+
+    return CheckupSchema(
+        id=checkup.id,
+        last_checkup_date=checkup.last_checkup_date,
+        checkup_interval_months=checkup.checkup_interval_months,
+        is_checkup_due=checkup.is_checkup_due,
+    )
+
+
+@router.get(
+    "/checkups/{checkup_id}",
+    response=CheckupSchema,
+    auth=ClerkAuth(),
+    tags=["Checkups"],
+)
+def get_checkup(request, checkup_id: int):
+    """
+    Get a specific checkup by ID.
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+
+    checkup = CheckupService.get_checkup(checkup_id)
+    if not checkup or checkup.user != request.user:
+        raise HttpError(404, "Checkup not found")
+
+    return CheckupSchema(
+        id=checkup.id,
+        last_checkup_date=checkup.last_checkup_date,
+        checkup_interval_months=checkup.checkup_interval_months,
+        is_checkup_due=checkup.is_checkup_due,
+    )
+
+
+@router.put(
+    "/checkups/{checkup_id}/interval",
+    response=CheckupSchema,
+    auth=ClerkAuth(),
+    tags=["Checkups"],
+)
+def update_checkup_interval(request, checkup_id: int, data: CheckupUpdateSchema):
+    """
+    Update checkup interval for a specific checkup.
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+
+    # Get the checkup and verify ownership
+    checkup = CheckupService.get_checkup(checkup_id)
+    if not checkup or checkup.user != request.user:
+        raise HttpError(404, "Checkup not found")
+
+    # Update the checkup
+    checkup = CheckupService.update_checkup_interval(checkup_id, data.interval_months)
+
+    return CheckupSchema(
+        id=checkup.id,
+        last_checkup_date=checkup.last_checkup_date,
+        checkup_interval_months=checkup.checkup_interval_months,
+        is_checkup_due=checkup.is_checkup_due,
+    )
+
+
+@router.post(
+    "/checkups/{checkup_id}/complete",
+    response=CheckupSchema,
+    auth=ClerkAuth(),
+    tags=["Checkups"],
+)
+def complete_checkup(request, checkup_id: int):
+    """
+    Mark a checkup as complete.
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+
+    # Get the checkup and verify ownership
+    checkup = CheckupService.get_checkup(checkup_id)
+    if not checkup or checkup.user != request.user:
+        raise HttpError(404, "Checkup not found")
+
+    # Complete the checkup
+    checkup = CheckupService.complete_checkup(checkup_id)
+
+    return CheckupSchema(
+        id=checkup.id,
+        last_checkup_date=checkup.last_checkup_date,
+        checkup_interval_months=checkup.checkup_interval_months,
+        is_checkup_due=checkup.is_checkup_due,
+    )
+
+
+# Email Endpoints
+@router.post(
+    "/send-test-email",
+    response=List[EmailResponseSchema],
+    auth=ClerkAuth(),
+    tags=["Email & Notifications"],
+)
+def send_test_checkup_email(request):
+    """
+    Send test checkup email to the authenticated user.
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+
+    user = request.user
+    results = CheckupService.check_and_send_due_emails(user)
+
+    return [
+        EmailResponseSchema(
+            checkup_type=result["checkup_type"],
+            status=result["status"],
+            recipient_email=result["recipient_email"],
+            recipient_username=result["recipient_username"],
+        )
+        for result in results
+    ]
+
+
+# AI Agent Endpoints
+class AgentAddItemRequest(Schema):
+    prompt: str
+
+
+@router.post("/agent-add-item", auth=ClerkAuth(), tags=["AI Agent"])
+def agent_add_item(request, data: AgentAddItemRequest):
+    """
+    Add an item using AI agent.
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+
+    # Get JWT token from Authorization header
+    auth_header = request.META.get("HTTP_AUTHORIZATION")
+    jwt_token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        jwt_token = auth_header.split(" ")[1]
+
+    # Convert prompt to expected format
+    prompt_data = {"prompt": data.prompt}
+
+    # Run the agent
+    result = run_agent(prompt_data, jwt_token)
+    return result
+
+
+@router.post("/agent-add-item-batch", auth=ClerkAuth(), tags=["AI Agent"])
+def agent_add_item_batch(request, data: AgentBatchPromptsSchema):
+    """
+    Add multiple items in batch using AI agent.
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+
+    # Validate item limits before processing batch
+    user = request.user
+    num_items_to_add = len(data.prompts)
+
+    try:
+        OwnedItem.validate_item_limit(user, count=num_items_to_add)
+    except ValidationError as e:
+        raise HttpError(400, str(e))
+
+    # Get JWT token from Authorization header
+    auth_header = request.META.get("HTTP_AUTHORIZATION")
+    jwt_token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        jwt_token = auth_header.split(" ")[1]
+
+    # Run the agent with batch prompts
+    result = run_agent(data.prompts, jwt_token)
+    return result
+
+
+# User Preferences Endpoints
+class SyncPreferencesRequest(Schema):
+    checkupInterval: int
+    emailNotifications: bool
+
+
+class SyncPreferencesResponse(Schema):
+    message: str
+    email_notifications: bool
+    checkup_interval: int
+    updated_checkups: List[CheckupSchema]
+
+
+class ClerkJwtTestResponse(Schema):
+    userId: str
+    username: str
+    email: str
+    csrf_token: str
+
+
+@router.post(
+    "/sync-preferences",
+    response=SyncPreferencesResponse,
+    auth=ClerkAuth(),
+    tags=["User Preferences"],
+)
+def sync_user_preferences(request, data: SyncPreferencesRequest):
+    """
+    Sync user preferences from Clerk metadata to Django checkup intervals.
+    Rate limit: 100 requests per 60 seconds
+
+    This endpoint should be called when user saves email preferences in the frontend.
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+
+    # Validate checkup_interval
+    if data.checkupInterval < 1 or data.checkupInterval > 12:
+        raise HttpError(400, "checkupInterval must be an integer between 1 and 12")
+
+    user = request.user
+
+    # Get all checkups for the user (both 'keep' and 'give')
+    all_checkups = CheckupService.get_all_checkups(user=user)
+
+    updated_checkups = []
+
+    # Update interval for all existing checkups
+    for checkup in all_checkups:
+        updated_checkup = CheckupService.update_checkup_interval(
+            checkup.id, data.checkupInterval
+        )
+        updated_checkups.append(
+            CheckupSchema(
+                id=updated_checkup.id,
+                last_checkup_date=updated_checkup.last_checkup_date,
+                checkup_interval_months=updated_checkup.checkup_interval_months,
+                is_checkup_due=updated_checkup.is_checkup_due,
+            )
+        )
+
+    # If no checkups exist, try to get them again in case they were just created
+    if not updated_checkups:
+        all_checkups = CheckupService.get_all_checkups(user=user)
+        for checkup in all_checkups:
+            updated_checkup = CheckupService.update_checkup_interval(
+                checkup.id, data.checkupInterval
+            )
+            updated_checkups.append(
+                CheckupSchema(
+                    id=updated_checkup.id,
+                    last_checkup_date=updated_checkup.last_checkup_date,
+                    checkup_interval_months=updated_checkup.checkup_interval_months,
+                    is_checkup_due=updated_checkup.is_checkup_due,
+                )
+            )
+
+    return SyncPreferencesResponse(
+        message="User preferences synced successfully",
+        email_notifications=data.emailNotifications,
+        checkup_interval=data.checkupInterval,
+        updated_checkups=updated_checkups,
+    )
+
+
+# Authentication Endpoints
+@router.get(
+    "/clerk-jwt",
+    response=ClerkJwtTestResponse,
+    auth=ClerkAuth(),
+    tags=["Authentication"],
+)
 def clerk_jwt_test(request):
     """
     Test endpoint to verify JWT authentication is working.
     Returns the user ID from the authenticated request along with a CSRF token.
+    Rate limit: 100 requests per 60 seconds
     """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+
     # Get CSRF token for use in subsequent requests
+    from django.middleware.csrf import get_token
+
     csrf_token = get_token(request)
 
-    data = {
-        "userId": request.user.clerk_id,
-        "username": request.user.username,
-        "email": request.user.email,
-        "csrf_token": csrf_token,  # Include CSRF token for frontend use
-    }
-    return JsonResponse(data)
-
-
-@jwt_required
-@require_http_methods(["GET"])
-def list_items_django(request):
-    """
-    Django view version of list_items endpoint using JWT authentication.
-    Alternative to the ninja-based endpoint.
-    """
-    try:
-        # Parse query parameters
-        status_param = request.GET.get("status")
-        item_type_param = request.GET.get("item_type")
-
-        # Convert string parameters to enum values if provided
-        status = None
-        if status_param:
-            try:
-                status = ItemStatus(status_param)
-            except ValueError:
-                return JsonResponse({"error": "Invalid status value"}, status=400)
-
-        item_type = None
-        if item_type_param:
-            try:
-                item_type = ItemType(item_type_param)
-            except ValueError:
-                return JsonResponse({"error": "Invalid item_type value"}, status=400)
-
-        # Get items for the authenticated user
-        user = request.user
-        items = ItemService.get_items_for_user(user, status=status, item_type=item_type)
-
-        # Convert to OwnedItemSchema format (same as list_items ninja endpoint)
-        items_schemas = [OwnedItemSchema.from_orm(item) for item in items]
-
-        # Convert schemas to dictionaries for JSON serialization
-        items_data = [schema.dict() for schema in items_schemas]
-
-        return JsonResponse(items_data, safe=False)
-
-    except Exception as e:
-        log.error(f"Error in list_items_django: {str(e)}")
-        return JsonResponse({"error": "Internal server error"}, status=500)
-
-
-@jwt_required
-@require_http_methods(["POST"])
-def create_item_django(request):
-    """
-    Django view version of create_item endpoint using JWT authentication.
-    Alternative to the ninja-based endpoint.
-    """
-    try:
-        # Parse JSON payload
-        data = json.loads(request.body)
-
-        # Validate required fields
-        required_fields = [
-            "name",
-            "picture_url",
-            "item_type",
-            "item_received_date",
-            "last_used",
-        ]
-        for field in required_fields:
-            if field not in data:
-                return JsonResponse(
-                    {"error": f"Missing required field: {field}"}, status=400
-                )
-
-        # Convert string parameters to enum values
-        try:
-            item_type = ItemType(data["item_type"])
-        except ValueError:
-            return JsonResponse({"error": "Invalid item_type value"}, status=400)
-
-        status = ItemStatus.KEEP  # Default status
-        if "status" in data:
-            try:
-                status = ItemStatus(data["status"])
-            except ValueError:
-                return JsonResponse({"error": "Invalid status value"}, status=400)
-
-        # Parse datetime fields
-        try:
-            item_received_date = datetime.fromisoformat(
-                data["item_received_date"].replace("Z", "+00:00")
-            )
-            last_used = datetime.fromisoformat(data["last_used"].replace("Z", "+00:00"))
-        except ValueError as e:
-            return JsonResponse(
-                {"error": f"Invalid datetime format: {str(e)}"}, status=400
-            )
-
-        # Extract ownership duration goal (with default of 12 months)
-        ownership_duration_goal_months = data.get("ownership_duration_goal_months", 12)
-
-        # Create the item
-        user = request.user
-        try:
-            item = ItemService.create_item(
-                user=user,
-                name=data["name"],
-                picture_url=data["picture_url"],
-                item_type=item_type,
-                status=status,
-                item_received_date=item_received_date,
-                last_used=last_used,
-                ownership_duration_goal_months=ownership_duration_goal_months,
-            )
-        except ValidationError as e:
-            return JsonResponse({"error": str(e)}, status=400)
-
-        # Convert to schema format
-        item_schema = OwnedItemSchema.from_orm(item)
-        return JsonResponse(item_schema.dict(), status=201)
-
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
-    except Exception as e:
-        log.error(f"Error in create_item_django: {str(e)}")
-        return JsonResponse({"error": "Internal server error"}, status=500)
-
-
-@jwt_required
-@require_http_methods(["GET"])
-def get_item_django(request, item_id):
-    """
-    Django view version of get_item endpoint using JWT authentication.
-    Alternative to the ninja-based endpoint.
-    """
-    try:
-        # Convert string UUID to UUID object
-        try:
-            item_uuid = UUID(item_id)
-        except ValueError:
-            return JsonResponse({"error": "Invalid UUID format"}, status=400)
-
-        # Get the item
-        item = ItemService.get_item(item_uuid)
-        if not item:
-            return JsonResponse({"error": "Item not found"}, status=404)
-
-        # Convert to schema format
-        item_schema = OwnedItemSchema.from_orm(item)
-        return JsonResponse(item_schema.dict())
-
-    except Exception as e:
-        log.error(f"Error in get_item_django: {str(e)}")
-        return JsonResponse({"error": "Internal server error"}, status=500)
-
-
-@jwt_required
-@require_http_methods(["GET"])
-def get_user_item_stats_django(request):
-    """
-    Django view to get user item statistics including limits.
-    """
-    try:
-        user = request.user
-        stats = ItemService.get_user_item_stats(user)
-        return JsonResponse(stats)
-
-    except Exception as e:
-        log.error(f"Error in get_user_item_stats_django: {str(e)}")
-        return JsonResponse({"error": "Internal server error"}, status=500)
-
-
-@jwt_required
-@require_http_methods(["PUT"])
-def update_item_django(request, item_id):
-    """
-    Django view version of update_item endpoint using JWT authentication.
-    Alternative to the ninja-based endpoint.
-    """
-    try:
-        # Convert string UUID to UUID object
-        try:
-            item_uuid = UUID(item_id)
-        except ValueError:
-            return JsonResponse({"error": "Invalid UUID format"}, status=400)
-
-        # Parse JSON payload
-        data = json.loads(request.body)
-
-        # Convert enum fields if provided
-        update_data = {}
-        for key, value in data.items():
-            if key == "item_type" and value is not None:
-                try:
-                    update_data[key] = ItemType(value)
-                except ValueError:
-                    return JsonResponse(
-                        {"error": "Invalid item_type value"}, status=400
-                    )
-            elif key == "status" and value is not None:
-                try:
-                    update_data[key] = ItemStatus(value)
-                except ValueError:
-                    return JsonResponse({"error": "Invalid status value"}, status=400)
-            elif key in ["item_received_date", "last_used"] and value is not None:
-                try:
-                    update_data[key] = datetime.fromisoformat(
-                        value.replace("Z", "+00:00")
-                    )
-                except ValueError:
-                    return JsonResponse(
-                        {"error": f"Invalid datetime format for {key}"}, status=400
-                    )
-            else:
-                update_data[key] = value
-
-        # Update the item
-        item = ItemService.update_item(item_uuid, **update_data)
-        if not item:
-            return JsonResponse({"error": "Item not found"}, status=404)
-
-        # Convert to schema format
-        item_schema = OwnedItemSchema.from_orm(item)
-        return JsonResponse(item_schema.dict())
-
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
-    except Exception as e:
-        log.error(f"Error in update_item_django: {str(e)}")
-        return JsonResponse({"error": "Internal server error"}, status=500)
-
-
-@jwt_required
-@require_http_methods(["DELETE"])
-def delete_item_django(request, item_id):
-    """
-    Django view version of delete_item endpoint using JWT authentication.
-    Alternative to the ninja-based endpoint.
-    """
-    try:
-        # Convert string UUID to UUID object
-        try:
-            item_uuid = UUID(item_id)
-        except ValueError:
-            return JsonResponse({"error": "Invalid UUID format"}, status=400)
-
-        # Delete the item
-        success = ItemService.delete_item(item_uuid)
-        if not success:
-            return JsonResponse({"error": "Item not found"}, status=404)
-
-        return JsonResponse({"detail": "Item deleted successfully"})
-
-    except Exception as e:
-        log.error(f"Error in delete_item_django: {str(e)}")
-        return JsonResponse({"error": "Internal server error"}, status=500)
-
-
-@jwt_required
-@require_http_methods(["GET"])
-def get_donated_badges_django(request):
-    """
-    Django view version of get_donated_badges endpoint using JWT authentication.
-    Alternative to the ninja-based endpoint.
-    """
-    try:
-        user = request.user
-        donated_badges = OwnedItem.donated_badge_progress(user)
-        return JsonResponse(donated_badges)
-
-    except Exception as e:
-        log.error(f"Error in get_donated_badges_django: {str(e)}")
-        return JsonResponse({"error": "Internal server error"}, status=500)
-
-
-# @jwt_required
-# @require_http_methods(["POST"])
-# def create_checkup_django(request):
-#     """
-#     Django view version of create_checkup endpoint using JWT authentication.
-#     Alternative to the ninja-based endpoint.
-#     """
-#     try:
-#         # Parse JSON payload
-#         data = json.loads(request.body)
-
-#         # Validate required fields
-#         if "checkup_type" not in data:
-#             return JsonResponse(
-#                 {"error": "Missing required field: checkup_type"}, status=400
-#             )
-
-#         interval_months = data.get("interval_months", 1)
-#         checkup_type = data["checkup_type"]
-
-#         # Check if user already has a checkup of this type
-#         existing_checkup = CheckupService.get_checkups_by_type(
-#             request.user, checkup_type
-#         ).first()
-#         if existing_checkup:
-#             return JsonResponse(
-#                 {"error": f"User already has a {checkup_type} checkup"}, status=400
-#             )
-
-#         # Create the checkup
-#         checkup = CheckupService.create_checkup(
-#             user=request.user,
-#             interval_months=interval_months,
-#             checkup_type=checkup_type,
-#         )
-
-#         # Convert to dictionary (assuming CheckupService returns a model instance with the required fields)
-#         checkup_data = {
-#             "id": checkup.id,
-#             "last_checkup_date": checkup.last_checkup_date.isoformat(),
-#             "checkup_interval_months": checkup.checkup_interval_months,
-#             "is_checkup_due": checkup.is_checkup_due,
-#         }
-
-#         return JsonResponse(checkup_data, status=201)
-
-#     except json.JSONDecodeError:
-#         return JsonResponse({"error": "Invalid JSON payload"}, status=400)
-#     except Exception as e:
-#         log.error(f"Error in create_checkup_django: {str(e)}")
-#         return JsonResponse({"error": "Internal server error"}, status=500)
-
-
-@jwt_required
-@require_http_methods(["GET"])
-def get_checkup_django(request, checkup_id):
-    """
-    Django view version of get_checkup endpoint using JWT authentication.
-    Alternative to the ninja-based endpoint.
-    """
-    try:
-        # Convert string ID to int
-        try:
-            checkup_id_int = int(checkup_id)
-        except ValueError:
-            return JsonResponse({"error": "Invalid checkup ID format"}, status=400)
-
-        # Get the checkup
-        checkup = CheckupService.get_checkup(checkup_id_int)
-        if not checkup or checkup.user != request.user:
-            return JsonResponse({"error": "Checkup not found"}, status=404)
-
-        # Convert to dictionary
-        checkup_data = {
-            "id": checkup.id,
-            "last_checkup_date": checkup.last_checkup_date.isoformat(),
-            "checkup_interval_months": checkup.checkup_interval_months,
-            "is_checkup_due": checkup.is_checkup_due,
-        }
-
-        return JsonResponse(checkup_data)
-
-    except Exception as e:
-        log.error(f"Error in get_checkup_django: {str(e)}")
-        return JsonResponse({"error": "Internal server error"}, status=500)
-
-
-@jwt_required
-@require_http_methods(["PUT"])
-def update_checkup_interval_django(request, checkup_id):
-    """
-    Django view version of update_checkup_interval endpoint using JWT authentication.
-    Alternative to the ninja-based endpoint.
-    """
-    try:
-        # Convert string ID to int
-        try:
-            checkup_id_int = int(checkup_id)
-        except ValueError:
-            return JsonResponse({"error": "Invalid checkup ID format"}, status=400)
-
-        # Parse JSON payload
-        data = json.loads(request.body)
-
-        if "interval_months" not in data:
-            return JsonResponse(
-                {"error": "Missing required field: interval_months"}, status=400
-            )
-
-        # Get the checkup and verify ownership
-        checkup = CheckupService.get_checkup(checkup_id_int)
-        if not checkup or checkup.user != request.user:
-            return JsonResponse({"error": "Checkup not found"}, status=404)
-
-        # Update the checkup
-        checkup = CheckupService.update_checkup_interval(
-            checkup_id_int, data["interval_months"]
-        )
-
-        # Convert to dictionary
-        checkup_data = {
-            "id": checkup.id,
-            "last_checkup_date": checkup.last_checkup_date.isoformat(),
-            "checkup_interval_months": checkup.checkup_interval_months,
-            "is_checkup_due": checkup.is_checkup_due,
-        }
-
-        return JsonResponse(checkup_data)
-
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
-    except Exception as e:
-        log.error(f"Error in update_checkup_interval_django: {str(e)}")
-        return JsonResponse({"error": "Internal server error"}, status=500)
-
-
-@jwt_required
-@require_http_methods(["POST"])
-def complete_checkup_django(request, checkup_id):
-    """
-    Django view version of complete_checkup endpoint using JWT authentication.
-    Alternative to the ninja-based endpoint.
-    """
-    try:
-        # Convert string ID to int
-        try:
-            checkup_id_int = int(checkup_id)
-        except ValueError:
-            return JsonResponse({"error": "Invalid checkup ID format"}, status=400)
-
-        # Get the checkup and verify ownership
-        checkup = CheckupService.get_checkup(checkup_id_int)
-        if not checkup or checkup.user != request.user:
-            return JsonResponse({"error": "Checkup not found"}, status=404)
-
-        # Complete the checkup
-        checkup = CheckupService.complete_checkup(checkup_id_int)
-
-        # Convert to dictionary
-        checkup_data = {
-            "id": checkup.id,
-            "last_checkup_date": checkup.last_checkup_date.isoformat(),
-            "checkup_interval_months": checkup.checkup_interval_months,
-            "is_checkup_due": checkup.is_checkup_due,
-        }
-
-        return JsonResponse(checkup_data)
-
-    except Exception as e:
-        log.error(f"Error in complete_checkup_django: {str(e)}")
-        return JsonResponse({"error": "Internal server error"}, status=500)
-
-
-@jwt_required
-@require_http_methods(["GET"])
-def list_checkups_django(request):
-    """
-    Django view version of list_checkups endpoint using JWT authentication.
-    Alternative to the ninja-based endpoint.
-    """
-    try:
-        # Parse query parameters
-        checkup_type = request.GET.get("type")
-
-        # Get checkups for the authenticated user
-        if checkup_type:
-            checkups = CheckupService.get_checkups_by_type(
-                user=request.user, checkup_type=checkup_type
-            )
-        else:
-            checkups = CheckupService.get_all_checkups(user=request.user)
-
-        # Convert to list of dictionaries
-        checkups_data = []
-        for checkup in checkups:
-            checkup_data = {
-                "id": checkup.id,
-                "last_checkup_date": checkup.last_checkup_date.isoformat(),
-                "checkup_interval_months": checkup.checkup_interval_months,
-                "is_checkup_due": checkup.is_checkup_due,
-            }
-            checkups_data.append(checkup_data)
-
-        return JsonResponse(checkups_data, safe=False)
-
-    except Exception as e:
-        log.error(f"Error in list_checkups_django: {str(e)}")
-        return JsonResponse({"error": "Internal server error"}, status=500)
-
-
-@jwt_required
-@require_http_methods(["POST"])
-def send_test_checkup_email_django(request):
-    """
-    Django view version of send_test_checkup_email endpoint using JWT authentication.
-    Alternative to the ninja-based endpoint.
-    """
-    try:
-        user = request.user
-        results = CheckupService.check_and_send_due_emails(user)
-
-        # Convert results to proper format
-        email_results = []
-        for result in results:
-            email_data = {
-                "checkup_type": result["checkup_type"],
-                "status": result["status"],
-                "recipient_email": result["recipient_email"],
-                "recipient_username": result["recipient_username"],
-            }
-            email_results.append(email_data)
-
-        return JsonResponse(email_results, safe=False)
-
-    except Exception as e:
-        log.error(f"Error in send_test_checkup_email_django: {str(e)}")
-        return JsonResponse({"error": "Internal server error"}, status=500)
-
-
-@jwt_required
-@require_http_methods(["POST"])
-def agent_add_item_django(request):
-    """
-    Django view version of agent_add_item endpoint using JWT authentication.
-    Alternative to the ninja-based endpoint.
-    """
-    try:
-        # Parse JSON payload
-        data = json.loads(request.body)
-
-        if "prompt" not in data:
-            return JsonResponse({"error": "Missing required field: prompt"}, status=400)
-
-        # Get JWT token from Authorization header
-        auth_header = request.META.get("HTTP_AUTHORIZATION")
-        jwt_token = None
-        if auth_header and auth_header.startswith("Bearer "):
-            jwt_token = auth_header.split(" ")[1]
-
-        # Convert prompt to expected format if it's a string
-        prompt_data = data["prompt"]
-        if isinstance(prompt_data, str):
-            prompt_data = {"prompt": prompt_data}
-
-        # Run the agent
-        result = run_agent(prompt_data, jwt_token)
-        return JsonResponse(result)
-
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
-    except Exception as e:
-        log.error(f"Error in agent_add_item_django: {str(e)}")
-        return JsonResponse({"error": "Internal server error"}, status=500)
-
-
-@jwt_required
-@require_http_methods(["POST"])
-def agent_add_item_batch_django(request):
-    """
-    Django view version of agent_add_item_batch endpoint using JWT authentication.
-    Alternative to the ninja-based endpoint.
-    """
-    try:
-        # Parse JSON payload
-        data = json.loads(request.body)
-
-        if "prompts" not in data:
-            return JsonResponse(
-                {"error": "Missing required field: prompts"}, status=400
-            )
-
-        # Validate item limits before processing batch
-        user = request.user
-        num_items_to_add = len(data["prompts"])
-
-        try:
-            OwnedItem.validate_item_limit(user, count=num_items_to_add)
-        except ValidationError as e:
-            return JsonResponse({"error": str(e)}, status=400)
-
-        # Get JWT token from Authorization header
-        auth_header = request.META.get("HTTP_AUTHORIZATION")
-        jwt_token = None
-        if auth_header and auth_header.startswith("Bearer "):
-            jwt_token = auth_header.split(" ")[1]
-
-        # Run the agent with batch prompts
-        results = {}
-        run_agent(data["prompts"], jwt_token)
-        return JsonResponse(results)
-
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
-    except Exception as e:
-        log.error(f"Error in agent_add_item_batch_django: {str(e)}")
-        return JsonResponse({"error": "Internal server error"}, status=500)
-
-
-@jwt_required
-@require_http_methods(["POST"])
-def sync_user_preferences_django(request):
-    """
-    Django view to sync user preferences from Clerk metadata to Django checkup intervals.
-    This endpoint should be called when user saves email preferences in the frontend.
-    """
-    try:
-        # Parse JSON payload
-        data = json.loads(request.body)
-
-        checkup_interval = data.get("checkupInterval", 1)
-        email_notifications = data.get("emailNotifications", False)
-
-        # Validate checkup_interval
-        if (
-            not isinstance(checkup_interval, int)
-            or checkup_interval < 1
-            or checkup_interval > 12
-        ):
-            return JsonResponse(
-                {"error": "checkupInterval must be an integer between 1 and 12"},
-                status=400,
-            )
-
-        # Get all checkups for the user (both 'keep' and 'give')
-        all_checkups = CheckupService.get_all_checkups(user=request.user)
-
-        updated_checkups = []
-
-        # Update interval for all existing checkups
-        for checkup in all_checkups:
-            updated_checkup = CheckupService.update_checkup_interval(
-                checkup.id, checkup_interval
-            )
-            updated_checkups.append(
-                {
-                    "id": updated_checkup.id,
-                    "checkup_type": updated_checkup.checkup_type,
-                    "last_checkup_date": updated_checkup.last_checkup_date.isoformat(),
-                    "checkup_interval_months": updated_checkup.checkup_interval_months,
-                    "is_checkup_due": updated_checkup.is_checkup_due,
-                }
-            )
-
-        # If no checkups exist, they will be created automatically by the signal
-        # when the user was created, so we should try to get them again
-        if not updated_checkups:
-            # Try to get checkups again in case they were just created
-            all_checkups = CheckupService.get_all_checkups(user=request.user)
-            for checkup in all_checkups:
-                updated_checkup = CheckupService.update_checkup_interval(
-                    checkup.id, checkup_interval
-                )
-                updated_checkups.append(
-                    {
-                        "id": updated_checkup.id,
-                        "checkup_type": updated_checkup.checkup_type,
-                        "last_checkup_date": updated_checkup.last_checkup_date.isoformat(),
-                        "checkup_interval_months": updated_checkup.checkup_interval_months,
-                        "is_checkup_due": updated_checkup.is_checkup_due,
-                    }
-                )
-
-        return JsonResponse(
-            {
-                "message": "User preferences synced successfully",
-                "email_notifications": email_notifications,
-                "checkup_interval": checkup_interval,
-                "updated_checkups": updated_checkups,
-            }
-        )
-
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
-    except Exception as e:
-        log.error(f"Error in sync_user_preferences_django: {str(e)}")
-        return JsonResponse({"error": "Internal server error"}, status=500)
-
-
-"""
-Django JWT Authenticated Endpoints Summary
-==========================================
-
-All the Django-based endpoints above provide an alternative to the Django-Ninja routes.
-These endpoints use JWT authentication via the @jwt_required decorator instead of ClerkAuth().
-
-Available endpoints under /django-api/:
-- GET    /items                    - List items with optional status/item_type filters
-- POST   /items/create             - Create a new item
-- GET    /items/<item_id>          - Get specific item by UUID
-- PUT    /items/<item_id>/update   - Update specific item
-- DELETE /items/<item_id>/delete   - Delete specific item
-- GET    /badges/donated           - Get donated badges progress
-- GET    /checkups                 - List checkups with optional type filter
-- POST   /checkups/create          - Create a new checkup
-- GET    /checkups/<checkup_id>    - Get specific checkup
-- PUT    /checkups/<checkup_id>/interval - Update checkup interval
-- POST   /checkups/<checkup_id>/complete - Complete a checkup
-- POST   /send-test-email          - Send test checkup email (dev/testing)
-- POST   /agent-add-item           - AI agent item creation
-- POST   /agent-add-item-batch     - Batch AI agent item creation
-- POST   /sync-preferences         - Sync user email preferences and checkup intervals
-
-Usage:
-------
-All endpoints require JWT authentication via Authorization header:
-Authorization: Bearer <clerk_jwt_token>
-
-Content-Type: application/json (for POST/PUT requests)
-
-Example:
-curl -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \\
-     -d '{"name":"Item Name","picture_url":"url","item_type":"clothing",...}' \\
-     http://localhost:8000/django-api/items/create
-"""
+    return ClerkJwtTestResponse(
+        userId=request.user.clerk_id,
+        username=request.user.username,
+        email=request.user.email,
+        csrf_token=csrf_token,
+    )

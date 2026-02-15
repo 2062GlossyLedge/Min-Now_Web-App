@@ -2,15 +2,15 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './global.css'
 import { ThemeProvider } from '../components/ThemeProvider'
-import ConditionalNavigation from '@/components/ConditionalNavigation'
-import ConditionalMain from '@/components/ConditionalMain'
+import ConditionalNavigation from '@/components/landing/ConditionalNavigation'
+import ConditionalMain from '@/components/landing/ConditionalMain'
 import { ClerkProvider } from '@clerk/nextjs'
 import { ItemUpdateProvider } from '../contexts/ItemUpdateContext'
 import { OnboardingProvider } from '../contexts/OnboardingContext'
 import { CheckupProvider } from '../contexts/CheckupContext'
 import { Toaster } from '@/components/ui/sonner'
 import { HydrationWrapper } from '@/app/HydrationWrapper'
-import OnboardingManager from '@/components/OnboardingManager'
+import OnboardingManager from '@/components/onboarding/OnboardingManager'
 
 const inter = Inter({ subsets: ['latin'] })
 

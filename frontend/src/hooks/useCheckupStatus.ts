@@ -1,16 +1,12 @@
 import { useState, useEffect } from 'react'
-// import { fetchCheckup } from '@/utils/api' // CSRF approach - commented out
-import { fetchCheckupJWT } from '@/utils/api' // JWT approach
-// import { useAuthenticatedFetch } from './useAuthenticatedFetch' // CSRF approach - commented out
-import { useAuth } from '@clerk/nextjs' // JWT approach - get token from Clerk
+import { fetchCheckup } from '@/utils/api'
+import { useAuth } from '@clerk/nextjs'
 import { useCheckupContext } from '@/contexts/CheckupContext'
 
 export const useCheckupStatus = (type: 'keep' | 'give') => {
     const [isCheckupDue, setIsCheckupDue] = useState(false)
-    // const { authenticatedFetch } = useAuthenticatedFetch() // CSRF approach - commented out
-    const { getToken } = useAuth() // JWT approach - get token from Clerk
-    // const { isSignedIn, isLoaded } = useUser() // Get user authentication status // CSRF approach - commented out
-    const { isSignedIn, isLoaded } = useAuth() // JWT approach - get auth status from Clerk
+    const { getToken } = useAuth()
+    const { isSignedIn, isLoaded } = useAuth()
 
     // Get refresh trigger from checkup context (optional - fallback if not in provider)
     let refreshTrigger = 0
@@ -28,8 +24,7 @@ export const useCheckupStatus = (type: 'keep' | 'give') => {
         }
         const checkCheckupStatus = async () => {
             try {
-                // const { data, error } = await fetchCheckup(type, authenticatedFetch) // CSRF approach - commented out
-                const { data } = await fetchCheckupJWT(type, getToken) // JWT approach - using getToken from Clerk
+                const { data } = await fetchCheckup(type, getToken)
                 //console.log(`Checkup status for ${type}:`, data)
                 if (data && Array.isArray(data) && data.length > 0) {
                     // Get the most recent checkup

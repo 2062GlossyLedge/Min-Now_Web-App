@@ -2,12 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { InfoIcon, X } from 'lucide-react'
-// CSRF-based API imports (commented out - using JWT approach)
-// import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch"
-
-// JWT-based API imports (new approach)
-import { fetchDonatedBadgesJWT, testClerkJWT } from "@/utils/api"
-import AuthMessage from "@/components/AuthMessage"
+// API imports
+import { fetchDonatedBadges } from "@/utils/api"
+import AuthMessage from "@/components/landing/AuthMessage"
 import { SignedIn, SignedOut, useUser, useAuth } from '@clerk/nextjs'
 
 // Map database values to display names
@@ -274,9 +271,8 @@ const GaveBadgesPage = () => {
     const [badgeGroups, setBadgeGroups] = useState<BadgeGroups>({}) // State to store fetched badge data
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    // const { authenticatedFetch } = useAuthenticatedFetch() // CSRF approach - commented out
-    const { getToken } = useAuth() // JWT approach - get token from Clerk
-    const { isSignedIn, isLoaded } = useUser() // Get user authentication status
+    const { getToken } = useAuth()
+    const { isSignedIn, isLoaded } = useUser()
 
     // Separate effect to handle authentication state changes
     useEffect(() => {
@@ -298,19 +294,7 @@ const GaveBadgesPage = () => {
             setLoading(true)
             setError(null)
             try {
-                // Test JWT authentication first
-                //const jwtTest = await testClerkJWT(getToken)
-                //console.log('GaveBadges JWT Test Result:', jwtTest)
-
-                // JWT approach - using fetchDonatedBadgesJWT
-                const { data, error: apiError } = await fetchDonatedBadgesJWT(getToken)
-
-                // CSRF approach (commented out)
-                // const response = await authenticatedFetch(`/api/badges/donated`)
-                // if (!response.ok) {
-                //     throw new Error(`HTTP error! status: ${response.status}`)
-                // }
-                // const data: BadgeGroups = await response.json()
+                const { data, error: apiError } = await fetchDonatedBadges(getToken)
 
                 if (apiError) {
                     throw new Error(apiError)

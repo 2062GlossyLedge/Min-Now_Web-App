@@ -8,11 +8,11 @@ import Image from 'next/image'
 import { UploadButton } from '@uploadthing/react'
 import "@uploadthing/react/styles.css";
 import { twMerge } from 'tailwind-merge'
-import DatePickerComponent from '@/components/DatePickerComponent'
+import DatePickerComponent from '@/components/item_creation/DatePickerComponent'
 import { DatePickerState, calculateReceivedDate, initializeDatePickerState } from '@/utils/datePickerHelpers'
 import { validateImageFile, isIOS } from '@/utils/api'
-import ItemReceivedDateSection from '@/components/ItemReceivedDateSection'
-import OwnershipDurationGoalSection from '@/components/OwnershipDurationGoalSection'
+import ItemReceivedDateSection from '@/components/item_creation/ItemReceivedDateSection'
+import OwnershipDurationGoalSection from '@/components/item_creation/OwnershipDurationGoalSection'
 
 import type { OurFileRouter } from '@/app/api/uploadthing/core'
 

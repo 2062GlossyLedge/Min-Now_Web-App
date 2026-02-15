@@ -1,7 +1,3 @@
-/** @type {import('next').NextConfig} */
-// const nextConfig = {
-//     distDir: './dist', // Changes the build output directory to `./dist/`.
-// }
 
 
 // to see build time speed up whe working with large code repo. 
@@ -11,6 +7,7 @@
 const config = {
     // Vercel Cron Jobs Configuration
     // Prevents Upstash Redis from auto-deactivating due to inactivity
+    // see vercel.json for moved heartbeat 
 
     images: {
         remotePatterns: [
@@ -23,6 +20,10 @@ const config = {
                 hostname: 'utfs.io',
             },
         ],
+        // Compress jpg and png images for faster img loads
+        formats: ['image/webp', 'image/avif'],
+        deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+        minimumCacheTTL: 60,
     },
     typescript: {
         ignoreBuildErrors: true,
@@ -90,7 +91,6 @@ const config = {
 };
 
 
-// module.exports = {
-// }
+
 
 export default config

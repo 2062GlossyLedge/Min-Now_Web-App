@@ -1,19 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import ItemCard from '../../components/ItemCard'
-import FilterBar from '../../components/FilterBar'
-import CheckupManager from '../../components/CheckupManager'
-import AuthMessage from '../../components/AuthMessage'
-// CSRF-based API imports (commented out - using JWT approach)
-// import { updateItem, deleteItem, fetchItemsByStatus, createHandleEdit } from '@/utils/api'
-
-// JWT-based API imports (new approach)
-import { updateItemJWT, deleteItemJWT, fetchItemsByStatusJWT, createHandleEditJWT, testClerkJWT } from '@/utils/api'
+import ItemCard from '../../components/item_view/ItemCard'
+import FilterBar from '../../components/item_view/FilterBar'
+import CheckupManager from '../../components/item_view/CheckupManager'
+import AuthMessage from '../../components/landing/AuthMessage'
+import { updateItem, deleteItem, fetchItemsByStatus, createHandleEdit } from '@/utils/api'
 import { Item } from '@/types/item'
 import { useCheckupStatus } from '@/hooks/useCheckupStatus'
 import { SignedIn, SignedOut, useUser, useAuth } from '@clerk/nextjs'
-// import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch' // Not needed for JWT approach
 import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 import { useCheckupContext } from '@/contexts/CheckupContext'
 
@@ -25,8 +20,7 @@ export default function GiveView() {
     const [selectedType, setSelectedType] = useState<string | null>(null)
     const [showFilters, setShowFilters] = useState(false)
     const isCheckupDue = useCheckupStatus('give')
-    // const { authenticatedFetch } = useAuthenticatedFetch() // CSRF approach - commented out
-    const { getToken } = useAuth() // JWT approach - get token from Clerk
+    const { getToken } = useAuth()
     const { refreshTrigger, clearUpdatedItems } = useItemUpdate()
     const { isSignedIn, isLoaded } = useUser() // Get user authentication status
     const [deletingItemId, setDeletingItemId] = useState<string | null>(null) // Track which item is being deleted
@@ -60,15 +54,7 @@ export default function GiveView() {
             setLoading(true)
             setError(null)
             try {
-                // Test JWT authentication first
-                //const jwtTest = await testClerkJWT(getToken)
-                //console.log('JWT Test Result:', jwtTest)
-
-                // JWT approach - using fetchItemsByStatusJWT
-                const { data, error } = await fetchItemsByStatusJWT('Give', getToken)
-
-                // CSRF approach (commented out)
-                // const { data, error } = await fetchItemsByStatus('Give', authenticatedFetch)
+                const { data, error } = await fetchItemsByStatus('Give', getToken)
 
                 if (error) {
                     console.error(error)
@@ -95,11 +81,8 @@ export default function GiveView() {
     }, [getToken, refreshTrigger, isLoaded, isSignedIn]) // Updated dependencies for JWT approach
 
     const handleStatusChange = async (id: string, newStatus: string) => {
-        // JWT approach - using updateItemJWT
-        const { data: updatedItem, error } = await updateItemJWT(id, { status: newStatus }, getToken)
-
-        // CSRF approach (commented out)
-        // const { data: updatedItem, error } = await updateItem(id, { status: newStatus }, authenticatedFetch)
+        // Using updateItem
+        const { data: updatedItem, error } = await updateItem(id, { status: newStatus }, getToken)
 
         if (error) {
             console.error(error)
@@ -118,20 +101,14 @@ export default function GiveView() {
         setSelectedType(type)
     }
 
-    // JWT approach - using createHandleEditJWT
-    const handleEdit = createHandleEditJWT('Give', setItems, getToken)
-
-    // CSRF approach (commented out)
-    // const handleEdit = createHandleEdit('Give', setItems, authenticatedFetch)
+    // Using createHandleEdit
+    const handleEdit = createHandleEdit('Give', setItems, getToken)
 
     const handleDelete = async (id: string) => {
         setDeletingItemId(id) // Set which item is being deleted
         try {
-            // JWT approach - using deleteItemJWT
-            const { error } = await deleteItemJWT(id, getToken)
-
-            // CSRF approach (commented out)
-            // const { error } = await deleteItem(id, authenticatedFetch)
+            // Using deleteItem
+            const { error } = await deleteItem(id, getToken)
 
             if (error) {
                 console.error(error)

@@ -101,7 +101,7 @@ const testClerkAuth = async (getToken: () => Promise<string | null>): Promise<Ap
         const token = await getJWT(getToken)
 
         const response = await fetchWithJWT(
-            `${process.env.NEXT_PUBLIC_API_URL}/django-api/clerk_jwt`,
+            `${process.env.NEXT_PUBLIC_API_URL}/api/clerk-jwt`,
             token
         )
 
@@ -126,6 +126,7 @@ const fetchWithJWTAndCSRF = async (url: string, token: string, csrfToken?: strin
     }
 
     // Add CSRF token for mutating operations
+    //also needed for get requests for clerk to django ninja reqs
     if (csrfToken && ['POST', 'PUT', 'DELETE', 'GET'].includes(options.method || 'GET')) {
         headers['X-CSRFToken'] = csrfToken
     }
@@ -206,6 +207,7 @@ export const createItem = async (
 
         // Get CSRF token for this POST request
         const csrfToken = await getCSRFToken(getToken)
+
 
         const response = await fetchWithJWTAndCSRF(
             `${process.env.NEXT_PUBLIC_API_URL}/api/items`,

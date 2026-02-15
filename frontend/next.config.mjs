@@ -9,6 +9,22 @@ const config = {
     // Prevents Upstash Redis from auto-deactivating due to inactivity
     // see vercel.json for moved heartbeat 
 
+    experimental: {
+        serverActions: {
+            bodySizeLimit: '2mb',
+        },
+    },
+
+    webpack: (config, { isServer }) => {
+        if (!isServer) {
+            config.resolve.fallback = {
+                ...config.resolve.fallback,
+                fs: false,
+            };
+        }
+        return config;
+    },
+
     images: {
         remotePatterns: [
             {

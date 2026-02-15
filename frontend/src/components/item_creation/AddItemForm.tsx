@@ -3,12 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ImageIcon, SmileIcon, InfoIcon, ChevronDownIcon, ChevronUpIcon } from 'lucide-react'
-// CSRF-based API imports (commented out - using JWT approach)
-// import { createItem } from '@/utils/api'
-// import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
-
-// JWT-based API imports (new approach)
-import { createItemJWT, fetchUserItemStatsJWT, validateImageFile, isIOS } from '@/utils/api'
+import { createItem, fetchUserItemStats, validateImageFile, isIOS } from '@/utils/api'
 import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 import { Item } from '@/types/item'
 import Image from 'next/image'
@@ -41,8 +36,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const [useEmoji, setUseEmoji] = useState(true)
     const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null)
     const [isUploading, setIsUploading] = useState(false)
-    // const { authenticatedFetch } = useAuthenticatedFetch() // CSRF approach - commented out
-    const { getToken } = useAuth() // JWT approach - get token from Clerk
+    const { getToken } = useAuth()
     const { user } = useUser() // Get user data from Clerk to check admin status
     const [activeTab, setActiveTab] = useState<'manual' | 'quick'>('manual')
     const [showQuickAddForm, setShowQuickAddForm] = useState(false)
@@ -267,7 +261,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
         const fetchItemStats = async () => {
             setItemStatsLoading(true)
             try {
-                const { data, error } = await fetchUserItemStatsJWT(getToken)
+                const { data, error } = await fetchUserItemStats(getToken)
                 if (error) {
                     console.error('Error fetching item stats:', error)
                 } else if (data) {
@@ -408,8 +402,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                 pictureUrl = uploadedImageUrl
             }
 
-            // const { data, error } = await createItem({ // CSRF approach - commented out
-            const { data, error } = await createItemJWT({
+            const { data, error } = await createItem({
                 name,
                 picture_url: pictureUrl,
                 item_type: itemTypeToDbValue(itemType), // Convert display name to database value
@@ -417,7 +410,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                 item_received_date: localDate.toISOString(),
                 last_used: localDate.toISOString(),
                 ownership_duration_goal_months: calculateOwnershipDurationMonths()
-            }, getToken) // JWT approach - using getToken from Clerk
+            }, getToken)
 
             if (error) {
                 throw new Error(error)
@@ -442,7 +435,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                 })
 
                 // Refresh item stats after successful creation
-                const { data: newStats } = await fetchUserItemStatsJWT(getToken)
+                const { data: newStats } = await fetchUserItemStats(getToken)
                 if (newStats) {
                     setItemStats(newStats)
                 }
@@ -541,11 +534,10 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
         setQuickBatchError(null) // Clear any previous errors
 
         try {
-            // const { agentAddItemsBatchWithHandlers } = await import('@/utils/api') // CSRF approach - commented out
-            const { agentAddItemsBatchJWTWithHandlers } = await import('@/utils/api') // JWT approach
-            await agentAddItemsBatchJWTWithHandlers(
+            const { agentAddItemsBatchWithHandlers } = await import('@/utils/api')
+            await agentAddItemsBatchWithHandlers(
                 quickPromptsDict,
-                getToken, // JWT approach - using getToken from Clerk
+                getToken,
                 {
                     onSuccess: async () => {
                         // Capture PostHog event for quick add batch
@@ -561,7 +553,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                         })
 
                         // Refresh item stats after successful batch creation
-                        const { data: newStats } = await fetchUserItemStatsJWT(getToken)
+                        const { data: newStats } = await fetchUserItemStats(getToken)
                         if (newStats) {
                             setItemStats(newStats)
                         }

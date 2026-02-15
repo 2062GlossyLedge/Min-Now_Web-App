@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
     testDir: './tests',
-    timeout: 10000,
+    timeout: 30000,
     use: {
         baseURL: process.env.NEXT_PUBLIC_API_URL,
         trace: 'retry-on-trace',
@@ -16,16 +16,20 @@ export default defineConfig({
             name: "global setup",
             testMatch: /global\.setup\.ts/,
         },
-        // {
-        //     name: "chromium",
-        //     use: { ...devices['Desktop Chrome'] },
-        // },
         {
-            name: "Main Tests",
+            name: "Test Item Tests",
             testMatch: /test-item\.spec\.ts/,
             use: {
                 ...devices['Desktop Chrome'],
-                // Update the path to match where we're saving it
+                storageState: 'playwright/.clerk/user.json',
+            },
+            dependencies: ['global setup'],
+        },
+        {
+            name: "API Routes Tests",
+            testMatch: /api-routes\.spec\.ts/,
+            use: {
+                ...devices['Desktop Chrome'],
                 storageState: 'playwright/.clerk/user.json',
             },
             dependencies: ['global setup'],

@@ -391,15 +391,17 @@ Components use Clerk hooks to handle auth states:
 
 ### API Communication Layer (`utils/api.ts`)
 
-Provides wrapper functions for all API calls:
-- `fetchItemsByStatusJWT()` - Get items by status
-- `createItemJWT()` - Add new item
-- `updateItemJWT()` - Modify existing item
-- `deleteItemJWT()` - Remove item
-- `sendTestCheckupEmailJWT()` - Send checkup email
-- `agentAddItemJWT()` - AI-powered item addition
+Provides wrapper functions for all API calls (JWT-based authentication):
+- `fetchItemsByStatus()` - Get items by status
+- `createItem()` - Add new item
+- `updateItem()` - Modify existing item
+- `deleteItem()` - Remove item
+- `sendTestCheckupEmail()` - Send checkup email
+- `agentAddItem()` - AI-powered item addition
 - `validateImageFile()` - File validation
-- `testClerkJWT()` - JWT authentication test
+- `fetchCheckup()` - Get checkup status
+- `completeCheckup()` - Mark checkup as complete
+- `createCheckup()` - Create new checkup
 
 ### Error Handling
 

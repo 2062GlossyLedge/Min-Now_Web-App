@@ -1,3 +1,9 @@
+# Min-Now Web App - Tech Stack
+
+<img width="1262" height="712" alt="image" src="https://github.com/user-attachments/assets/93cc57e1-9899-4936-826d-87a632852430" />
+
+
+
 # Min-Now Web App - Local Development Setup Guide
 
 A full-stack web application with a Django backend and Next.js frontend for managing minimal inventory across multiple locations.

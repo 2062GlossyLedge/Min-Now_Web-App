@@ -1,10 +1,3 @@
 [build]
-builder = "nixpacks"
+builder = "RAILPACK"
 
-[deploy]
-startCommand = "gunicorn backend.minNow.wsgi:application --bind 0.0.0.0:$PORT"
-
-
-
-[web]
-command = "gunicorn backend.minNow.wsgi:application --bind 0.0.0.0:$PORT --log-file -"

@@ -33,7 +33,7 @@ export DJANGO_SETTINGS_MODULE=backend.minNow.settings
 
 # Test the Django management command first
 echo "🧪 Testing Django email notification command..."
-python manage.py run_email_notifications --verbose --dry-run || {
+python backend/manage.py run_email_notifications --verbose --dry-run || {
     echo "❌ Failed to run Django email notification command"
     exit 1
 }

@@ -92,10 +92,7 @@ except Exception as e:
 
 # Use this for production with real Clerk JWTs
 # Uses RS256 Clerk tokens
-if prod:
-    from backend.minNow.auth import ClerkAuth
-else:
-    from minNow.auth import ClerkAuth
+from minNow.auth import ClerkAuth
 
 
 # ============================================================================

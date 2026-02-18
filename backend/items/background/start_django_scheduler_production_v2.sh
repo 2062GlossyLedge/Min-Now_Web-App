@@ -12,6 +12,9 @@ export RAILWAY_ENVIRONMENT=production
 # Change to the app directory
 cd /app
 
+# Add /app to Python path so 'backend' module can be imported
+export PYTHONPATH=/app:$PYTHONPATH
+
 echo "🚂 Starting Django Email Notification Scheduler in PRODUCTION mode..."
 echo "📍 Current directory: $(pwd)"
 echo "🔧 Python version: $(python --version)"

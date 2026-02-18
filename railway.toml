@@ -2,7 +2,7 @@
 builder = "RAILPACK"
 
 [deploy]
-startCommand = "python backend/manage.py migrate && gunicorn backend.minNow.wsgi:application"
+startCommand = "python backend/manage.py migrate && gunicorn backend.minNow.wsgi:application --bind 0.0.0.0:$PORT"
 
 
 

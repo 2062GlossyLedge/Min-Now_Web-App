@@ -9,8 +9,8 @@ echo ""
 # Set production environment
 export RAILWAY_ENVIRONMENT=production
 
-# Change to the backend directory
-cd /app/backend
+# Change to the app directory
+cd /app
 
 echo "🚂 Starting Django Email Notification Scheduler in PRODUCTION mode..."
 echo "📍 Current directory: $(pwd)"
@@ -29,7 +29,7 @@ echo "📝 Log file: $LOG_FILE"
 echo ""
 
 # Initialize Django settings
-export DJANGO_SETTINGS_MODULE=minNow.settings
+export DJANGO_SETTINGS_MODULE=backend.minNow.settings
 
 # Test the Django management command first
 echo "🧪 Testing Django email notification command..."
@@ -115,7 +115,7 @@ run_periodic_email_task() {
     echo "$timestamp - � Running periodic email notification task..."
     
     # Run the Django management command with logging
-    python manage.py run_email_notifications \
+    python backend/manage.py run_email_notifications \
         --verbose \
         --log-file "$LOG_FILE" 2>&1 | while IFS= read -r line; do
         echo "$timestamp - $line"

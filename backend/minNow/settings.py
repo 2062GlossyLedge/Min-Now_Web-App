@@ -82,7 +82,7 @@ if prod:
     #     f"Database settings - Host: {os.getenv('PGHOST')}, Database: {os.getenv('PGDATABASE')}"
     # )
     ALLOWED_HOSTS = [
-        "https://min-nowweb-app-production.up.railway.app",
+        "min-nowweb-app-production.up.railway.app",
         "min-now.store",
         "www.min-now.store",
     ]

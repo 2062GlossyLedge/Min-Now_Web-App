@@ -3,6 +3,6 @@
         "builder": "nixpacks"
     },
     "deploy": {
-        "startCommand": "chmod +x start_django_scheduler_production_v2.sh && ./start_django_scheduler_production_v2.sh"
+        "startCommand": "chmod +x backend/items/background/start_django_scheduler_production_v2.sh && ./backend/items/background/start_django_scheduler_production_v2.sh"
     }
 }

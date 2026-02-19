@@ -1,0 +1,17 @@
+# Ignore frontend and unnecessary directories
+frontend/
+node_modules/
+.next/
+coverage/
+test-results/
+playwright-report/
+logs/
+*.log
+.git/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.vscode/
+.env
+.env.local

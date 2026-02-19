@@ -66,7 +66,7 @@ log.info(f"Environment: {'Production' if prod else 'Development'}")
 
 
 DEBUG = os.getenv("DEBUG") == "True"
-ROOT_URLCONF = os.getenv("ROOT_URLCONF")
+ROOT_URLCONF = "minNow.urls"
 
 if prod:
     # Build paths inside the project like this: BASE_DIR / 'subdir'.

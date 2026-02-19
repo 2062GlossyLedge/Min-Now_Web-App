@@ -1,10 +1,11 @@
 from django.db import models
 from django.utils import timezone
+from django.utils.text import slugify
 from datetime import datetime, timedelta
 import uuid
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 import os
 from clerk_backend_api import Clerk
@@ -219,12 +220,40 @@ class OwnedItem(models.Model):
         max_length=30, choices=ItemType.choices, default=ItemType.OTHER
     )
     ownership_duration_goal_months = models.IntegerField(default=12)  # Default 1 year
+    current_location = models.ForeignKey(
+        'Location',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='items',
+        help_text="Current location of this item"
+    )
+    location_updated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when location was last changed"
+    )
 
     def save(self, *args, **kwargs):
-        """Override save to validate item limits on creation."""
-        # Only validate on creation (when pk is None)
-        if not self.pk:
+        """Override save to validate item limits on creation and track location changes."""
+        # Check if this is a new object by trying to fetch from database
+        is_new = self._state.adding
+        
+        # Only validate on creation
+        if is_new:
             self.validate_item_limit(self.user, count=1)
+            # Set location_updated_at on creation if location is provided
+            if self.current_location:
+                self.location_updated_at = timezone.now()
+        else:
+            # Track location changes for existing items
+            try:
+                old_instance = OwnedItem.objects.get(pk=self.pk)
+                if old_instance.current_location != self.current_location:
+                    self.location_updated_at = timezone.now()
+            except OwnedItem.DoesNotExist:
+                pass
+        
         super().save(*args, **kwargs)
 
     @property
@@ -376,3 +405,149 @@ class OwnedItem(models.Model):
                     )
                 result[item_type] = badges
         return result
+
+
+class Location(models.Model):
+    """
+    Hierarchical location model with materialized path for performance.
+    
+    Uses hybrid approach:
+    - parent_id: normalized foreign key for referential integrity
+    - full_path: materialized path for O(log n) search performance  
+    - level: computed depth for quick validation
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    slug = models.CharField(max_length=100, help_text="URL-safe version of display_name")
+    display_name = models.CharField(max_length=100, help_text="Human-readable name")
+    full_path = models.CharField(
+        max_length=500,
+        db_index=True,
+        help_text="Materialized path from root (e.g., 'home/bedroom/closet')"
+    )
+    parent = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='children',
+        help_text="Parent location in hierarchy"
+    )
+    level = models.IntegerField(default=0, help_text="Depth in hierarchy (0=root)")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='locations',
+        null=False,
+        blank=False,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [('user', 'slug')]
+        indexes = [
+            models.Index(fields=['user', 'full_path']),
+            models.Index(fields=['full_path']),
+        ]
+        ordering = ['full_path']
+
+    def __str__(self):
+        return f"{self.full_path} ({self.user.username})"
+
+    def save(self, *args, **kwargs):
+        """Override save to compute full_path, level, and handle cascades"""
+        # Auto-generate slug if not provided
+        if not self.slug and self.display_name:
+            self.slug = slugify(self.display_name)
+        
+        # Compute full_path before saving
+        self.full_path = self._build_full_path()
+        
+        # Compute level from path depth
+        self.level = self.full_path.count('/')
+        
+        # Check if this is an update with parent/slug change
+        needs_cascade = False
+        if self.pk:
+            try:
+                old = Location.objects.get(pk=self.pk)
+                if old.slug != self.slug or old.parent != self.parent:
+                    needs_cascade = True
+            except Location.DoesNotExist:
+                pass
+        
+        super().save(*args, **kwargs)
+        
+        # Cascade path updates to descendants if needed
+        if needs_cascade:
+            self._cascade_path_update()
+
+    def clean(self):
+        """Validate location before saving"""
+        super().clean()
+        
+        # Validate no circular references
+        if self.parent:
+            if self.parent == self:
+                raise ValidationError("A location cannot be its own parent")
+            
+            # Check if parent is in our descendants (would create circular ref)
+            if self.pk and self.parent.pk:
+                ancestor = self.parent
+                while ancestor:
+                    if ancestor.pk == self.pk:
+                        raise ValidationError("Circular reference detected: parent cannot be a descendant")
+                    ancestor = ancestor.parent
+        
+        # Validate user owns parent
+        if self.parent and self.parent.user != self.user:
+            raise ValidationError("Parent location must belong to the same user")
+        
+        # Validate depth doesn't exceed maximum
+        temp_path = self._build_full_path()
+        depth = temp_path.count('/')
+        if depth > 9:  # Max 10 levels (0-9)
+            raise ValidationError(f"Maximum nesting depth of 10 levels exceeded (current: {depth + 1})")
+
+    def _build_full_path(self):
+        """Build full path by traversing parent chain"""
+        if not self.parent:
+            return self.slug
+        
+        # Traverse parent chain to build path
+        path_parts = [self.slug]
+        current = self.parent
+        while current:
+            path_parts.insert(0, current.slug)
+            current = current.parent
+        
+        return '/'.join(path_parts)
+
+    def _cascade_path_update(self):
+        """Recursively update full_path for all descendants"""
+        for child in self.children.all():
+            child.full_path = child._build_full_path()
+            child.level = child.full_path.count('/')
+            # Use update() to avoid triggering save signal recursion
+            Location.objects.filter(pk=child.pk).update(
+                full_path=child.full_path,
+                level=child.level
+            )
+            # Recursively update child's descendants
+            child._cascade_path_update()
+
+    def get_ancestors(self):
+        """Return list of ancestor locations from root to immediate parent"""
+        ancestors = []
+        current = self.parent
+        while current:
+            ancestors.insert(0, current)
+            current = current.parent
+        return ancestors
+
+    def get_descendants(self):
+        """Return queryset of all descendant locations using materialized path"""
+        return Location.objects.filter(
+            full_path__startswith=f"{self.full_path}/",
+            user=self.user
+        )

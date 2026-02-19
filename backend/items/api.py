@@ -88,11 +88,14 @@ except Exception as e:
 
 # Use when testing swagger docs in dev. Allows authenticating in swagger
 # Uses HS256 dev token
-# from minNow.auth import DevClerkAuth as ClerkAuth
+from minNow.auth import DevClerkAuth as ClerkAuth
 
 # Use this for production with real Clerk JWTs
 # Uses RS256 Clerk tokens
-from minNow.auth import ClerkAuth
+# if prod:
+#     from backend.minNow.auth import ClerkAuth
+# else:
+#     from minNow.auth import ClerkAuth
 
 
 # ============================================================================
@@ -194,6 +197,9 @@ class OwnedItemSchema(Schema):
     keep_badge_progress: List[BadgeProgressSchema]
     ownership_duration_goal_months: int
     ownership_duration_goal_progress: float
+    current_location_id: Optional[UUID] = None
+    location_path: Optional[str] = None
+    location_updated_at: Optional[datetime] = None
 
     @staticmethod
     def from_orm(obj) -> "OwnedItemSchema":
@@ -210,6 +216,9 @@ class OwnedItemSchema(Schema):
             keep_badge_progress=obj.keep_badge_progress,
             ownership_duration_goal_months=obj.ownership_duration_goal_months,
             ownership_duration_goal_progress=obj.ownership_duration_goal_progress,
+            current_location_id=obj.current_location_id,
+            location_path=obj.current_location.full_path if obj.current_location else None,
+            location_updated_at=obj.location_updated_at,
         )
 
 
@@ -221,6 +230,7 @@ class OwnedItemCreateSchema(Schema):
     item_received_date: datetime
     last_used: datetime
     ownership_duration_goal_months: int = 12
+    current_location_id: Optional[UUID] = None
 
 
 class OwnedItemUpdateSchema(Schema):
@@ -231,6 +241,7 @@ class OwnedItemUpdateSchema(Schema):
     last_used: Optional[datetime] = None
     status: Optional[ItemStatus] = None
     ownership_duration_goal_months: Optional[int] = None
+    current_location_id: Optional[UUID] = None
 
 
 class CheckupCreateSchema(Schema):
@@ -261,6 +272,162 @@ class EmailResponseSchema(Schema):
 # Add this new schema
 class CheckupTypeSchema(Schema):
     type: str
+
+
+# Location Schemas
+class LocationSchema(Schema):
+    id: UUID
+    slug: str
+    display_name: str
+    full_path: str
+    parent_id: Optional[UUID] = None
+    level: int
+    item_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+    @staticmethod
+    def from_orm(obj) -> "LocationSchema":
+        from .models import Location
+        return LocationSchema(
+            id=obj.id,
+            slug=obj.slug,
+            display_name=obj.display_name,
+            full_path=obj.full_path,
+            parent_id=obj.parent_id,
+            level=obj.level,
+            item_count=obj.items.count() if hasattr(obj, 'items') else 0,
+            created_at=obj.created_at,
+            updated_at=obj.updated_at,
+        )
+
+
+class LocationCreateSchema(Schema):
+    display_name: str
+    parent_id: Optional[UUID] = None
+
+
+class LocationUpdateSchema(Schema):
+    display_name: str
+
+
+class LocationMoveSchema(Schema):
+    parent_id: Optional[UUID] = None
+
+
+class LocationTreeNode(Schema):
+    id: str
+    slug: str
+    display_name: str
+    full_path: str
+    level: int
+    parent_id: Optional[str] = None
+    children: List['LocationTreeNode'] = []
+
+
+class LocationSearchResultSchema(Schema):
+    id: UUID
+    slug: str
+    display_name: str
+    full_path: str
+    level: int
+    item_count: int = 0
+    items: List[str] = []
+
+    @staticmethod
+    def from_orm(obj) -> "LocationSearchResultSchema":
+        return LocationSearchResultSchema(
+            id=obj.id,
+            slug=obj.slug,
+            display_name=obj.display_name,
+            full_path=obj.full_path,
+            level=obj.level,
+            item_count=obj.items.count() if hasattr(obj, 'items') else 0,
+            items=[item.name for item in obj.items.all()[:10]] if hasattr(obj, 'items') else [],
+        )
+
+
+# Location schemas
+class LocationSchema(Schema):
+    """Response schema for location with item count"""
+    id: UUID
+    slug: str
+    display_name: str
+    full_path: str
+    parent_id: Optional[UUID] = None
+    level: int
+    item_count: int
+    created_at: datetime
+    updated_at: datetime
+
+    @staticmethod
+    def from_orm(obj) -> "LocationSchema":
+        return LocationSchema(
+            id=obj.id,
+            slug=obj.slug,
+            display_name=obj.display_name,
+            full_path=obj.full_path,
+            parent_id=obj.parent_id,
+            level=obj.level,
+            item_count=obj.items.count(),
+            created_at=obj.created_at,
+            updated_at=obj.updated_at,
+        )
+
+
+class LocationCreateSchema(Schema):
+    """Schema for creating a new location"""
+    display_name: str
+    parent_id: Optional[UUID] = None
+
+
+class LocationUpdateSchema(Schema):
+    """Schema for updating location (only display_name can be updated)"""
+    display_name: str
+
+
+class LocationMoveSchema(Schema):
+    """Schema for moving location to new parent"""
+    parent_id: Optional[UUID] = None
+
+
+class LocationTreeNode(Schema):
+    """Recursive schema for location tree structure"""
+    id: str
+    slug: str
+    display_name: str
+    full_path: str
+    level: int
+    parent_id: Optional[str] = None
+    children: List['LocationTreeNode'] = []
+
+
+# Enable forward reference for recursive schema
+LocationTreeNode.model_rebuild()
+
+
+class LocationSearchResultSchema(Schema):
+    """Schema for location search results with item names"""
+    id: UUID
+    slug: str
+    display_name: str
+    full_path: str
+    level: int
+    item_count: int
+    item_names: List[str]
+
+    @staticmethod
+    def from_orm(obj) -> "LocationSearchResultSchema":
+        items = obj.items.all()
+        return LocationSearchResultSchema(
+            id=obj.id,
+            slug=obj.slug,
+            display_name=obj.display_name,
+            full_path=obj.full_path,
+            level=obj.level,
+            item_count=items.count(),
+            item_names=[item.name for item in items[:10]],  # Limit to first 10
+        )
 
 
 # Development-only route to get Clerk JWT token for testing
@@ -346,6 +513,7 @@ if not prod:
             with sdk as clerk:
                 # Get all users and find by email
                 users = clerk.users.list()
+                print(f" Users in Clerk: {[user.email_addresses[0].email_address for user in users if user.email_addresses]}")
                 target_user = None
 
                 for user in users:
@@ -1068,3 +1236,217 @@ def clerk_jwt_test(request):
         email=request.user.email,
         csrf_token=csrf_token,
     )
+
+
+# ============================================================================
+# Location Endpoints
+# ============================================================================
+
+@router.get(
+    "/locations",
+    response=List[LocationSchema],
+    auth=ClerkAuth(),
+    tags=["Locations"],
+)
+def list_locations(request):
+    """
+    Get all locations for the authenticated user (flat list).
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    from .models import Location
+    locations = Location.objects.filter(user=request.user).order_by('full_path')
+    return [LocationSchema.from_orm(loc) for loc in locations]
+
+
+@router.get(
+    "/locations/tree",
+    response=List[LocationTreeNode],
+    auth=ClerkAuth(),
+    tags=["Locations"],
+)
+def get_location_tree(request):
+    """
+    Get hierarchical tree structure of all user locations.
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    from .services import LocationService
+    tree = LocationService.get_location_tree(request.user)
+    return tree
+
+
+@router.get(
+    "/locations/search",
+    response=List[LocationSearchResultSchema],
+    auth=ClerkAuth(),
+    tags=["Locations"],
+)
+def search_locations(request, q: str):
+    """
+    Search locations by path/name using full_path__icontains.
+    Query parameter: q - search query string
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    from .services import LocationService
+    locations = LocationService.search_locations(request.user, q)
+    return [LocationSearchResultSchema.from_orm(loc) for loc in locations]
+
+
+@router.post(
+    "/locations",
+    response=LocationSchema,
+    auth=ClerkAuth(),
+    tags=["Locations"],
+)
+def create_location(request, data: LocationCreateSchema):
+    """
+    Create a new location. Validates parent ownership.
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    from .services import LocationService
+    try:
+        location = LocationService.create_location(
+            user=request.user,
+            display_name=data.display_name,
+            parent_id=data.parent_id
+        )
+        return LocationSchema.from_orm(location)
+    except ValidationError as e:
+        raise HttpError(400, str(e))
+
+
+@router.get(
+    "/locations/{location_id}",
+    response=LocationSchema,
+    auth=ClerkAuth(),
+    tags=["Locations"],
+)
+def get_location(request, location_id: UUID):
+    """
+    Get a specific location by ID with item count.
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    from .models import Location
+    try:
+        location = Location.objects.get(id=location_id, user=request.user)
+        return LocationSchema.from_orm(location)
+    except Location.DoesNotExist:
+        raise HttpError(404, "Location not found")
+
+
+@router.put(
+    "/locations/{location_id}",
+    response=LocationSchema,
+    auth=ClerkAuth(),
+    tags=["Locations"],
+)
+def update_location(request, location_id: UUID, data: LocationUpdateSchema):
+    """
+    Update location display_name (triggers slug regeneration and cascade).
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    from .models import Location
+    from .services import LocationService
+    try:
+        location = Location.objects.get(id=location_id, user=request.user)
+        location.display_name = data.display_name
+        location.slug = LocationService.generate_slug(data.display_name)
+        location.full_clean()
+        location.save()
+        return LocationSchema.from_orm(location)
+    except Location.DoesNotExist:
+        raise HttpError(404, "Location not found")
+    except ValidationError as e:
+        raise HttpError(400, str(e))
+
+
+@router.put(
+    "/locations/{location_id}/move",
+    response=LocationSchema,
+    auth=ClerkAuth(),
+    tags=["Locations"],
+)
+def move_location(request, location_id: UUID, data: LocationMoveSchema):
+    """
+    Move location to a new parent (or to root if parent_id is null).
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    from .models import Location
+    from .services import LocationService
+    try:
+        location = Location.objects.get(id=location_id, user=request.user)
+        
+        new_parent = None
+        if data.parent_id:
+            try:
+                new_parent = Location.objects.get(id=data.parent_id, user=request.user)
+            except Location.DoesNotExist:
+                raise HttpError(404, "Parent location not found")
+        
+        location = LocationService.move_location(location, new_parent, request.user)
+        return LocationSchema.from_orm(location)
+    except Location.DoesNotExist:
+        raise HttpError(404, "Location not found")
+    except ValidationError as e:
+        raise HttpError(400, str(e))
+
+
+@router.delete(
+    "/locations/{location_id}",
+    auth=ClerkAuth(),
+    tags=["Locations"],
+)
+def delete_location(request, location_id: UUID):
+    """
+    Delete a location (fails if it has items or children).
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    from .models import Location
+    from .services import LocationService
+    try:
+        location = Location.objects.get(id=location_id, user=request.user)
+        LocationService.delete_location_safe(location)
+        return {"success": True, "message": "Location deleted successfully"}
+    except Location.DoesNotExist:
+        raise HttpError(404, "Location not found")
+    except ValidationError as e:
+        raise HttpError(400, str(e))

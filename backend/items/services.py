@@ -1,9 +1,10 @@
 from django.utils import timezone
-from .models import OwnedItem, Checkup, ItemStatus, ItemType, is_user_admin
+from .models import OwnedItem, Checkup, ItemStatus, ItemType, is_user_admin, Location
 from datetime import timedelta
 from django.core.mail import send_mail
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.utils.text import slugify
 import logging
 from mailersend import emails as mailersend_emails
 import os
@@ -314,3 +315,179 @@ class CheckupService:
                 # Don't send emails or add to results if checkup is not due
             # Don't process users with no checkups set
         return results
+
+
+class LocationService:
+    """Service class for managing hierarchical locations"""
+    
+    @staticmethod
+    def generate_slug(display_name):
+        """Convert display_name to URL-safe slug"""
+        return slugify(display_name)
+    
+    @staticmethod
+    def validate_parent(location, new_parent, user):
+        """
+        Validate that setting new_parent won't create circular references
+        and that the parent belongs to the same user
+        """
+        if not new_parent:
+            return  # Root location, no validation needed
+        
+        # Check user ownership
+        if new_parent.user != user:
+            raise ValidationError("Parent location must belong to the same user")
+        
+        # Check for circular reference
+        if location.pk:
+            # Check if new_parent is the location itself
+            if new_parent.pk == location.pk:
+                raise ValidationError("A location cannot be its own parent")
+            
+            # Check if new_parent is a descendant of location
+            ancestor = new_parent
+            while ancestor:
+                if ancestor.pk == location.pk:
+                    raise ValidationError("Circular reference detected: parent cannot be a descendant")
+                ancestor = ancestor.parent
+    
+    @staticmethod
+    def validate_depth(location, max_depth=10):
+        """Validate that location doesn't exceed maximum nesting depth"""
+        depth = 0
+        current = location.parent
+        while current:
+            depth += 1
+            if depth >= max_depth:
+                raise ValidationError(f"Maximum nesting depth of {max_depth} levels exceeded")
+            current = current.parent
+    
+    @staticmethod
+    def get_location_tree(user, root_id=None):
+        """
+        Build hierarchical tree structure from flat location queryset
+        Returns list of location dicts with nested 'children' arrays
+        """
+        # Get all locations for user
+        if root_id:
+            root = Location.objects.get(id=root_id, user=user)
+            locations = [root] + list(root.get_descendants())
+        else:
+            locations = Location.objects.filter(user=user).order_by('full_path')
+        
+        # Build lookup dict
+        location_dict = {}
+        for loc in locations:
+            location_dict[loc.id] = {
+                'id': str(loc.id),
+                'slug': loc.slug,
+                'display_name': loc.display_name,
+                'full_path': loc.full_path,
+                'level': loc.level,
+                'parent_id': str(loc.parent_id) if loc.parent_id else None,
+                'children': []
+            }
+        
+        # Build tree structure
+        tree = []
+        for loc in locations:
+            loc_node = location_dict[loc.id]
+            if loc.parent_id and loc.parent_id in location_dict:
+                location_dict[loc.parent_id]['children'].append(loc_node)
+            else:
+                tree.append(loc_node)
+        
+        return tree
+    
+    @staticmethod
+    def search_locations(user, query):
+        """Search locations using full_path__icontains for indexed performance"""
+        return Location.objects.filter(
+            user=user,
+            full_path__icontains=query
+        ).order_by('full_path')
+    
+    @staticmethod
+    def get_items_at_location(location, include_descendants=False):
+        """
+        Get items at a specific location
+        If include_descendants=True, include items from all child locations
+        """
+        if include_descendants:
+            # Get items at this location and all descendants
+            descendant_locations = location.get_descendants()
+            location_ids = [location.id] + list(descendant_locations.values_list('id', flat=True))
+            return OwnedItem.objects.filter(current_location_id__in=location_ids)
+        else:
+            return OwnedItem.objects.filter(current_location=location)
+    
+    @staticmethod
+    def move_location(location, new_parent, user):
+        """
+        Move a location to a new parent with validation
+        This triggers cascade path updates for all descendants
+        """
+        # Validate the move
+        LocationService.validate_parent(location, new_parent, user)
+        
+        # Update parent (save() will handle cascade)
+        location.parent = new_parent
+        location.full_clean()  # Run all validations
+        location.save()
+        
+        return location
+    
+    @staticmethod
+    def delete_location_safe(location):
+        """
+        Safely delete a location only if it has no items and no children
+        Raises ValidationError if location is not empty
+        """
+        # Check for items
+        if location.items.exists():
+            item_count = location.items.count()
+            raise ValidationError(
+                f"Cannot delete location with items. "
+                f"This location contains {item_count} item(s)."
+            )
+        
+        # Check for children
+        if location.children.exists():
+            child_count = location.children.count()
+            raise ValidationError(
+                f"Cannot delete location with children. "
+                f"This location has {child_count} child location(s)."
+            )
+        
+        # Safe to delete
+        location.delete()
+    
+    @staticmethod
+    def create_location(user, display_name, parent_id=None):
+        """Create a new location with validation"""
+        slug = LocationService.generate_slug(display_name)
+        
+        parent = None
+        if parent_id:
+            try:
+                parent = Location.objects.get(id=parent_id, user=user)
+            except Location.DoesNotExist:
+                raise ValidationError(f"Parent location with id {parent_id} not found")
+        
+        location = Location(
+            user=user,
+            slug=slug,
+            display_name=display_name,
+            parent=parent
+        )
+        
+        # Build full_path before validation (required field) 
+        #todo: dry -  full path buit twice. Once in the save in loc model
+        location.full_path = location._build_full_path()
+        location.level = location.full_path.count('/')
+        
+        # Validate before saving
+        location.full_clean()
+        location.save()
+        
+        return location

@@ -243,13 +243,13 @@ class OwnedItem(models.Model):
         if is_new:
             self.validate_item_limit(self.user, count=1)
             # Set location_updated_at on creation if location is provided
-            if self.current_location:
+            if self.current_location_id:
                 self.location_updated_at = timezone.now()
         else:
             # Track location changes for existing items
             try:
                 old_instance = OwnedItem.objects.get(pk=self.pk)
-                if old_instance.current_location != self.current_location:
+                if old_instance.current_location_id != self.current_location_id:
                     self.location_updated_at = timezone.now()
             except OwnedItem.DoesNotExist:
                 pass

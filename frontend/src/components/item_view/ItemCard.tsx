@@ -769,8 +769,11 @@ export default function ItemCard({
                                 </div>
                             )}
 
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Proper Item Location</label>
+                            {/* Visual separator */}
+                            <div className="border-t border-gray-200 dark:border-gray-700 my-2"></div>
+
+                            <div className="space-y-1">
+                                <span className="block text-sm text-gray-500 dark:text-gray-400 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">Proper Item Location: </span>
                                 <span className="text-teal-500 dark:text-teal-400 text-sm font-light">
                                     {locationPath ? locationPath.replace(/\//g, ' > ') : 'No location'}
                                 </span>
@@ -783,11 +786,12 @@ export default function ItemCard({
                                         {locationUpdatedAt ? new Date(locationUpdatedAt).toLocaleDateString() : '—'}
                                     </span>
                                 </div>
-                                {locationUpdatedAt ? (
+                                {/* Icon commented out per user request */}
+                                {/* {locationUpdatedAt ? (
                                     <CheckCircleIcon className="h-5 w-5 text-green-500 dark:text-green-400 flex-shrink-0" />
                                 ) : (
                                     <TriangleAlert className="h-5 w-5 text-orange-500 dark:text-orange-400 flex-shrink-0" />
-                                )}
+                                )} */}
                             </div>
                         </div>
                     )}

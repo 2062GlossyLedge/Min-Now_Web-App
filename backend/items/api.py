@@ -753,16 +753,22 @@ def create_item(request, data: OwnedItemCreateSchema):
 
     user = request.user
     try:
-        item = ItemService.create_item(
-            user=user,
-            name=data.name,
-            picture_url=data.picture_url,
-            item_type=data.item_type,
-            status=data.status,
-            item_received_date=data.item_received_date,
-            last_used=data.last_used,
-            ownership_duration_goal_months=data.ownership_duration_goal_months,
-        )
+        # Prepare item data with location if provided
+        item_data = {
+            'name': data.name,
+            'picture_url': data.picture_url,
+            'item_type': data.item_type,
+            'status': data.status,
+            'item_received_date': data.item_received_date,
+            'last_used': data.last_used,
+            'ownership_duration_goal_months': data.ownership_duration_goal_months,
+        }
+        
+        # Add location if provided
+        if data.current_location_id:
+            item_data['current_location_id'] = data.current_location_id
+        
+        item = ItemService.create_item(user=user, **item_data)
         return OwnedItemSchema.from_orm(item)
     except ValidationError as e:
         raise HttpError(400, str(e))

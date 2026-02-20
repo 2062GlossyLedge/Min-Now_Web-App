@@ -597,9 +597,9 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white dark:bg-gray-800 rounded-lg p-4 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-                <div className="flex mb-4">
+                <div className="flex mb-4 bg-gray-100 dark:bg-gray-700 p-1 rounded-full">
                     <button
-                        className={`px-4 py-2 rounded-tl-lg border-b-2 font-semibold focus:outline-none ${activeTab === 'manual' ? 'border-teal-500 text-teal-600 dark:text-teal-300' : 'border-transparent text-gray-500 dark:text-gray-400'}`}
+                        className={`flex-1 py-1.5 rounded-full font-semibold focus:outline-none text-sm text-center ${activeTab === 'manual' ? 'text-teal-600 dark:text-teal-500 bg-gray-300 dark:bg-slate-900 ' : 'text-gray-900'}`}
                         onClick={() => {
                             setActiveTab('manual')
                             setManualAddError(null)
@@ -610,7 +610,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                         Manual Add
                     </button>
                     <button
-                        className={`px-4 py-2 rounded-tr-lg border-b-2 font-semibold focus:outline-none ${activeTab === 'quick' ? 'border-purple-500 text-purple-600 dark:text-purple-300' : 'border-transparent text-gray-500 dark:text-gray-400'}`}
+                        className={`flex-1 py-1.5 rounded-full font-semibold focus:outline-none text-sm ${activeTab === 'quick' ? 'text-teal-600 dark:text-teal-500 bg-gray-300 dark:bg-slate-900 ' : 'text-gray-900'}`}
                         onClick={() => {
                             setActiveTab('quick')
                             setManualAddError(null)
@@ -624,7 +624,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
 
                 {activeTab === 'manual' && (
                     <>
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Add New Item</h2>
+                        <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Add New Item</h2>
 
                         {/* Item Limit Status */}
                         {(!itemStatsLoading && itemStats) || isUserAdmin() ? (
@@ -643,7 +643,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                             <p className="text-center text-red-500 dark:text-red-400 mb-4">Error: {manualAddError}</p>
                         )}
 
-                        <form onSubmit={handleSubmit} className="space-y-4">
+                        <form onSubmit={handleSubmit} className="space-y-6">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Item Name</label>
                                 <input
@@ -651,7 +651,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                     value={name || ""}
                                     onChange={(e) => setName(e.target.value)}
                                     maxLength={25}
-                                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                    className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3 text-sm focus:border-teal-500 focus:outline-none focus:ring-teal-500"
                                     required
                                 />
                                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -659,7 +659,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                 </p>
                             </div>
                             <div>
-                                <div className="flex items-center space-x-4 mb-2">
+                                <div className="flex items-center space-x-4 mb-4">
                                     <button
                                         type="button"
                                         onClick={() => {
@@ -668,8 +668,8 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                         }}
                                         className={`flex items-center space-x-2 px-3 py-2 rounded-md ${useEmoji ? 'bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300' : 'bg-gray-100 dark:bg-gray-700'}`}
                                     >
-                                        <SmileIcon className="h-5 w-5" />
-                                        <span>Emoji</span>
+                                        <SmileIcon className="h-4 w-4" />
+                                        <span className='text-sm'>Emoji</span>
                                     </button>
                                     <button
                                         type="button"
@@ -679,8 +679,8 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                         }}
                                         className={`flex items-center space-x-2 px-3 py-2 rounded-md ${!useEmoji ? 'bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300' : 'bg-gray-100 dark:bg-gray-700'}`}
                                     >
-                                        <ImageIcon className="h-5 w-5" />
-                                        <span>Image</span>
+                                        <ImageIcon className="h-4 w-4" />
+                                        <span className='text-sm'>Image</span>
                                     </button>
                                 </div>
                                 {useEmoji ? (
@@ -697,7 +697,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                                 }
                                             }}
                                             maxLength={50}
-                                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                            className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3 text-sm focus:border-teal-500 focus:outline-none focus:ring-teal-500"
                                             required={useEmoji}
                                             placeholder="Enter emoji(s)"
                                         />
@@ -771,7 +771,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                 <select
                                     value={itemType}
                                     onChange={(e) => setItemType(e.target.value)}
-                                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"
+                                    className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3 text-sm focus:border-teal-500 focus:outline-none focus:ring-teal-500"
                                 >
                                     {itemTypes.map((type) => (
                                         <option key={type} value={type} className="py-2">
@@ -892,7 +892,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                             value={quickItemName}
                                             onChange={e => setQuickItemName(e.target.value)}
                                             maxLength={25}
-                                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-purple-500 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                            className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 shadow-sm focus:border-purple-500 focus:ring-purple-500 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3 text-sm text-center focus:border-teal-500 focus:outline-none focus:ring-teal-500"
                                             required
                                         />
                                         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">

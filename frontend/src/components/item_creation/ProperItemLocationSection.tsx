@@ -272,13 +272,13 @@ export default function ProperItemLocationSection({ value, onChange, getToken }:
                                         }
                                     }}
                                     placeholder="e.g. Living room"
-                                    className="block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3 text-sm focus:border-teal-500 focus:outline-none focus:ring-teal-500"
+                                    className="block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3 text-sm focus:border-teal-500 focus:outline-none focus:ring-teal-500"
                                     autoFocus
                                 />
                             </div>
                             <div>
                                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Parent room (optional)</label>
-                                <div className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 overflow-hidden">
+                                <div className="rounded-md border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 overflow-hidden">
                                     <div className="max-h-40 overflow-y-auto p-1.5">
                                         <button
                                             type="button"
@@ -344,7 +344,7 @@ export default function ProperItemLocationSection({ value, onChange, getToken }:
                     <button
                         type="button"
                         onClick={() => setLocationSelectOpen((o) => !o)}
-                        className="flex items-center justify-between w-full rounded-md border border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3 text-left text-sm hover:border-teal-500 dark:hover:border-teal-600 focus:border-teal-500 focus:ring-teal-500"
+                        className="flex items-center justify-between w-full rounded-md border border-gray-300 dark:border-gray-600 shadow-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3 text-left text-sm hover:border-teal-500 dark:hover:border-teal-600 focus:border-teal-500 focus:ring-teal-500"
                     >
                         <span className="truncate">{selectedPath ? formatPathDisplay(selectedPath) : 'No location'}</span>
                         <ChevronDownIcon className={`h-4 w-4 flex-shrink-0 ml-2 transition-transform ${locationSelectOpen ? 'rotate-180' : ''}`} />

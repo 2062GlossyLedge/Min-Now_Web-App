@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation'
 import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 import { useOnboarding } from '@/contexts/OnboardingContext'
 import { useCheckupContext } from '@/contexts/CheckupContext'
+import { PlusIcon } from 'lucide-react'
 
 export default function KeepView() {
     const [items, setItems] = useState<Item[]>([])
@@ -289,10 +290,10 @@ export default function KeepView() {
 
     return (
         <div className="container mx-auto px-4 py-8">
-            <div className="flex justify-between items-center mb-6">
-                <SignedIn>
+            <SignedIn>
+                <div className="flex flex-wrap sm:flex-nowrap sm:flex-row gap-4  justify-between items-start sm:items-center mb-6">
                     <h1 className="text-2xl font-bold">Items to Keep</h1>
-                    <div className="flex space-x-2">
+                    <div className="flex space-x-2 sm:space-x-4">
                         {/* Checkup Manager Button */}
                         <button
                             onClick={() => {
@@ -303,7 +304,7 @@ export default function KeepView() {
                                     setShowSpotlight(false)
                                 }
                             }}
-                            className="p-2 text-gray-900 dark:text-white hover:text-teal-500 dark:hover:text-teal-400 transition-colors relative"
+                            className="p-2 text-gray-900 dark:text-gray-400 hover:text-teal-500 dark:hover:text-teal-400 transition-colors relative"
                             data-onboarding="checkup-button"
                         >
                             {/* Calendar Icon */}
@@ -318,7 +319,7 @@ export default function KeepView() {
                         {process.env.NEXT_PUBLIC_PROD_FE !== 'true' && (
                             <button
                                 onClick={handleSendTestEmail}
-                                className="p-2 text-gray-900 dark:text-white hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+                                className="p-2 text-gray-900 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
                                 title="Send Test Checkup Email"
                             >
                                 {/* Email Icon */}
@@ -333,7 +334,7 @@ export default function KeepView() {
                         {/* Keep Badges Button */}
                         <button
                             onClick={() => router.push('/keep-badges')}
-                            className="p-2 text-gray-900 dark:text-white hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
+                            className="p-2 text-gray-900 dark:text-gray-400 hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
                             title="View Keep Badges"
                         >
                             {/* Badge Icon */}
@@ -344,7 +345,7 @@ export default function KeepView() {
                         {/* Filter Button */}
                         <button
                             onClick={() => setShowFilters(!showFilters)}
-                            className="p-2 text-gray-900 dark:text-white hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
+                            className="p-2 text-gray-900 dark:text-gray-400 hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
                         >
                             {/* Filter Icon */}
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -356,7 +357,7 @@ export default function KeepView() {
                             {process.env.NEXT_PUBLIC_PROD_FE !== 'true' && (
                                 <button
                                     onClick={handleAgentAddItem}
-                                    className="p-2 text-gray-900 dark:text-white hover:text-purple-500 dark:hover:text-purple-400 transition-colors"
+                                    className="p-2 text-gray-900 dark:text-gray-400 hover:text-purple-500 dark:hover:text-purple-400 transition-colors"
                                     title="Add Item with AI Agent (Dev Only)"
                                 >
                                     {/* Magnifying Glass Icon */}
@@ -365,25 +366,7 @@ export default function KeepView() {
                                     </svg>
                                 </button>
                             )}
-                            {/* Add Item Button (shows add item form directly) */}
-                            <button
-                                onClick={() => {
-                                    setShowAddForm(true)
-                                    // Clear onboarding explanations when user clicks the add button
-                                    if (onboardingStep === 'add-item') {
-                                        setShowExplanation(null)
-                                        setShowSpotlight(false)
-                                    }
-                                }}
-                                className="p-2 text-gray-900 dark:text-white hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
-                                title="Add Item"
-                                data-onboarding="add-item-button"
-                            >
-                                {/* Plus Icon */}
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                </svg>
-                            </button>
+
                             {/* Test Item Button (dev only) */}
                             {process.env.NEXT_PUBLIC_PROD_FE !== 'true' && (
                                 <button
@@ -438,7 +421,7 @@ export default function KeepView() {
                                             });
                                         }
                                     }}
-                                    className="p-2 text-gray-900 dark:text-white hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
+                                    className="p-2 text-gray-900 dark:text-gray-400 hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
                                     title="Create Test Item"
                                 >
                                     {/* Test Item Icon */}
@@ -447,10 +430,27 @@ export default function KeepView() {
                                     </svg>
                                 </button>
                             )}
+
+                            {/* Add Item Button (shows add item form directly) */}
+                            <button
+                                onClick={() => {
+                                    setShowAddForm(true)
+                                    // Clear onboarding explanations when user clicks the add button
+                                    if (onboardingStep === 'add-item') {
+                                        setShowExplanation(null)
+                                        setShowSpotlight(false)
+                                    }
+                                }}
+                                className="p-2.5 text-white bg-teal-500 hover:bg-teal-600 dark:hover:bg-teal-500 transition-colors rounded-md"
+                                title="Add Item"
+                                data-onboarding="add-item-button"
+                            >
+                                <PlusIcon className="h-4 w-4" strokeWidth={2.5} />
+                            </button>
                         </div>
                     </div>
-                </SignedIn>
-            </div>
+                </div>
+            </SignedIn>
 
             <SignedOut>
                 <AuthMessage />

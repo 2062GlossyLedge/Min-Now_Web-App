@@ -17,6 +17,7 @@ import { DatePickerState, calculateReceivedDate, isDateValid, initializeDatePick
 import { toast } from 'sonner'
 import ItemReceivedDateSection from '@/components/item_creation/ItemReceivedDateSection'
 import OwnershipDurationGoalSection from '@/components/item_creation/OwnershipDurationGoalSection'
+import ProperItemLocationSection from '@/components/item_creation/ProperItemLocationSection'
 import { usePostHog } from 'posthog-js/react'
 
 
@@ -89,6 +90,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const [manualAddError, setManualAddError] = useState<string | null>(null)
     const [quickBatchError, setQuickBatchError] = useState<string | null>(null)
     const [numOfKeysPressed, setNumOfKeysPressed] = useState<number>(1)
+    const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null)
 
     // Item limit state
     const [itemStats, setItemStats] = useState<{
@@ -405,11 +407,12 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
             const { data, error } = await createItem({
                 name,
                 picture_url: pictureUrl,
-                item_type: itemTypeToDbValue(itemType), // Convert display name to database value
+                item_type: itemTypeToDbValue(itemType),
                 status: 'Keep',
                 item_received_date: localDate.toISOString(),
                 last_used: localDate.toISOString(),
-                ownership_duration_goal_months: calculateOwnershipDurationMonths()
+                ownership_duration_goal_months: calculateOwnershipDurationMonths(),
+                current_location_id: selectedLocationId || undefined
             }, getToken)
 
             if (error) {
@@ -593,7 +596,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const posthog = usePostHog()
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 w-full max-w-sm max-h-[90vh] overflow-y-auto">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 w-full max-w-lg max-h-[90vh] overflow-y-auto">
                 <div className="flex mb-4">
                     <button
                         className={`px-4 py-2 rounded-tl-lg border-b-2 font-semibold focus:outline-none ${activeTab === 'manual' ? 'border-teal-500 text-teal-600 dark:text-teal-300' : 'border-transparent text-gray-500 dark:text-gray-400'}`}
@@ -777,6 +780,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                     ))}
                                 </select>
                             </div>
+                            <ProperItemLocationSection value={selectedLocationId} onChange={setSelectedLocationId} getToken={getToken} />
                             <div>
                                 {/* Date Tracking Content */}
                                 <ItemReceivedDateSection

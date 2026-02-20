@@ -20,4 +20,6 @@ export interface Item {
     ownershipDurationGoalMonths?: number
     ownership_duration_goal_progress?: number
     ownershipDurationGoalProgress?: number
+    location_path?: string | null
+    location_updated_at?: string | null
 } 

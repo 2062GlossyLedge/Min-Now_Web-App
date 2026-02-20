@@ -5,6 +5,8 @@ import { ChevronDownIcon, ChevronRightIcon } from 'lucide-react'
 
 export type LocationNode = { name: string; children?: LocationNode[] }
 
+export const DEFAULT_LOCATION = 'Home'
+
 const LOCATION_TREE: LocationNode[] = [
     {
         name: '1st Floor',
@@ -113,7 +115,7 @@ export default function ProperItemLocationSection({ value, onChange }: ProperIte
 
     const handleDropdownView = () => {
         setLocationView('dropdown')
-        onChange('Home')
+        onChange(DEFAULT_LOCATION)
     }
 
     const renderLocationTree = (nodes: LocationNode[], path: string[] = []) => {
@@ -177,18 +179,18 @@ export default function ProperItemLocationSection({ value, onChange }: ProperIte
                     onChange={(e) => onChange(e.target.value)}
                     className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-teal-500 focus:ring-teal-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3"
                 >
-                    <option value="Home">Home</option>
+                    <option value={DEFAULT_LOCATION}>{DEFAULT_LOCATION}</option>
                 </select>
             ) : (
                 <div className="mt-1 rounded-md border border-gray-300 dark:border-gray-600 p-2 max-h-64 overflow-y-auto">
                     <button
                         type="button"
-                        onClick={() => onChange('Home')}
-                        className={`w-full text-left text-sm py-1.5 mb-0.5 px-2 rounded font-medium ${value === 'Home' ? 'bg-gray-100 dark:bg-gray-700' : 'hover:bg-gray-100/50 dark:hover:bg-gray-700/40'}`}
+                        onClick={() => onChange(DEFAULT_LOCATION)}
+                        className={`w-full text-left text-sm py-1.5 mb-0.5 px-2 rounded font-medium ${value === DEFAULT_LOCATION ? 'bg-gray-100 dark:bg-gray-700' : 'hover:bg-gray-100/50 dark:hover:bg-gray-700/40'}`}
                     >
-                        Home
+                        {DEFAULT_LOCATION}
                     </button>
-                    {renderLocationTree(LOCATION_TREE, ['Home'])}
+                    {renderLocationTree(LOCATION_TREE, [DEFAULT_LOCATION])}
                 </div>
             )}
             <div className="mt-3 rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2">

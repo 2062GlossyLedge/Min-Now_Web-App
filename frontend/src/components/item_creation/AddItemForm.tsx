@@ -17,6 +17,7 @@ import { DatePickerState, calculateReceivedDate, isDateValid, initializeDatePick
 import { toast } from 'sonner'
 import ItemReceivedDateSection from '@/components/item_creation/ItemReceivedDateSection'
 import OwnershipDurationGoalSection from '@/components/item_creation/OwnershipDurationGoalSection'
+import ProperItemLocationSection, { DEFAULT_LOCATION } from '@/components/item_creation/ProperItemLocationSection'
 import { usePostHog } from 'posthog-js/react'
 
 
@@ -67,6 +68,8 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const [ownershipGoalValue, setOwnershipGoalValue] = useState<string>('1')
     const [trackingMode, setTrackingMode] = useState<'received' | 'today'>('today')
     const [quickTrackingMode, setQuickTrackingMode] = useState<'received' | 'today'>('today')
+    // Proper item location for manual add (string path, e.g. "Home > 1st Floor > Kitchen")
+    const [properItemLocation, setProperItemLocation] = useState<string>(DEFAULT_LOCATION)
 
     // Main date picker state for manual add
     const [datePickerState, setDatePickerState] = useState<DatePickerState>(() => ({
@@ -818,6 +821,13 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                     receivedDate={receivedDate}
                                     variant="manual"
                                     calculateOwnershipDurationMonths={calculateOwnershipDurationMonths}
+                                />
+                            </div>
+                            <div>
+                                {/* Proper Item Location Section */}
+                                <ProperItemLocationSection
+                                    value={properItemLocation}
+                                    onChange={setProperItemLocation}
                                 />
                             </div>
                             <div className="flex justify-end space-x-3">

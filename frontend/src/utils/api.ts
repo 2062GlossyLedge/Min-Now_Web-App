@@ -27,6 +27,29 @@ interface ItemCreate {
     item_received_date: string;
     last_used: string;
     ownership_duration_goal_months?: number;
+    current_location_id?: string | null;
+}
+
+export interface LocationTreeNode {
+    id: string;
+    slug: string;
+    display_name: string;
+    full_path: string;
+    level: number;
+    parent_id: string | null;
+    children: LocationTreeNode[];
+}
+
+export interface LocationSchema {
+    id: string;
+    slug: string;
+    display_name: string;
+    full_path: string;
+    parent_id: string | null;
+    level: number;
+    item_count: number;
+    created_at: string;
+    updated_at: string;
 }
 
 interface EmailResponse {
@@ -187,7 +210,9 @@ export const fetchItemsByStatus = async (
             pictureUrl: item.picture_url,
             ownershipDuration: item.ownership_duration?.description || 'Not specified',
             ownershipDurationGoalMonths: item.ownership_duration_goal_months,
-            ownershipDurationGoalProgress: item.ownership_duration_goal_progress
+            ownershipDurationGoalProgress: item.ownership_duration_goal_progress,
+            location_path: item.location_path ?? null,
+            location_updated_at: item.location_updated_at ?? null
         }))
 
         return { data: itemsWithDuration }
@@ -240,6 +265,53 @@ export const createItem = async (
     } catch (error) {
         console.error('Error creating item:', error)
         return { error: 'Failed to create item' }
+    }
+}
+
+const LOCATIONS_BASE = `${process.env.NEXT_PUBLIC_API_URL}/api/locations`
+
+export const fetchLocationTree = async (
+    getToken: () => Promise<string | null>
+): Promise<ApiResponse<LocationTreeNode[]>> => {
+    try {
+        const token = await getJWT(getToken)
+        const response = await fetchWithJWT(`${LOCATIONS_BASE}/tree`, token, { method: 'GET' })
+        if (!response.ok) {
+            const errorText = await response.text()
+            return { error: `HTTP ${response.status}: ${errorText}` }
+        }
+        const data = await response.json()
+        return { data }
+    } catch (error) {
+        console.error('Error fetching location tree:', error)
+        return { error: 'Failed to fetch locations' }
+    }
+}
+
+export const createLocation = async (
+    payload: { display_name: string; parent_id?: string | null },
+    getToken: () => Promise<string | null>
+): Promise<ApiResponse<LocationSchema>> => {
+    try {
+        const token = await getJWT(getToken)
+        const csrfToken = await getCSRFToken(getToken)
+        const body: { display_name: string; parent_id?: string } = { display_name: payload.display_name }
+        if (payload.parent_id != null && payload.parent_id !== '') body.parent_id = payload.parent_id
+        const response = await fetchWithJWTAndCSRF(
+            LOCATIONS_BASE,
+            token,
+            csrfToken || undefined,
+            { method: 'POST', body: JSON.stringify(body) }
+        )
+        if (!response.ok) {
+            const errorText = await response.text()
+            return { error: `HTTP ${response.status}: ${errorText}` }
+        }
+        const data = await response.json()
+        return { data }
+    } catch (error) {
+        console.error('Error creating location:', error)
+        return { error: 'Failed to create location' }
     }
 }
 

@@ -200,6 +200,8 @@ export default function GiveView() {
                                     ownershipDuration={item.ownershipDuration}
                                     lastUsedDuration={item.lastUsedDuration}
                                     receivedDate={item.item_received_date}
+                                    locationPath={item.location_path ?? null}
+                                    locationUpdatedAt={item.location_updated_at ?? null}
                                     onStatusChange={handleStatusChange}
                                     onEdit={handleEdit}
                                     onDelete={handleDelete}

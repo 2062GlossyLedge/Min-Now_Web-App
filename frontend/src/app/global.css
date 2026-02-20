@@ -10,39 +10,38 @@
 /* dark and light changes on higher up elements on DOM tree*/
 
 :root {
-    --foreground-rgb: 0, 0, 0;
-    --background-start-rgb: 214, 219, 220;
-    --background-end-rgb: 255, 255, 255;
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
 }
 
 .dark {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 0, 0, 0;
+  --background-end-rgb: 0, 0, 0;
 }
 
-
 body {
-    color: rgb(var(--foreground-rgb));
-    background: rgb(var(--background-start-rgb));
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-start-rgb));
 }
 
 /* Hide calendar chevron and caption label */
 .rdp-chevron {
-    display: none !important;
+  display: none !important;
 }
 
 .rdp-caption_label {
-    display: none !important;
+  display: none !important;
 }
 
 .spinner_ajPY {
-    transform-origin: center;
-    animation: spinner_AtaB 0.75s infinite linear;
+  transform-origin: center;
+  animation: spinner_AtaB 0.75s infinite linear;
 }
 
 @keyframes spinner_AtaB {
-    100% {
-        transform: rotate(360deg);
-    }
+  100% {
+    transform: rotate(360deg);
+  }
 }

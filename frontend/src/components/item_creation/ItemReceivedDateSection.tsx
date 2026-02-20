@@ -116,7 +116,7 @@ export default function ItemReceivedDateSection({
                             <button
                                 type="button"
                                 onClick={() => onTrackingModeChange('received')}
-                                className={`px-3 py-1 text-sm rounded-md ${trackingMode === 'received' ? currentStyles.active : currentStyles.inactive
+                                className={`px-3 py-2 text-sm rounded-md ${trackingMode === 'received' ? currentStyles.active : currentStyles.inactive
                                     }`}
                             >
                                 Past Date

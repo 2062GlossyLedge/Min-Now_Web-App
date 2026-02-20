@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
-import { Edit2, Trash2, ChevronDown, ImageIcon, SmileIcon, CheckCircleIcon, TriangleAlert } from 'lucide-react'
+import { Edit2, Trash2, ChevronDown, ImageIcon, SmileIcon, CheckCircleIcon, TriangleAlert, ChevronUp } from 'lucide-react'
 import Image from 'next/image'
 import { UploadButton } from '@uploadthing/react'
 import "@uploadthing/react/styles.css";
@@ -349,7 +349,7 @@ export default function ItemCard({
     return (
         <div
             onClick={handleCardClick}
-            className="bg-white dark:bg-gray-900 rounded-lg shadow-md p-4 mb-4 cursor-pointer group"
+            className="bg-white dark:bg-gray-900 border border-transparent hover:border-gray-200 dark:hover:border-gray-700 rounded-lg shadow-md p-4 mb-4 cursor-pointer group"
             {...(isFirstItem && (onboardingStep === 'expand-item' || onboardingStep === 'progress-bar') ? { 'data-onboarding': 'first-item-card' } : {})}
         >
             <div className="flex items-center justify-between">
@@ -425,7 +425,7 @@ export default function ItemCard({
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 sm:space-x-4">
                     {onEdit && !isEditing && (
                         <button
                             onClick={(e) => {
@@ -446,7 +446,7 @@ export default function ItemCard({
                             }}
                             className="text-gray-500 dark:text-gray-400 hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
                         >
-                            <Edit2 className="h-5 w-5" />
+                            <Edit2 className="h-4 w-4" />
                         </button>
                     )}
                     {onDelete && !isEditing && (
@@ -463,7 +463,7 @@ export default function ItemCard({
                                 /* Loading spinner for this specific item */
                                 <div className="animate-spin h-5 w-5 border-2 border-gray-300 border-t-red-500 rounded-full"></div>
                             ) : (
-                                <Trash2 className="h-5 w-5" />
+                                <Trash2 className="h-4 w-4" />
                             )}
                         </button>
                     )}
@@ -476,13 +476,9 @@ export default function ItemCard({
                             <span></span>
                         ) : (
                             isExpanded ? (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                                </svg>
+                                <ChevronDown className="h-5 w-5" />
                             ) : (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
+                                <ChevronUp className="h-5 w-5" />
                             )
                         )}
                     </button>
@@ -490,7 +486,7 @@ export default function ItemCard({
             </div>
 
             {(isExpanded || isEditing) && (
-                <div className="mt-4 space-y-2">
+                <div className="mt-4 space-y-2 pl-0 sm:pl-16">
 
 
                     {/* Edit mode layout - single column */}
@@ -740,7 +736,7 @@ export default function ItemCard({
                                     {...(isFirstItem && onboardingStep === 'progress-bar' ? { 'data-onboarding': 'ownership-progress-bar' } : {})}
                                 >
                                     <div className="flex justify-between text-xs">
-                                        <span className="text-gray-500 dark:text-gray-400">
+                                        <span className="text-gray-800 dark:text-gray-400 text-sm">
                                             Goal: {Math.floor(ownershipDurationGoalMonths / 12)}y {ownershipDurationGoalMonths % 12}m
                                         </span>
                                         <span className="text-gray-500 dark:text-gray-400">
@@ -788,9 +784,9 @@ export default function ItemCard({
                                     </span>
                                 </div>
                                 {locationUpdatedAt ? (
-                                    <CheckCircleIcon className="h-4 w-4 text-green-500 dark:text-green-400 flex-shrink-0" />
+                                    <CheckCircleIcon className="h-5 w-5 text-green-500 dark:text-green-400 flex-shrink-0" />
                                 ) : (
-                                    <TriangleAlert className="h-4 w-4 text-orange-500 dark:text-orange-400 flex-shrink-0" />
+                                    <TriangleAlert className="h-5 w-5 text-orange-500 dark:text-orange-400 flex-shrink-0" />
                                 )}
                             </div>
                         </div>

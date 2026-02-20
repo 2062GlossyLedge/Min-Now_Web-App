@@ -1,8 +1,14 @@
 [build]
-builder = "nixpacks"
+builder = "RAILPACK"
+
+[build.nixpacksPlan.phases.install]
+cmds = [
+  "python -m venv /app/.venv",
+  "pip install --no-cache-dir -r requirements.txt"
+]
 
 [deploy]
-startCommand = "gunicorn backend.minNow.wsgi:application --bind 0.0.0.0:$PORT"
+startCommand = "python backend/manage.py migrate && gunicorn backend.minNow.wsgi:application --bind 0.0.0.0:$PORT"
 
 
 

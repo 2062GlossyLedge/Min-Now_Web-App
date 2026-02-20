@@ -285,7 +285,7 @@ def run_agent(batch_prompts: dict, jwt_token: str = None):
     log.info(f"First key to process: {first_key}")
 
     if prod:
-        api_url = "https://magnificent-optimism-production.up.railway.app"
+        api_url = "https://min-nowweb-app-production.up.railway.app"
         log.info(f"Using production API URL: {api_url}")
         tool = create_item_tool(
             api_url=api_url,

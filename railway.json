@@ -1,8 +1,0 @@
-{
-    "build": {
-        "builder": "nixpacks"
-    },
-    "deploy": {
-        "startCommand": "cd backend/items/background && chmod +x start_django_scheduler_production_v2.sh && ./start_django_scheduler_production_v2.sh"
-    }
-}

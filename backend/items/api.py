@@ -92,10 +92,10 @@ from minNow.auth import DevClerkAuth as ClerkAuth
 
 # Use this for production with real Clerk JWTs
 # Uses RS256 Clerk tokens
-# if prod:
-#     from backend.minNow.auth import ClerkAuth
-# else:
-#     from minNow.auth import ClerkAuth
+if prod:
+    from backend.minNow.auth import ClerkAuth
+else:
+    from minNow.auth import ClerkAuth
 
 
 # ============================================================================

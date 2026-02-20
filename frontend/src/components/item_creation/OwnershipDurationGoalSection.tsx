@@ -74,7 +74,7 @@ export default function OwnershipDurationGoalSection({
     return (
         <div className="space-y-3">
             {/* Time Range Display */}
-            <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border">
+            <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600">
                 <div className="text-sm text-gray-600 dark:text-gray-400">
                     {(() => {
                         let startDate: Date
@@ -91,7 +91,7 @@ export default function OwnershipDurationGoalSection({
                         endDate.setMonth(endDate.getMonth() + calculateOwnershipDurationMonths())
 
                         return (
-                            <div className="space-y-1">
+                            <div className="space-y-1 text-gray-600! dark:text-gray-400!">
                                 <div>
                                     <span className="font-medium">Start:</span> {startDate.toLocaleDateString()}
                                     <span className="text-xs ml-1">
@@ -119,13 +119,13 @@ export default function OwnershipDurationGoalSection({
                     onBlur={handleOwnershipGoalValueBlur}
                     placeholder="1"
                     maxLength={3}
-                    className={`block w-24 rounded-md border-gray-300 dark:border-gray-600 shadow-sm ${inputStyles[variant]} bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3`}
+                    className={`block w-24 rounded-md border border-gray-300 dark:border-gray-600 shadow-sm ${inputStyles[variant]} bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3 text-sm text-center focus:border-teal-500 focus:outline-none focus:ring-teal-500`}
                     {...(variant === 'edit' ? { onClick: (e: React.MouseEvent) => e.stopPropagation() } : {})}
                 />
                 <select
                     value={ownershipGoalUnit}
                     onChange={(e) => handleUnitChange(e.target.value as 'months' | 'years')}
-                    className={`rounded-md border-gray-300 dark:border-gray-600 shadow-sm ${inputStyles[variant]} bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3`}
+                    className={`rounded-md border border-gray-300 dark:border-gray-600 shadow-sm ${inputStyles[variant]} bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 py-2 px-3 flex-1 text-sm text-center focus:border-teal-500 focus:outline-none focus:ring-teal-500`}
                     {...(variant === 'edit' ? { onClick: (e: React.MouseEvent) => e.stopPropagation() } : {})}
                 >
                     <option value="months">{ownershipGoalValue === 1 ? 'month' : 'months'}</option>

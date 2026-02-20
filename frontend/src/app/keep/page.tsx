@@ -499,12 +499,13 @@ export default function KeepView() {
                                 receivedDate={item.item_received_date}
                                 ownershipDurationGoalMonths={item.ownership_duration_goal_months || item.ownershipDurationGoalMonths || 12}
                                 ownershipDurationGoalProgress={item.ownership_duration_goal_progress || item.ownershipDurationGoalProgress || 0}
+                                locationPath={item.location_path ?? null}
+                                locationUpdatedAt={item.location_updated_at ?? null}
                                 onStatusChange={handleStatusChange}
                                 onEdit={handleEdit}
                                 onDelete={handleDelete}
                                 isDeleting={deletingItemId === item.id}
                                 isAnyDeleting={deletingItemId !== null}
-                                // Add onboarding data attribute to the first item (most recently added)
                                 isFirstItem={index === 0}
                                 onboardingStep={onboardingStep}
                                 onNextStep={nextStep}

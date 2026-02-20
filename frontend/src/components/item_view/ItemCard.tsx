@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
-import { Edit2, Trash2, ChevronDown, ImageIcon, SmileIcon } from 'lucide-react'
+import { Edit2, Trash2, ChevronDown, ImageIcon, SmileIcon, CheckCircleIcon, TriangleAlert } from 'lucide-react'
 import Image from 'next/image'
 import { UploadButton } from '@uploadthing/react'
 import "@uploadthing/react/styles.css";
@@ -47,6 +47,8 @@ interface ItemCardProps {
     receivedDate?: string
     ownershipDurationGoalMonths?: number
     ownershipDurationGoalProgress?: number
+    locationPath?: string | null
+    locationUpdatedAt?: string | null
     onStatusChange?: (id: string, newStatus: string) => void
     onEdit?: (id: string, updates: { name?: string, receivedDate?: Date, itemType?: string, status?: string, ownershipDurationGoalMonths?: number, pictureUrl?: string }) => void
     onDelete?: (id: string) => void
@@ -69,6 +71,8 @@ export default function ItemCard({
     receivedDate: initialReceivedDate,
     ownershipDurationGoalMonths = 12,
     ownershipDurationGoalProgress = 0,
+    locationPath = null,
+    locationUpdatedAt = null,
     onEdit,
     onDelete,
     isDeleting = false,
@@ -768,6 +772,27 @@ export default function ItemCard({
                                     </div>
                                 </div>
                             )}
+
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Proper Item Location</label>
+                                <span className="text-teal-500 dark:text-teal-400 text-sm font-light">
+                                    {locationPath ? locationPath.replace(/\//g, ' > ') : 'No location'}
+                                </span>
+                            </div>
+
+                            <div className="flex items-center justify-between space-x-2">
+                                <div className="flex items-center space-x-2">
+                                    <span className="text-gray-500 dark:text-gray-400 text-xs font-normal">Last updated:</span>
+                                    <span className="text-gray-800 dark:text-gray-400 text-xs font-normal">
+                                        {locationUpdatedAt ? new Date(locationUpdatedAt).toLocaleDateString() : '—'}
+                                    </span>
+                                </div>
+                                {locationUpdatedAt ? (
+                                    <CheckCircleIcon className="h-4 w-4 text-green-500 dark:text-green-400 flex-shrink-0" />
+                                ) : (
+                                    <TriangleAlert className="h-4 w-4 text-orange-500 dark:text-orange-400 flex-shrink-0" />
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>

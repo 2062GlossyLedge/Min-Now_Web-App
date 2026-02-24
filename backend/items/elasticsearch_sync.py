@@ -126,6 +126,88 @@ def test_connection() -> bool:
         return False
 
 
+def sync_user_to_elasticsearch(user) -> Dict[str, Any]:
+    """
+    Sync a specific user's OwnedItem and Location data to Elasticsearch.
+    This is triggered by user API call, not automatic.
+    
+    Args:
+        user: Django User instance to sync data for
+    
+    Returns:
+        Dict with sync results including success status and counts per index.
+    """
+    from .models import OwnedItem, Location
+    
+    logger.info(f"Starting user-specific sync to Elasticsearch for user {user.id}...")
+    
+    result = {
+        "success": False,
+        "es_connected": False,
+        "indices": {},
+        "total_synced": 0,
+        "total_failed": 0,
+        "error": None
+    }
+    
+    # Test connection first
+    if not test_connection():
+        result["error"] = "Elasticsearch is not available"
+        logger.error("✗ Sync failed: Elasticsearch not available")
+        return result
+    
+    result["es_connected"] = True
+    
+    try:
+        # Sync user's items
+        logger.info(f"Syncing items for user {user.id}...")
+        items = OwnedItem.objects.filter(user=user)
+        item_docs = [serialize_item(item) for item in items]
+        
+        if item_docs:
+            item_result = bulk_index_documents('items', item_docs)
+            result["indices"]["items"] = {
+                "total": len(item_docs),
+                "success": item_result["success"],
+                "failed": item_result["failed"]
+            }
+            result["total_synced"] += item_result["success"]
+            result["total_failed"] += item_result["failed"]
+        else:
+            result["indices"]["items"] = {"total": 0, "success": 0, "failed": 0}
+        
+        # Sync user's locations
+        logger.info(f"Syncing locations for user {user.id}...")
+        locations = Location.objects.filter(user=user)
+        location_docs = [serialize_location(loc) for loc in locations]
+        
+        if location_docs:
+            location_result = bulk_index_documents('locations', location_docs)
+            result["indices"]["locations"] = {
+                "total": len(location_docs),
+                "success": location_result["success"],
+                "failed": location_result["failed"]
+            }
+            result["total_synced"] += location_result["success"]
+            result["total_failed"] += location_result["failed"]
+        else:
+            result["indices"]["locations"] = {"total": 0, "success": 0, "failed": 0}
+        
+        # Mark as successful if no failures
+        result["success"] = result["total_failed"] == 0
+        
+        logger.info(
+            f"✓ User sync complete: {result['total_synced']} synced, "
+            f"{result['total_failed']} failed"
+        )
+        
+    except Exception as e:
+        result["error"] = str(e)
+        logger.error(f"✗ User sync failed with error: {e}", exc_info=True)
+    
+    return result
+
+
 def sync_all_to_elasticsearch() -> Dict[str, Any]:
     """
     Manually sync all PostgreSQL data to Elasticsearch.

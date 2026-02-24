@@ -113,7 +113,7 @@ dev_router = Router()
 def check_rate_limit(request):
     """
     Helper function to check rate limit for a request.
-    Rate limiting: 20 requests per 50 seconds per user/IP.
+    Rate limiting: per user/IP.
     Returns tuple: (is_allowed: bool, error_response: dict or None)
     """
     if rate_limiter is None:
@@ -1450,3 +1450,69 @@ def delete_location(request, location_id: UUID):
         raise HttpError(404, "Location not found")
     except ValidationError as e:
         raise HttpError(400, str(e))
+
+
+# ============================================================================
+# Elasticsearch Sync
+# ============================================================================
+
+@router.post(
+    "/sync-to-elasticsearch",
+    auth=ClerkAuth(),
+    tags=["Admin"],
+)
+def sync_to_elasticsearch(request):
+    """
+    Manually sync all PostgreSQL data to Elasticsearch.
+    Admin only. Returns sync results with success/failure status.
+    Rate limit: 100 requests per 60 seconds
+    """
+    from .models import is_user_admin
+    from .elasticsearch_sync import sync_all_to_elasticsearch
+    
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    # Check if user is admin
+    if not is_user_admin(request.user):
+        raise HttpError(403, "Admin access required")
+    
+    # Perform sync
+    result = sync_all_to_elasticsearch()
+    
+    if not result["success"]:
+        # Return error response but with 200 status for frontend handling
+        return result
+    
+    return result
+
+
+@router.post(
+    "/sync-my-data",
+    auth=ClerkAuth(),
+    tags=["Elasticsearch"],
+)
+def sync_user_data(request):
+    """
+    Sync the authenticated user's OwnedItem and Location data to Elasticsearch.
+    Returns sync results with success/failure status.
+    Rate limit: 100 requests per 60 seconds
+    """
+    from .elasticsearch_sync import sync_user_to_elasticsearch
+    
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    # Perform user-specific sync
+    result = sync_user_to_elasticsearch(request.user)
+    
+    if not result["success"]:
+        # Return error response but with 200 status for frontend handling
+        return result
+    
+    return result
+

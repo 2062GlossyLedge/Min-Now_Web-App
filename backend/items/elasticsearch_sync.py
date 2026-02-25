@@ -126,6 +126,40 @@ def test_connection() -> bool:
         return False
 
 
+def execute_enrichment_policy(policy_name: str) -> Dict[str, Any]:
+    """
+    Execute an Elasticsearch enrichment policy.
+    
+    Args:
+        policy_name: Name of the enrichment policy to execute
+    
+    Returns:
+        Dict with execution results including success status
+    """
+    result = {
+        "success": False,
+        "policy_name": policy_name,
+        "error": None
+    }
+    
+    if not settings.ES_CLIENT:
+        result["error"] = "Elasticsearch client not available"
+        logger.error(f"✗ Cannot execute enrichment policy {policy_name}: ES client not available")
+        return result
+    
+    try:
+        logger.info(f"Executing enrichment policy: {policy_name}...")
+        response = settings.ES_CLIENT.enrich.execute_policy(name=policy_name)
+        result["success"] = True
+        result["response"] = response
+        logger.info(f"✓ Enrichment policy {policy_name} executed successfully")
+    except Exception as e:
+        result["error"] = str(e)
+        logger.error(f"✗ Failed to execute enrichment policy {policy_name}: {e}")
+    
+    return result
+
+
 def sync_user_to_elasticsearch(user) -> Dict[str, Any]:
     """
     Sync a specific user's OwnedItem and Location data to Elasticsearch.
@@ -190,6 +224,11 @@ def sync_user_to_elasticsearch(user) -> Dict[str, Any]:
             }
             result["total_synced"] += location_result["success"]
             result["total_failed"] += location_result["failed"]
+            
+            # Execute enrichment policy after successful location sync
+            if location_result["success"] > 0:
+                enrichment_result = execute_enrichment_policy('locations_policy')
+                result["enrichment_policy"] = enrichment_result
         else:
             result["indices"]["locations"] = {"total": 0, "success": 0, "failed": 0}
         
@@ -276,6 +315,11 @@ def sync_all_to_elasticsearch() -> Dict[str, Any]:
         }
         result["total_synced"] += location_result["success"]
         result["total_failed"] += location_result["failed"]
+        
+        # Execute enrichment policy after successful location sync
+        if location_result["success"] > 0:
+            enrichment_result = execute_enrichment_policy('locations_policy')
+            result["enrichment_policy"] = enrichment_result
         
         # Mark as successful if no failures
         result["success"] = result["total_failed"] == 0

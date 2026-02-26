@@ -2,9 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@clerk/nextjs'
-import { searchLocations } from '@/utils/api'
-import { LocationSearchResult } from '@/types/location'
+import { searchItems, fetchLocationTree } from '@/utils/api'
+import { ItemSearchResult } from '@/types/item'
+import { LocationTreeNode } from '@/types/location'
 import { toast } from 'sonner'
+import LocationTreePicker from '@/components/location/LocationTreePicker'
+import LocationItemCard from '@/components/item_view/LocationItemCard'
+import { buildExpandedSet, groupItemsByLocation, findNodeById } from '@/utils/treeHelpers'
 
 interface SearchItemDialogProps {
     onClose: () => void
@@ -15,9 +19,12 @@ export default function SearchItemDialog({ onClose }: SearchItemDialogProps) {
     const [activeTab, setActiveTab] = useState<'manual' | 'quick'>('manual')
     const [manualSearchQuery, setManualSearchQuery] = useState('')
     const [quickSearchQuery, setQuickSearchQuery] = useState('')
-    const [searchResults, setSearchResults] = useState<LocationSearchResult[]>([])
+    const [itemSearchResults, setItemSearchResults] = useState<ItemSearchResult[]>([])
+    const [locationTree, setLocationTree] = useState<LocationTreeNode[]>([])
     const [isSearching, setIsSearching] = useState(false)
-    const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set())
+    const [isLoadingTree, setIsLoadingTree] = useState(true)
+    const [expandedLocationIds, setExpandedLocationIds] = useState<Set<string>>(new Set())
+    const [highlightedLocationIds, setHighlightedLocationIds] = useState<Set<string>>(new Set())
 
     // Disable body scroll when modal is open
     useEffect(() => {
@@ -27,43 +34,93 @@ export default function SearchItemDialog({ onClose }: SearchItemDialogProps) {
         }
     }, [])
 
+    // Load location tree on mount
+    useEffect(() => {
+        const loadTree = async () => {
+            setIsLoadingTree(true)
+            try {
+                const { data, error } = await fetchLocationTree(getToken)
+                if (error) {
+                    console.error('Error fetching location tree:', error)
+                    toast.error('Failed to load location tree')
+                    setLocationTree([])
+                } else if (data) {
+                    setLocationTree(data)
+                }
+            } catch (error) {
+                console.error('Error loading location tree:', error)
+                setLocationTree([])
+            } finally {
+                setIsLoadingTree(false)
+            }
+        }
+
+        loadTree()
+    }, [getToken])
+
     // Handle manual search
     useEffect(() => {
         const searchTimer = setTimeout(async () => {
             if (manualSearchQuery.trim().length >= 2) {
                 setIsSearching(true)
                 try {
-                    const { data, error } = await searchLocations(manualSearchQuery, getToken)
+                    const { data, error } = await searchItems(manualSearchQuery, getToken)
                     if (error) {
                         console.error('Search error:', error)
-                        toast.error('Failed to search locations')
-                        setSearchResults([])
+                        toast.error('Failed to search items')
+                        setItemSearchResults([])
+                        setExpandedLocationIds(new Set())
+                        setHighlightedLocationIds(new Set())
                     } else if (data) {
-                        setSearchResults(data)
+                        console.log('Search found items:', data)
+                        setItemSearchResults(data)
                     }
                 } catch (error) {
                     console.error('Search exception:', error)
-                    setSearchResults([])
+                    setItemSearchResults([])
+                    setExpandedLocationIds(new Set())
+                    setHighlightedLocationIds(new Set())
                 } finally {
                     setIsSearching(false)
                 }
             } else {
-                setSearchResults([])
+                setItemSearchResults([])
+                setExpandedLocationIds(new Set())
+                setHighlightedLocationIds(new Set())
             }
         }, 300) // Debounce search
 
         return () => clearTimeout(searchTimer)
     }, [manualSearchQuery, getToken])
 
-    const toggleLocation = (locationId: string) => {
-        const newExpanded = new Set(expandedLocations)
-        if (newExpanded.has(locationId)) {
-            newExpanded.delete(locationId)
-        } else {
-            newExpanded.add(locationId)
+    // Update expanded/highlighted nodes when search results or location tree changes
+    useEffect(() => {
+        if (itemSearchResults.length > 0 && locationTree.length > 0) {
+            // Extract unique location IDs from results
+            const locationIds = [...new Set(
+                itemSearchResults
+                    .filter(item => item.currentLocationId)
+                    .map(item => item.currentLocationId!)
+            )]
+
+            console.log('Processing search results:', {
+                itemCount: itemSearchResults.length,
+                locationIds,
+                treeLoaded: locationTree.length > 0
+            })
+
+            // Build expanded set (includes all ancestors)
+            const expanded = buildExpandedSet(locationIds, locationTree)
+            console.log('Expanded node count:', expanded.size)
+            setExpandedLocationIds(expanded)
+
+            // Highlight only the locations that have items
+            setHighlightedLocationIds(new Set(locationIds))
+        } else if (itemSearchResults.length === 0) {
+            setExpandedLocationIds(new Set())
+            setHighlightedLocationIds(new Set())
         }
-        setExpandedLocations(newExpanded)
-    }
+    }, [itemSearchResults, locationTree])
 
     const handleQuickSearch = () => {
         toast.info('Quick search coming soon!', {
@@ -71,106 +128,43 @@ export default function SearchItemDialog({ onClose }: SearchItemDialogProps) {
         })
     }
 
-    const renderLocationTree = () => {
-        if (isSearching) {
-            return (
-                <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500 mx-auto"></div>
-                    <p className="mt-2 text-sm">Searching...</p>
-                </div>
-            )
+    const handleDevFill = () => {
+        setManualSearchQuery('acrid toy')
+    }
+
+    const renderSearchResults = () => {
+        if (itemSearchResults.length === 0) {
+            return null
         }
 
-        if (manualSearchQuery.trim().length < 2) {
-            return (
-                <div className="text-center text-gray-500 dark:text-gray-400 py-8 text-sm">
-                    Type at least 2 characters to search for items and locations
-                </div>
-            )
-        }
+        // Group items by location
+        const groupedItems = groupItemsByLocation(itemSearchResults)
 
-        if (searchResults.length === 0) {
-            return (
-                <div className="text-center text-gray-500 dark:text-gray-400 py-8 text-sm">
-                    No locations or items found matching "{manualSearchQuery}"
-                </div>
-            )
-        }
+        // Convert Map to array and sort by location path
+        const sortedGroups = Array.from(groupedItems.entries())
+            .map(([locationId, items]) => {
+                const locationNode = findNodeById(locationTree, locationId)
+                return {
+                    locationId,
+                    locationPath: locationNode?.full_path || 'Unknown location',
+                    items
+                }
+            })
+            .sort((a, b) => a.locationPath.localeCompare(b.locationPath))
 
         return (
-            <div className="space-y-2">
-                {searchResults.map((location) => {
-                    const isExpanded = expandedLocations.has(location.id)
-                    const hasItems = location.item_count > 0
-
-                    return (
-                        <div key={location.id} className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
-                            <div
-                                className="flex items-start justify-between cursor-pointer"
-                                onClick={() => hasItems && toggleLocation(location.id)}
-                            >
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-lg">📁</span>
-                                        <div>
-                                            <p className="font-medium text-gray-900 dark:text-white">
-                                                {location.display_name}
-                                            </p>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                {location.full_path}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    {hasItems && (
-                                        <span className="text-xs bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 px-2 py-1 rounded">
-                                            {location.item_count} {location.item_count === 1 ? 'item' : 'items'}
-                                        </span>
-                                    )}
-                                    {hasItems && (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                toggleLocation(location.id)
-                                            }}
-                                            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-                                        >
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                stroke="currentColor"
-                                            >
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                            </svg>
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Items list - only show when expanded */}
-                            {isExpanded && hasItems && (
-                                <div className="mt-3 ml-7 space-y-1">
-                                    {location.item_names.map((itemName, idx) => (
-                                        <div
-                                            key={idx}
-                                            className="text-sm text-teal-600 dark:text-teal-400 py-1 px-2 bg-white dark:bg-gray-800 rounded"
-                                        >
-                                            • {itemName}
-                                        </div>
-                                    ))}
-                                    {location.item_count > 10 && (
-                                        <div className="text-xs text-gray-500 dark:text-gray-400 italic py-1 px-2">
-                                            + {location.item_count - 10} more items
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    )
-                })}
+            <div className="mt-4 space-y-2">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Found {itemSearchResults.length} {itemSearchResults.length === 1 ? 'item' : 'items'}
+                    {' '}in {sortedGroups.length} {sortedGroups.length === 1 ? 'location' : 'locations'}
+                </h3>
+                {sortedGroups.map(({ locationId, locationPath, items }) => (
+                    <LocationItemCard
+                        key={locationId}
+                        locationPath={locationPath}
+                        items={items}
+                    />
+                ))}
             </div>
         )
     }
@@ -196,8 +190,8 @@ export default function SearchItemDialog({ onClose }: SearchItemDialogProps) {
                     <button
                         onClick={() => setActiveTab('manual')}
                         className={`px-4 py-2 font-medium transition-colors ${activeTab === 'manual'
-                                ? 'text-teal-600 dark:text-teal-400 border-b-2 border-teal-600 dark:border-teal-400'
-                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                            ? 'text-teal-600 dark:text-teal-400 border-b-2 border-teal-600 dark:border-teal-400'
+                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                             }`}
                     >
                         Manual Search
@@ -205,52 +199,69 @@ export default function SearchItemDialog({ onClose }: SearchItemDialogProps) {
                     <button
                         onClick={() => setActiveTab('quick')}
                         className={`px-4 py-2 font-medium transition-colors ${activeTab === 'quick'
-                                ? 'text-teal-600 dark:text-teal-400 border-b-2 border-teal-600 dark:border-teal-400'
-                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                            ? 'text-teal-600 dark:text-teal-400 border-b-2 border-teal-600 dark:border-teal-400'
+                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                             }`}
                     >
-                        Quick Search
+                        Min Search
                     </button>
                 </div>
 
                 {/* Tab Content */}
                 {activeTab === 'manual' ? (
                     <div className="space-y-4">
+                        {/* Search Input with Dev Mode Badge */}
                         <div className="flex items-center gap-2">
-                            <div className="relative flex-1">
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
+                            <input
+                                type="text"
+                                placeholder="Search for item name..."
+                                value={manualSearchQuery}
+                                onChange={(e) => setManualSearchQuery(e.target.value)}
+                                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 dark:focus:ring-teal-400"
+                            />
+                            {process.env.NEXT_PUBLIC_DEBUG === 'true' && (
+                                <button
+                                    onClick={handleDevFill}
+                                    className="px-2 py-1 text-xs font-medium bg-purple-500 hover:bg-purple-600 text-white rounded transition-colors"
+                                    title="Dev: Autofill search"
                                 >
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
-                                <input
-                                    type="text"
-                                    placeholder="Search for item name or location..."
-                                    value={manualSearchQuery}
-                                    onChange={(e) => setManualSearchQuery(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 dark:focus:ring-teal-400"
-                                />
-                            </div>
-                            <div className="relative group">
-                                <button className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
+                                    Dev Fill
                                 </button>
-                                <div className="absolute right-0 top-full mt-2 w-64 bg-gray-900 text-white text-xs rounded-lg p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-10">
-                                    Search for items by name or location path. Results show locations containing matching items.
-                                </div>
+                            )}
+                        </div>
+
+                        {/* Location Tree */}
+                        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                            <div className="mb-2">
+                                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                    Location Tree
+                                </h3>
+                                {isSearching && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        Searching...
+                                    </p>
+                                )}
+                            </div>
+                            <div className="max-h-80 overflow-y-auto">
+                                {isLoadingTree ? (
+                                    <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500 mx-auto"></div>
+                                        <p className="mt-2 text-sm">Loading locations...</p>
+                                    </div>
+                                ) : (
+                                    <LocationTreePicker
+                                        selectedLocationId={null}
+                                        onLocationSelect={() => { }}
+                                        variant="compact"
+                                        initialExpandedNodes={expandedLocationIds}
+                                        highlightedNodes={highlightedLocationIds}
+                                    />
+                                )}
                             </div>
                         </div>
 
                         {/* Search Results */}
-                        <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 max-h-96 overflow-y-auto">
-                            {renderLocationTree()}
-                        </div>
+                        {renderSearchResults()}
                     </div>
                 ) : (
                     <div className="space-y-4">

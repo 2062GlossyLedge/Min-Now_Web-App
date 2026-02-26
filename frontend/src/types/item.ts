@@ -33,4 +33,19 @@ export interface ItemSearchResult {
     status: string
     currentLocationId?: string | null
     locationPath?: string | null
+}
+
+// Elasticsearch Agent Types
+export interface ESAgentQueryRequest {
+    query: string
+}
+
+export interface ESAgentQueryResponse {
+    success: boolean
+    response: {
+        message: string
+    }
+    conversation_id?: string
+    elapsed_time_ms: number
+    error?: string
 } 

@@ -665,7 +665,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                         }}
                         type="button"
                     >
-                        Quick Add
+                        Minimal Add
                     </button>
                 </div>
 

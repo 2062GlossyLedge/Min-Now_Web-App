@@ -1,4 +1,4 @@
-import { Item, ItemSearchResult } from '@/types/item'
+import { Item, ItemSearchResult, ESAgentQueryResponse } from '@/types/item'
 import { METHODS } from 'http';
 
 interface ApiResponse<T> {
@@ -745,6 +745,40 @@ export const agentAddItemsBatchWithHandlers = async (
         toast.error('Failed to add items via Quick Add')
         handlers.onError?.('Failed to add items via Quick Add')
         return { error: 'Failed to add items via Quick Add' }
+    }
+}
+
+// Query Elasticsearch Agent (non-streaming)
+export const queryElasticsearchAgent = async (
+    query: string,
+    getToken: () => Promise<string | null>
+): Promise<ApiResponse<ESAgentQueryResponse>> => {
+    try {
+        const token = await getJWT(getToken)
+
+        // Get CSRF token for this POST request
+        const csrfToken = await getCSRFToken(getToken)
+
+        const response = await fetchWithJWTAndCSRF(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/query-agent`,
+            token,
+            csrfToken || undefined,
+            {
+                method: 'POST',
+                body: JSON.stringify({ query }),
+            }
+        )
+
+        if (!response.ok) {
+            const errorText = await response.text()
+            return { error: `HTTP ${response.status}: ${errorText}` }
+        }
+
+        const data = await response.json()
+        return { data }
+    } catch (error) {
+        console.error('Error querying Elasticsearch agent:', error)
+        return { error: 'Failed to query Elasticsearch agent' }
     }
 }
 

@@ -50,12 +50,13 @@ from ninja.errors import HttpError
 from typing import List, Optional, Dict
 from pydantic import RootModel
 from .models import ItemType, ItemStatus, TimeSpan, OwnedItem
-from .services import ItemService, CheckupService
+from .services import ItemService, CheckupService, ElasticsearchAgentService
 from datetime import datetime
 from uuid import UUID
 from dotenv import load_dotenv
 import os
 import logging
+import json
 from .addItemAgent import run_agent
 from django.core.exceptions import ValidationError
 import jwt
@@ -63,6 +64,8 @@ from django.conf import settings
 from datetime import datetime
 from upstash_ratelimit import Ratelimit, FixedWindow
 from upstash_redis import Redis
+from django.http import StreamingHttpResponse
+from typing import AsyncGenerator
 
 
 log = logging.getLogger(__name__)
@@ -85,6 +88,22 @@ except Exception as e:
         f"Failed to initialize Upstash rate limiter: {e}. Rate limiting will be disabled."
     )
     rate_limiter = None
+
+# Initialize ES Agent Stream Rate Limiter (5 requests per day)
+es_agent_stream_rate_limiter = None
+try:
+    if redis:  # Reuse the Redis instance
+        es_agent_stream_rate_limiter = Ratelimit(
+            redis=redis,
+            limiter=FixedWindow(max_requests=5, window=86400),  # 5 per day (24 hours)
+            prefix="es_agent_stream_limit",
+        )
+        log.info("ES Agent stream rate limiter initialized successfully")
+except Exception as e:
+    log.warning(
+        f"Failed to initialize ES Agent stream rate limiter: {e}. Rate limiting will be disabled for streaming."
+    )
+    es_agent_stream_rate_limiter = None
 
 # Use when testing swagger docs in dev. Allows authenticating in swagger
 # Uses HS256 dev token
@@ -146,6 +165,79 @@ def check_rate_limit(request):
     except Exception as e:
         log.warning(f"Rate limiting check failed: {e}. Allowing request to proceed.")
         return True, None
+
+
+def check_es_agent_rate_limit(request):
+    """
+    Helper function to check ES agent stream rate limit for a request.
+    Rate limiting: 5 requests per 24 hours per user (admins exempt).
+    Returns tuple: (is_allowed: bool, error_response: dict or None)
+    """
+    from .models import is_user_admin
+    
+    # Admin users bypass rate limit
+    if hasattr(request, "user") and request.user and is_user_admin(request.user):
+        return True, None
+    
+    if es_agent_stream_rate_limiter is None:
+        return True, None
+
+    # Get user ID from request
+    user_id = None
+    if hasattr(request, "user") and request.user:
+        if hasattr(request.user, "clerk_id"):
+            user_id = str(request.user.clerk_id)
+        elif hasattr(request.user, "id"):
+            user_id = str(request.user.id)
+
+    # Fallback to IP address if no user ID available
+    if not user_id:
+        user_id = request.META.get(
+            "HTTP_X_FORWARDED_FOR", request.META.get("REMOTE_ADDR", "unknown")
+        )
+        if "," in user_id:
+            user_id = user_id.split(",")[0].strip()
+
+    try:
+        response = es_agent_stream_rate_limiter.limit(user_id)
+        if not response.allowed:
+            reset_time = response.reset
+            hours_until_reset = (reset_time - datetime.now().timestamp()) / 3600
+            return False, {
+                "detail": f"ES Agent rate limit exceeded. You can make 5 requests per day. Try again in {hours_until_reset:.1f} hours.",
+                "retry_after": int(reset_time - datetime.now().timestamp())
+            }
+        return True, None
+    except Exception as e:
+        log.warning(f"ES Agent rate limiting check failed: {e}. Allowing request to proceed.")
+        return True, None
+
+
+async def async_generator_to_sse(generator: AsyncGenerator[Dict, None]) -> AsyncGenerator[str, None]:
+    """
+    Convert async generator of dicts to SSE format.
+    
+    Args:
+        generator: Async generator yielding event dicts
+        
+    Yields:
+        SSE-formatted strings: 'data: {json}\n\n'
+    """
+    try:
+        async for event in generator:
+            yield f"data: {json.dumps(event)}\n\n"
+    except Exception as e:
+        log.error(f"Error in SSE generator: {e}", exc_info=True)
+        error_event = {
+            "type": "error",
+            "message": f"Streaming error: {str(e)}",
+            "emoji": "❌"
+        }
+        yield f"data: {json.dumps(error_event)}\n\n"
+    finally:
+        # Always send done event
+        done_event = {"type": "done"}
+        yield f"data: {json.dumps(done_event)}\n\n"
 
 
 # convert django models to pydantic schemas
@@ -272,6 +364,11 @@ class EmailResponseSchema(Schema):
 # Add this new schema
 class CheckupTypeSchema(Schema):
     type: str
+
+
+# Elasticsearch Agent Schemas
+class ESAgentQueryRequest(Schema):
+    query: str
 
 
 # Location Schemas
@@ -1117,6 +1214,134 @@ def agent_add_item_batch(request, data: AgentBatchPromptsSchema):
 
     # Run the agent with batch prompts
     result = run_agent(data.prompts, jwt_token)
+    return result
+
+
+@router.post("/query-agent/stream", tags=["AI Agent"])
+async def stream_elasticsearch_agent(request, data: ESAgentQueryRequest):
+    """
+    Stream query to Elasticsearch Agent with real-time progress and responses.
+    
+    Returns Server-Sent Events (SSE) stream with:
+    - Progress events: {"type": "progress", "emoji": str, "text": str, "event": str}
+    - Text chunks: {"type": "chunk", "text": str, "message_id": str}
+    - Completion: {"type": "complete", "message_id": str}
+    - Done: {"type": "done"}
+    - Errors: {"type": "error", "message": str, "emoji": str}
+    
+    Rate limit: 5 requests per 24 hours (admins unlimited)
+    """
+    from asgiref.sync import sync_to_async
+    from django.contrib.auth import get_user_model
+    
+    # Manual authentication for async context
+    auth_header = request.META.get("HTTP_AUTHORIZATION")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HttpError(401, "Unauthorized")
+    
+    token = auth_header.split(" ")[1]
+    
+    # Decode and validate token in sync context
+    try:
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=["HS256"],
+            options={
+                "verify_signature": True,
+                "verify_exp": False,
+                "verify_iat": False,
+                "verify_nbf": False,
+                "verify_aud": False,
+            },
+        )
+        
+        clerk_user_id = payload.get("sub")
+        if not clerk_user_id:
+            raise HttpError(401, "Invalid token")
+        
+        # Get user from database using sync_to_async
+        User = get_user_model()
+        
+        @sync_to_async
+        def get_or_create_user():
+            try:
+                return User.objects.get(clerk_id=clerk_user_id)
+            except User.DoesNotExist:
+                return User.objects.create_user(
+                    username=clerk_user_id,
+                    clerk_id=clerk_user_id,
+                    email=f"{clerk_user_id}@dev.local",
+                )
+        
+        user = await get_or_create_user()
+        request.user = user
+        
+    except jwt.InvalidTokenError:
+        raise HttpError(401, "Invalid token")
+    except Exception as e:
+        log.error(f"Authentication error: {e}")
+        raise HttpError(401, "Unauthorized")
+    
+    # Check ES agent rate limit (admins bypass)
+    @sync_to_async
+    def check_rate_limit_async():
+        return check_es_agent_rate_limit(request)
+    
+    is_allowed, error_response = await check_rate_limit_async()
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    # Get user's clerk_id for the query
+    user_id = user.clerk_id if hasattr(user, 'clerk_id') else str(user.id)
+    
+    # Create streaming generator
+    event_generator = ElasticsearchAgentService.stream_query(user_id, data.query)
+    sse_generator = async_generator_to_sse(event_generator)
+    
+    # Create streaming response with SSE headers
+    response = StreamingHttpResponse(
+        sse_generator,
+        content_type='text/event-stream'
+    )
+    response['Cache-Control'] = 'no-cache'
+    response['X-Accel-Buffering'] = 'no'
+    response['Connection'] = 'keep-alive'
+    
+    return response
+
+
+@router.post("/query-agent", auth=ClerkAuth(), tags=["AI Agent"])
+def query_elasticsearch_agent(request, data: ESAgentQueryRequest):
+    """
+    Query Elasticsearch Agent (non-streaming).
+    
+    Returns JSON response with:
+    - success: bool
+    - response: str (agent's response text)
+    - conversation_id: str (for multi-turn conversations)
+    - elapsed_time_ms: float
+    - error: str (if success=False)
+    
+    Rate limit: 5 requests per 24 hours (admins unlimited)
+    """
+    from asgiref.sync import async_to_sync
+    
+    # Check ES agent rate limit (admins bypass)
+    is_allowed, error_response = check_es_agent_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    # Get user's clerk_id for the query
+    user = request.user
+    user_id = user.clerk_id if hasattr(user, 'clerk_id') else str(user.id)
+    
+    # Query the agent (convert async to sync)
+    result = async_to_sync(ElasticsearchAgentService.query)(user_id, data.query)
+    
+    if not result.get("success"):
+        raise HttpError(500, result.get("error", "Unknown error occurred"))
+    
     return result
 
 

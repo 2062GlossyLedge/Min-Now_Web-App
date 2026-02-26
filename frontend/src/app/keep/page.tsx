@@ -5,9 +5,10 @@ import ItemCard from '../../components/item_view/ItemCard'
 import AddItemForm from '../../components/item_creation/AddItemForm'
 import FilterBar from '../../components/item_view/FilterBar'
 import CheckupManager from '../../components/item_view/CheckupManager'
+import SearchItemDialog from '../../components/item_view/SearchItemDialog'
 import OnboardingManager from '../../components/onboarding/OnboardingManager'
 import AuthMessage from '../../components/landing/AuthMessage'
-import { updateItem, deleteItem, fetchItemsByStatus, createItem, sendTestCheckupEmail, agentAddItem, createHandleEdit } from '@/utils/api'
+import { updateItem, deleteItem, fetchItemsByStatus, createItem, createHandleEdit } from '@/utils/api'
 import { Item } from '@/types/item'
 import { useCheckupStatus } from '@/hooks/useCheckupStatus'
 import { SignedIn, SignedOut, useUser, useAuth } from '@clerk/nextjs'
@@ -22,6 +23,7 @@ export default function KeepView() {
     const [error, setError] = useState<string | null>(null)
     const [showAddForm, setShowAddForm] = useState(false)
     const [showCheckupManager, setShowCheckupManager] = useState(false)
+    const [showSearchDialog, setShowSearchDialog] = useState(false)
     const [selectedType, setSelectedType] = useState<string | null>(null)
     const isCheckupDue = useCheckupStatus('keep')
     const [showFilters, setShowFilters] = useState(false)
@@ -236,47 +238,9 @@ export default function KeepView() {
         }
     }
 
-    // Handler for agent add item (dev only, magnifying glass)
-    const handleAgentAddItem = async () => {
-        setEmailStatus(null)
-        try {
-            const prompt = "Add a new item to keep: name 'Jacket', received Dec 2020, last used Dec 2024"
-
-            // JWT approach - using agentAddItemJWT
-            const result = await agentAddItem(prompt, getToken)
-
-            // CSRF approach (commented out)
-            // const result = await agentAddItem(prompt, authenticatedFetch)
-
-            if (result.data) {
-                setEmailStatus('Item added successfully via AI agent!')
-
-                // Refresh items list to get the newly created item(s)
-                const { data, error } = await fetchItemsByStatusJWT('Keep', getToken)
-
-                // CSRF approach (commented out)
-                // const { data, error } = await fetchItemsByStatus('Keep', authenticatedFetch)
-
-                if (!error && data) {
-                    // Map API response to frontend format
-                    const mappedItems = (data || []).map((item: any) => ({
-                        ...item,
-                        // Map snake_case API fields to camelCase frontend fields
-                        itemType: item.item_type || item.itemType,
-                        pictureUrl: item.picture_url || item.pictureUrl,
-                        ownershipDuration: item.ownership_duration?.description || item.ownershipDuration || 'Not specified',
-                        lastUsedDuration: item.last_used_duration?.description || item.lastUsedDuration || 'N/A',
-                        ownershipDurationGoalMonths: item.ownership_duration_goal_months || item.ownershipDurationGoalMonths || 12,
-                        ownershipDurationGoalProgress: item.ownership_duration_goal_progress || item.ownershipDurationGoalProgress || 0,
-                    }))
-                    setItems(mappedItems)
-                }
-            } else {
-                setEmailStatus(result.error || 'Failed to add item via AI agent')
-            }
-        } catch (error) {
-            setEmailStatus('Failed to add item via AI agent')
-        }
+    // Handler for search button click
+    const handleSearchClick = () => {
+        setShowSearchDialog(true)
     }
 
     if (loading) {
@@ -352,19 +316,17 @@ export default function KeepView() {
                             </svg>
                         </button>
                         <div className="flex items-center space-x-2">
-                            {/* Magnifying Glass Button (AI agent add, dev only) */}
-                            {process.env.NEXT_PUBLIC_PROD_FE !== 'true' && (
-                                <button
-                                    onClick={handleAgentAddItem}
-                                    className="p-2 text-gray-900 dark:text-white hover:text-purple-500 dark:hover:text-purple-400 transition-colors"
-                                    title="Add Item with AI Agent (Dev Only)"
-                                >
-                                    {/* Magnifying Glass Icon */}
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
-                                </button>
-                            )}
+                            {/* Search Button */}
+                            <button
+                                onClick={handleSearchClick}
+                                className="p-2 text-gray-900 dark:text-white hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
+                                title="Search for Items"
+                            >
+                                {/* Search Icon */}
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </button>
                             {/* Add Item Button (shows add item form directly) */}
                             <button
                                 onClick={() => {
@@ -497,8 +459,11 @@ export default function KeepView() {
                                 ownershipDuration={item.ownershipDuration}
                                 lastUsedDuration={item.lastUsedDuration || 'N/A'}
                                 receivedDate={item.item_received_date}
-                                ownershipDurationGoalMonths={item.ownership_duration_goal_months || item.ownershipDurationGoalMonths || 12}
+                                ownershipDurationGoalMonths={item.ownership_duration_goal_months || item.ownershipDurationGoalMonths}
                                 ownershipDurationGoalProgress={item.ownership_duration_goal_progress || item.ownershipDurationGoalProgress || 0}
+                                locationPath={item.locationPath}
+                                locationUpdatedAt={item.locationUpdatedAt}
+                                currentLocationId={item.currentLocationId}
                                 onStatusChange={handleStatusChange}
                                 onEdit={handleEdit}
                                 onDelete={handleDelete}
@@ -522,6 +487,13 @@ export default function KeepView() {
                             // Trigger checkup status refresh to remove red dot
                             triggerCheckupRefresh?.()
                         }}
+                    />
+                )}
+
+                {/* Search Item Dialog */}
+                {showSearchDialog && (
+                    <SearchItemDialog
+                        onClose={() => setShowSearchDialog(false)}
                     />
                 )}
 

@@ -159,6 +159,11 @@ export default function DonatedView() {
                                     ownershipDuration={item.ownershipDuration}
                                     lastUsedDuration={item.lastUsedDuration}
                                     receivedDate={item.item_received_date}
+                                    ownershipDurationGoalMonths={item.ownership_duration_goal_months || item.ownershipDurationGoalMonths}
+                                    ownershipDurationGoalProgress={item.ownership_duration_goal_progress || item.ownershipDurationGoalProgress || 0}
+                                    locationPath={item.locationPath}
+                                    locationUpdatedAt={item.locationUpdatedAt}
+                                    currentLocationId={item.currentLocationId}
                                     onStatusChange={handleStatusChange}
                                     onEdit={handleEdit}
                                     onDelete={handleDelete}

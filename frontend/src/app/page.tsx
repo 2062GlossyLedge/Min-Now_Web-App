@@ -11,7 +11,7 @@ const sections = [
     {
         id: 1,
         title: "Track What You Own",
-        content: "Min-Now helps you keep track of your belongings. Easily add items with our Quick Add feature.",
+        content: "Min-Now helps you keep track of your belongings. Easily add items with our Min Add feature.",
         images: [
             "/ownedItems2.png",
 

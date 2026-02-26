@@ -20,4 +20,17 @@ export interface Item {
     ownershipDurationGoalMonths?: number
     ownership_duration_goal_progress?: number
     ownershipDurationGoalProgress?: number
+    currentLocationId?: string | null
+    locationPath?: string | null
+    locationUpdatedAt?: string | null
+}
+
+export interface ItemSearchResult {
+    id: string
+    name: string
+    pictureUrl: string
+    itemType: string
+    status: string
+    currentLocationId?: string | null
+    locationPath?: string | null
 } 

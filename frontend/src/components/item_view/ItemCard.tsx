@@ -3,16 +3,18 @@
 import { useState, useEffect } from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
-import { Edit2, Trash2, ChevronDown, ImageIcon, SmileIcon } from 'lucide-react'
+import { Edit2, Trash2, ChevronDown, ImageIcon, SmileIcon, MapPin } from 'lucide-react'
 import Image from 'next/image'
 import { UploadButton } from '@uploadthing/react'
 import "@uploadthing/react/styles.css";
 import { twMerge } from 'tailwind-merge'
 import DatePickerComponent from '@/components/item_creation/DatePickerComponent'
-import { DatePickerState, calculateReceivedDate, initializeDatePickerState } from '@/utils/datePickerHelpers'
-import { validateImageFile, isIOS } from '@/utils/api'
+import { DatePickerState, calculateReceivedDate, initializeDatePickerState, formatTimeAgo } from '@/utils/datePickerHelpers'
+import { validateImageFile, isIOS, createLocation, updateLocation, deleteLocation } from '@/utils/api'
 import ItemReceivedDateSection from '@/components/item_creation/ItemReceivedDateSection'
 import OwnershipDurationGoalSection from '@/components/item_creation/OwnershipDurationGoalSection'
+import LocationTreePicker, { PendingLocationOperation } from '@/components/location/LocationTreePicker'
+import { useAuth } from '@clerk/nextjs'
 
 import type { OurFileRouter } from '@/app/api/uploadthing/core'
 
@@ -47,8 +49,11 @@ interface ItemCardProps {
     receivedDate?: string
     ownershipDurationGoalMonths?: number
     ownershipDurationGoalProgress?: number
+    locationPath?: string | null
+    locationUpdatedAt?: string | null
+    currentLocationId?: string | null
     onStatusChange?: (id: string, newStatus: string) => void
-    onEdit?: (id: string, updates: { name?: string, receivedDate?: Date, itemType?: string, status?: string, ownershipDurationGoalMonths?: number, pictureUrl?: string }) => void
+    onEdit?: (id: string, updates: { name?: string, receivedDate?: Date, itemType?: string, status?: string, ownershipDurationGoalMonths?: number, pictureUrl?: string, currentLocationId?: string | null }) => void
     onDelete?: (id: string) => void
     isDeleting?: boolean // Whether this specific item is being deleted
     isAnyDeleting?: boolean // Whether any item in the list is being deleted
@@ -69,6 +74,9 @@ export default function ItemCard({
     receivedDate: initialReceivedDate,
     ownershipDurationGoalMonths = 12,
     ownershipDurationGoalProgress = 0,
+    locationPath,
+    locationUpdatedAt,
+    currentLocationId: initialLocationId,
     onEdit,
     onDelete,
     isDeleting = false,
@@ -122,9 +130,16 @@ export default function ItemCard({
     const [editedUploadedImageUrl, setEditedUploadedImageUrl] = useState<string | null>(null)
     const [isUploading, setIsUploading] = useState(false)
 
+    // Location state for edit mode
+    const [selectedLocationId, setSelectedLocationId] = useState<string | null>(initialLocationId || null)
+    const [pendingLocationOperations, setPendingLocationOperations] = useState<PendingLocationOperation[]>([])
+
     // Current picture URL state (tracks the most recent saved picture)
     // This allows immediate display of changes after saving, before parent component updates
     const [currentPictureUrl, setCurrentPictureUrl] = useState(pictureUrl)
+
+    // Get auth token for location operations
+    const { getToken } = useAuth()
 
     // Update local state when props change
     useEffect(() => {
@@ -134,6 +149,7 @@ export default function ItemCard({
         const newReceivedDate = initialReceivedDate ? new Date(initialReceivedDate) : undefined
         setReceivedDate(newReceivedDate)
         setCurrentPictureUrl(pictureUrl)
+        setSelectedLocationId(initialLocationId || null)
 
         // Update date picker state when receivedDate changes
         setDatePickerState(prev => ({
@@ -161,7 +177,7 @@ export default function ItemCard({
             setEditedPictureEmoji(pictureUrl)
             setEditedUploadedImageUrl(null)
         }
-    }, [name, itemType, status, ownershipDurationGoalMonths, initialReceivedDate, pictureUrl])
+    }, [name, itemType, status, ownershipDurationGoalMonths, initialReceivedDate, pictureUrl, initialLocationId])
 
     // Helper function to calculate total ownership duration in months
     const calculateOwnershipDurationMonths = (): number => {
@@ -200,8 +216,50 @@ export default function ItemCard({
         return typeof str === 'string' && (str.startsWith('http') || str.startsWith('/'));
     }
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (onEdit) {
+            // Execute pending location operations first and track created location IDs
+            let finalLocationId = selectedLocationId
+
+            if (pendingLocationOperations.length > 0) {
+                // Map to track temporary IDs to real IDs
+                const tempIdMap = new Map<string, string>()
+
+                for (const operation of pendingLocationOperations) {
+                    if (operation.type === 'create') {
+                        const { payload } = operation
+                        // Resolve parent ID if it's a temporary ID
+                        const resolvedParentId = payload.parentId && tempIdMap.has(payload.parentId)
+                            ? tempIdMap.get(payload.parentId)!
+                            : payload.parentId
+
+                        const result = await createLocation(payload.displayName!, resolvedParentId || null, getToken)
+
+                        // Track the mapping from temporary ID to real ID
+                        if (result.data && result.data.id) {
+                            const tempId = `temp-create-${pendingLocationOperations.indexOf(operation)}`
+                            tempIdMap.set(tempId, result.data.id)
+
+                            // If the selected location is this temporary ID, update it
+                            if (selectedLocationId === tempId) {
+                                finalLocationId = result.data.id
+                            }
+                        }
+                    } else if (operation.type === 'update') {
+                        const { payload } = operation
+                        await updateLocation(payload.locationId!, payload.newDisplayName!, getToken)
+                    } else if (operation.type === 'delete') {
+                        const { payload } = operation
+                        await deleteLocation(payload.locationId!, getToken)
+                    }
+                }
+                // Clear pending operations after executing
+                setPendingLocationOperations([])
+            }
+
+            // If finalLocationId is still a temporary ID, don't send it
+            const locationIdToSend = finalLocationId?.startsWith('temp-') ? null : finalLocationId
+
             // Determine the picture URL based on selected mode
             let finalPictureUrl = currentPictureUrl; // fallback to current saved state
             if (useEmoji && editedPictureEmoji) {
@@ -222,7 +280,8 @@ export default function ItemCard({
                 itemType: editedItemType,
                 status: editedStatus,
                 ownershipDurationGoalMonths: calculatedOwnershipDurationMonths,
-                pictureUrl: finalPictureUrl
+                pictureUrl: finalPictureUrl,
+                currentLocationId: locationIdToSend
             })
         }
         setIsEditing(false)
@@ -264,6 +323,12 @@ export default function ItemCard({
             setEditedPictureEmoji(currentPictureUrl)
             setEditedUploadedImageUrl(null)
         }
+
+        // Reset location selection
+        setSelectedLocationId(initialLocationId || null)
+
+        // Clear pending location operations
+        setPendingLocationOperations([])
 
         setIsEditing(false)
     }
@@ -703,6 +768,26 @@ export default function ItemCard({
                                 />
                             </div>
 
+                            {/* Location Selection */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Item Location (Optional)</label>
+                                <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 max-h-80 overflow-y-auto">
+                                    <LocationTreePicker
+                                        selectedLocationId={selectedLocationId}
+                                        onLocationSelect={setSelectedLocationId}
+                                        variant="compact"
+                                        stagingMode={true}
+                                        onPendingOperationsChange={setPendingLocationOperations}
+                                        initialPendingOperations={pendingLocationOperations}
+                                    />
+                                </div>
+                                {selectedLocationId && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                        Selected location will be saved when you click Save
+                                    </p>
+                                )}
+                            </div>
+
                             {/* Action buttons */}
                             <div className="flex justify-end space-x-4 pt-4">
                                 <Button
@@ -728,9 +813,26 @@ export default function ItemCard({
                                 <span className="text-gray-500 dark:text-gray-400 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">Ownership Duration:</span>
                                 <span className="text-gray-900 dark:text-gray-100 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">{ownershipDuration}</span>
                             </div>
+                            {/* Show location if set */}
+                            {locationPath && (
+                                <div className="space-y-1">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-gray-500 dark:text-gray-400 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors flex items-center gap-1">
+                                            <MapPin className="h-3.5 w-3.5" />
+                                            Location:
+                                        </span>
+                                        <span className="text-gray-900 dark:text-gray-100 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">{locationPath}</span>
+                                    </div>
+                                    {locationUpdatedAt && (
+                                        <div className="flex justify-end">
+                                            <span className="text-xs text-gray-400 dark:text-gray-500">Updated {formatTimeAgo(locationUpdatedAt)}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
-                            {/* Progress bar for ownership duration goal - only show in Keep status */}
-                            {status === 'Keep' && (
+                            {/* Progress bar for ownership duration goal - only show in Keep status and if goal is set */}
+                            {status === 'Keep' && ownershipDurationGoalMonths && ownershipDurationGoalMonths > 0 && (
                                 <div
                                     className="space-y-2"
                                     {...(isFirstItem && onboardingStep === 'progress-bar' ? { 'data-onboarding': 'ownership-progress-bar' } : {})}

@@ -107,14 +107,14 @@ except Exception as e:
 
 # Use when testing swagger docs in dev. Allows authenticating in swagger
 # Uses HS256 dev token
-from minNow.auth import DevClerkAuth as ClerkAuth
+#from minNow.auth import DevClerkAuth as ClerkAuth
 
 # Use this for production with real Clerk JWTs
 # Uses RS256 Clerk tokens
-# if prod:
-#     from backend.minNow.auth import ClerkAuth
-# else:
-#     from minNow.auth import ClerkAuth
+if prod:
+    from backend.minNow.auth import ClerkAuth
+else:
+    from minNow.auth import ClerkAuth
 
 
 # ============================================================================
@@ -274,6 +274,29 @@ class BadgeProgressSchema(Schema):
     unit: Optional[str] = None
     progress: float
     achieved: bool
+
+
+class ItemSearchResultSchema(Schema):
+    """Lightweight schema for item search results"""
+    id: UUID
+    name: str
+    picture_url: str
+    item_type: str
+    status: str
+    current_location_id: Optional[UUID] = None
+    location_path: Optional[str] = None
+
+    @staticmethod
+    def from_orm(obj) -> "ItemSearchResultSchema":
+        return ItemSearchResultSchema(
+            id=obj.id,
+            name=obj.name,
+            picture_url=obj.picture_url,
+            item_type=obj.item_type,
+            status=obj.status,
+            current_location_id=obj.current_location_id,
+            location_path=obj.current_location.full_path if obj.current_location else None,
+        )
 
 
 class OwnedItemSchema(Schema):
@@ -798,6 +821,22 @@ if not prod:
 
 
 # Items Endpoints
+@router.get("/items/search", response=List[ItemSearchResultSchema], auth=ClerkAuth(), tags=["Items"])
+def search_items(request, q: str):
+    """
+    Search items by name using name__icontains.
+    Query parameter: q - search query string
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    items = ItemService.search_items(request.user, q)
+    return [ItemSearchResultSchema.from_orm(item) for item in items]
+
+
 @router.get("/items", response=List[OwnedItemSchema], auth=ClerkAuth(), tags=["Items"])
 def list_items(request, status: Optional[str] = None, item_type: Optional[str] = None):
     """
@@ -859,6 +898,7 @@ def create_item(request, data: OwnedItemCreateSchema):
             item_received_date=data.item_received_date,
             last_used=data.last_used,
             ownership_duration_goal_months=data.ownership_duration_goal_months,
+            current_location_id=data.current_location_id,
         )
         return OwnedItemSchema.from_orm(item)
     except ValidationError as e:

@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ImageIcon, SmileIcon, InfoIcon, ChevronDownIcon, ChevronUpIcon } from 'lucide-react'
-import { createItem, fetchUserItemStats, validateImageFile, isIOS } from '@/utils/api'
+import { ImageIcon, SmileIcon, InfoIcon, ChevronDownIcon, ChevronUpIcon, MapPin } from 'lucide-react'
+import { createItem, fetchUserItemStats, validateImageFile, isIOS, createLocation, updateLocation, deleteLocation } from '@/utils/api'
 import { useItemUpdate } from '@/contexts/ItemUpdateContext'
 import { Item } from '@/types/item'
 import Image from 'next/image'
@@ -17,6 +17,7 @@ import { DatePickerState, calculateReceivedDate, isDateValid, initializeDatePick
 import { toast } from 'sonner'
 import ItemReceivedDateSection from '@/components/item_creation/ItemReceivedDateSection'
 import OwnershipDurationGoalSection from '@/components/item_creation/OwnershipDurationGoalSection'
+import LocationTreePicker, { PendingLocationOperation } from '@/components/location/LocationTreePicker'
 import { usePostHog } from 'posthog-js/react'
 
 
@@ -98,6 +99,12 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
         can_add_items: boolean;
     } | null>(null)
     const [itemStatsLoading, setItemStatsLoading] = useState(true)
+
+    // Location state
+    const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null)
+    const [showLocationPicker, setShowLocationPicker] = useState(false)
+    const [showOwnershipGoal, setShowOwnershipGoal] = useState(false)
+    const [pendingLocationOperations, setPendingLocationOperations] = useState<PendingLocationOperation[]>([])
 
     // Disable body scroll when modal is open
     useEffect(() => {
@@ -394,6 +401,48 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
         })
 
         try {
+            // Execute pending location operations first and track created location IDs
+            let finalLocationId = selectedLocationId
+
+            if (pendingLocationOperations.length > 0) {
+                // Map to track temporary IDs to real IDs
+                const tempIdMap = new Map<string, string>()
+
+                for (const operation of pendingLocationOperations) {
+                    if (operation.type === 'create') {
+                        const { payload } = operation
+                        // Resolve parent ID if it's a temporary ID
+                        const resolvedParentId = payload.parentId && tempIdMap.has(payload.parentId)
+                            ? tempIdMap.get(payload.parentId)!
+                            : payload.parentId
+
+                        const result = await createLocation(payload.displayName!, resolvedParentId || null, getToken)
+
+                        // Track the mapping from temporary ID to real ID
+                        if (result.data && result.data.id) {
+                            const tempId = `temp-create-${pendingLocationOperations.indexOf(operation)}`
+                            tempIdMap.set(tempId, result.data.id)
+
+                            // If the selected location is this temporary ID, update it
+                            if (selectedLocationId === tempId) {
+                                finalLocationId = result.data.id
+                            }
+                        }
+                    } else if (operation.type === 'update') {
+                        const { payload } = operation
+                        await updateLocation(payload.locationId!, payload.newDisplayName!, getToken)
+                    } else if (operation.type === 'delete') {
+                        const { payload } = operation
+                        await deleteLocation(payload.locationId!, getToken)
+                    }
+                }
+                // Clear pending operations after executing
+                setPendingLocationOperations([])
+            }
+
+            // If finalLocationId is still a temporary ID, don't send it
+            const locationIdToSend = finalLocationId?.startsWith('temp-') ? undefined : (finalLocationId ?? undefined)
+
             const localDate = new Date(calculatedDate)
             localDate.setHours(0, 0, 0, 0)
 
@@ -409,7 +458,8 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                 status: 'Keep',
                 item_received_date: localDate.toISOString(),
                 last_used: localDate.toISOString(),
-                ownership_duration_goal_months: calculateOwnershipDurationMonths()
+                ...(showOwnershipGoal && { ownership_duration_goal_months: calculateOwnershipDurationMonths() }),
+                current_location_id: locationIdToSend
             }, getToken)
 
             if (error) {
@@ -793,33 +843,81 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                     variant="manual"
                                 />
                             </div>
-                            <div>
-                                {/* Ownership Duration Goal Section */}
-                                <div className="flex items-center gap-2 mb-2">
-                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Ownership Duration Goal
-                                    </span>
-                                    <div className="group relative">
-                                        <InfoIcon className="h-4 w-4 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 cursor-help" />
-                                        <div className="absolute right-full top-1/2 transform -translate-y-1/2 mr-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none w-48 text-center z-50">
-                                            How long you want to keep this item before it breaks, or you give/sell it away
-                                            <div className="absolute left-full top-1/2 transform -translate-y-1/2 border-4 border-transparent border-l-gray-900 dark:border-l-gray-700"></div>
+                            {/* Ownership Duration Goal Section (Optional) */}
+                            <div className="space-y-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowOwnershipGoal(!showOwnershipGoal)}
+                                    className="flex items-center justify-between w-full text-left"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            Set Ownership Goal (Optional)
+                                        </span>
+                                        <div className="group relative">
+                                            <InfoIcon className="h-4 w-4 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 cursor-help" />
+                                            <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none w-48 text-center z-50">
+                                                How long you want to keep this item before it breaks, or you give/sell it away
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                    {showOwnershipGoal ? (
+                                        <ChevronUpIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                                    ) : (
+                                        <ChevronDownIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                                    )}
+                                </button>
 
-                                {/* Ownership Goal Content */}
-                                <OwnershipDurationGoalSection
-                                    ownershipGoalValue={parseInt(ownershipGoalValue || '1', 10)}
-                                    onOwnershipGoalValueChange={(value) => setOwnershipGoalValue(value.toString())}
-                                    ownershipGoalUnit={ownershipGoalUnit}
-                                    onOwnershipGoalUnitChange={setOwnershipGoalUnit}
-                                    trackingMode={trackingMode}
-                                    receivedDate={receivedDate}
-                                    variant="manual"
-                                    calculateOwnershipDurationMonths={calculateOwnershipDurationMonths}
-                                />
+                                {showOwnershipGoal && (
+                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                        <OwnershipDurationGoalSection
+                                            ownershipGoalValue={parseInt(ownershipGoalValue || '1', 10)}
+                                            onOwnershipGoalValueChange={(value) => setOwnershipGoalValue(value.toString())}
+                                            ownershipGoalUnit={ownershipGoalUnit}
+                                            onOwnershipGoalUnitChange={setOwnershipGoalUnit}
+                                            trackingMode={trackingMode}
+                                            receivedDate={receivedDate}
+                                            variant="manual"
+                                            calculateOwnershipDurationMonths={calculateOwnershipDurationMonths}
+                                        />
+                                    </div>
+                                )}
                             </div>
+
+                            {/* Location Section (Optional) */}
+                            <div className="space-y-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowLocationPicker(!showLocationPicker)}
+                                    className="flex items-center justify-between w-full text-left"
+                                >
+                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                                        <MapPin className="h-4 w-4" />
+                                        Set Location (Optional)
+                                    </span>
+                                    {showLocationPicker ? (
+                                        <ChevronUpIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                                    ) : (
+                                        <ChevronDownIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                                    )}
+                                </button>
+
+                                {showLocationPicker && (
+                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                        <div className="max-h-64 overflow-y-auto">
+                                            <LocationTreePicker
+                                                selectedLocationId={selectedLocationId}
+                                                onLocationSelect={setSelectedLocationId}
+                                                variant="compact"
+                                                stagingMode={true}
+                                                onPendingOperationsChange={setPendingLocationOperations}
+                                                initialPendingOperations={pendingLocationOperations}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="flex justify-end space-x-3">
                                 <button
                                     type="button"

@@ -1,4 +1,4 @@
-import { Item } from '@/types/item'
+import { Item, ItemSearchResult } from '@/types/item'
 import { METHODS } from 'http';
 
 interface ApiResponse<T> {
@@ -27,6 +27,7 @@ interface ItemCreate {
     item_received_date: string;
     last_used: string;
     ownership_duration_goal_months?: number;
+    current_location_id?: string;
 }
 
 interface EmailResponse {
@@ -187,7 +188,10 @@ export const fetchItemsByStatus = async (
             pictureUrl: item.picture_url,
             ownershipDuration: item.ownership_duration?.description || 'Not specified',
             ownershipDurationGoalMonths: item.ownership_duration_goal_months,
-            ownershipDurationGoalProgress: item.ownership_duration_goal_progress
+            ownershipDurationGoalProgress: item.ownership_duration_goal_progress,
+            currentLocationId: item.current_location_id,
+            locationPath: item.location_path,
+            locationUpdatedAt: item.location_updated_at
         }))
 
         return { data: itemsWithDuration }
@@ -233,7 +237,10 @@ export const createItem = async (
             pictureUrl: data.picture_url,
             ownershipDuration: data.ownership_duration?.description || 'Not specified',
             ownershipDurationGoalMonths: data.ownership_duration_goal_months,
-            ownershipDurationGoalProgress: data.ownership_duration_goal_progress
+            ownershipDurationGoalProgress: data.ownership_duration_goal_progress,
+            currentLocationId: data.current_location_id,
+            locationPath: data.location_path,
+            locationUpdatedAt: data.location_updated_at
         }
 
         return { data: mappedItem }
@@ -302,7 +309,10 @@ export const fetchItemById = async (
             pictureUrl: data.picture_url,
             ownershipDuration: data.ownership_duration?.description || 'Not specified',
             ownershipDurationGoalMonths: data.ownership_duration_goal_months,
-            ownershipDurationGoalProgress: data.ownership_duration_goal_progress
+            ownershipDurationGoalProgress: data.ownership_duration_goal_progress,
+            currentLocationId: data.current_location_id,
+            locationPath: data.location_path,
+            locationUpdatedAt: data.location_updated_at
         }
 
         return { data: mappedItem }
@@ -322,7 +332,8 @@ export const updateItem = async (
         itemType?: string,
         receivedDate?: Date,
         ownershipDurationGoalMonths?: number,
-        pictureUrl?: string
+        pictureUrl?: string,
+        currentLocationId?: string | null
     },
     getToken: () => Promise<string | null>
 ): Promise<ApiResponse<Item>> => {
@@ -340,6 +351,7 @@ export const updateItem = async (
             item_type: updates.itemType,
             ownership_duration_goal_months: updates.ownershipDurationGoalMonths,
             picture_url: updates.pictureUrl,
+            current_location_id: updates.currentLocationId,
         }
 
         const response = await fetchWithJWTAndCSRF(
@@ -366,7 +378,10 @@ export const updateItem = async (
             pictureUrl: data.picture_url,
             ownershipDuration: data.ownership_duration?.description || 'Not specified',
             ownershipDurationGoalMonths: data.ownership_duration_goal_months,
-            ownershipDurationGoalProgress: data.ownership_duration_goal_progress
+            ownershipDurationGoalProgress: data.ownership_duration_goal_progress,
+            currentLocationId: data.current_location_id,
+            locationPath: data.location_path,
+            locationUpdatedAt: data.location_updated_at
         }
 
         return { data: mappedItem }
@@ -745,7 +760,9 @@ export const createHandleEdit = (
         itemType?: string,
         receivedDate?: Date,
         status?: string,
-        ownershipDurationGoalMonths?: number
+        ownershipDurationGoalMonths?: number,
+        pictureUrl?: string,
+        currentLocationId?: string | null
     }) => {
         toast.loading('Updating item...', { id: 'edit-item' })
         try {
@@ -880,6 +897,241 @@ export const syncUserPreferences = async (
         console.error('Failed to sync user preferences:', error);
         return {
             error: error instanceof Error ? error.message : 'Failed to sync user preferences'
+        };
+    }
+};
+
+// Location API functions
+import { LocationSearchResult, LocationTreeNode } from '@/types/location';
+
+/**
+ * Search for items by name
+ */
+export const searchItems = async (
+    query: string,
+    getToken: () => Promise<string | null>
+): Promise<ApiResponse<ItemSearchResult[]>> => {
+    try {
+        const token = await getJWT(getToken);
+
+        const response = await fetchWithJWT(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/items/search?q=${encodeURIComponent(query)}`,
+            token,
+            {
+                method: 'GET',
+            }
+        );
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        const rawData = await response.json();
+
+        // Transform snake_case to camelCase
+        const data = rawData.map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            pictureUrl: item.picture_url,
+            itemType: item.item_type,
+            status: item.status,
+            currentLocationId: item.current_location_id,
+            locationPath: item.location_path,
+        }));
+
+        return { data };
+    } catch (error) {
+        console.error('Error searching items:', error);
+        return {
+            error: error instanceof Error ? error.message : 'Unknown error'
+        };
+    }
+};
+
+/**
+ * Search for locations by query string
+ * Searches in location paths and names
+ */
+export const searchLocations = async (
+    query: string,
+    getToken: () => Promise<string | null>
+): Promise<ApiResponse<LocationSearchResult[]>> => {
+    try {
+        const token = await getJWT(getToken);
+
+        const response = await fetchWithJWT(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/locations/search?q=${encodeURIComponent(query)}`,
+            token,
+            {
+                method: 'GET',
+            }
+        );
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return { data };
+    } catch (error) {
+        console.error('Error searching locations:', error);
+        return {
+            error: error instanceof Error ? error.message : 'Failed to search locations'
+        };
+    }
+};
+
+/**
+ * Fetch location tree structure
+ * Returns hierarchical tree with nested children
+ */
+export const fetchLocationTree = async (
+    getToken: () => Promise<string | null>
+): Promise<ApiResponse<LocationTreeNode[]>> => {
+    try {
+        const token = await getJWT(getToken);
+
+        const response = await fetchWithJWT(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/locations/tree`,
+            token,
+            {
+                method: 'GET',
+            }
+        );
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return { data };
+    } catch (error) {
+        console.error('Error fetching location tree:', error);
+        return {
+            error: error instanceof Error ? error.message : 'Failed to fetch location tree'
+        };
+    }
+};
+
+/**
+ * Create a new location
+ * @param displayName - Name of the location
+ * @param parentId - Optional parent location ID (null for root location)
+ */
+export const createLocation = async (
+    displayName: string,
+    parentId: string | null,
+    getToken: () => Promise<string | null>
+): Promise<ApiResponse<any>> => {
+    try {
+        const token = await getJWT(getToken);
+        const csrfToken = await getCSRFToken(getToken);
+
+        const response = await fetchWithJWTAndCSRF(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/locations`,
+            token,
+            csrfToken || undefined,
+            {
+                method: 'POST',
+                body: JSON.stringify({
+                    display_name: displayName,
+                    parent_id: parentId
+                }),
+            }
+        );
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return { data };
+    } catch (error) {
+        console.error('Error creating location:', error);
+        return {
+            error: error instanceof Error ? error.message : 'Failed to create location'
+        };
+    }
+};
+
+/**
+ * Update a location's display name
+ * @param locationId - Location ID to update
+ * @param displayName - New display name
+ */
+export const updateLocation = async (
+    locationId: string,
+    displayName: string,
+    getToken: () => Promise<string | null>
+): Promise<ApiResponse<any>> => {
+    try {
+        const token = await getJWT(getToken);
+        const csrfToken = await getCSRFToken(getToken);
+
+        const response = await fetchWithJWTAndCSRF(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/locations/${locationId}`,
+            token,
+            csrfToken || undefined,
+            {
+                method: 'PUT',
+                body: JSON.stringify({
+                    display_name: displayName
+                }),
+            }
+        );
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return { data };
+    } catch (error) {
+        console.error('Error updating location:', error);
+        return {
+            error: error instanceof Error ? error.message : 'Failed to update location'
+        };
+    }
+};
+
+/**
+ * Delete a location
+ * Only works if location has no items or children
+ * @param locationId - Location ID to delete
+ */
+export const deleteLocation = async (
+    locationId: string,
+    getToken: () => Promise<string | null>
+): Promise<ApiResponse<{ success: boolean; message: string }>> => {
+    try {
+        const token = await getJWT(getToken);
+        const csrfToken = await getCSRFToken(getToken);
+
+        const response = await fetchWithJWTAndCSRF(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/locations/${locationId}`,
+            token,
+            csrfToken || undefined,
+            {
+                method: 'DELETE',
+            }
+        );
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return { data };
+    } catch (error) {
+        console.error('Error deleting location:', error);
+        return {
+            error: error instanceof Error ? error.message : 'Failed to delete location'
         };
     }
 };

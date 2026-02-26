@@ -69,6 +69,14 @@ class ItemService:
         if item_type:
             qs = qs.filter(item_type=item_type)
         return qs
+    
+    @staticmethod
+    def search_items(user, query):
+        """Search items by name using name__icontains"""
+        return OwnedItem.objects.filter(
+            user=user,
+            name__icontains=query
+        ).select_related('current_location').order_by('name')
 
     @staticmethod
     def get_user_item_stats(user):

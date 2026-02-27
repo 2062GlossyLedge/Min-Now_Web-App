@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@clerk/nextjs'
-import { searchItems, fetchLocationTree, queryElasticsearchAgent } from '@/utils/api'
+import { searchItems, fetchLocationTree, queryElasticsearchAgent, syncUserDataToElasticsearch } from '@/utils/api'
 import { ItemSearchResult, ESAgentQueryResponse } from '@/types/item'
 import { LocationTreeNode } from '@/types/location'
 import { toast } from 'sonner'
@@ -41,6 +41,10 @@ export default function SearchItemDialog({ onClose }: SearchItemDialogProps) {
     const [agentError, setAgentError] = useState<string | null>(null)
     const [elapsedTimeMs, setElapsedTimeMs] = useState<number | null>(null)
     const phaseIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
+    // Elasticsearch sync state
+    const [isSyncing, setIsSyncing] = useState(false)
+    const [hasSynced, setHasSynced] = useState(false)
 
     // Disable body scroll when modal is open
     useEffect(() => {
@@ -146,6 +150,36 @@ export default function SearchItemDialog({ onClose }: SearchItemDialogProps) {
             }
         }
     }, [])
+
+    // Sync user data to Elasticsearch when switching to quick search tab
+    useEffect(() => {
+        const syncData = async () => {
+            // Only sync when switching to 'quick' tab and haven't synced yet
+            if (activeTab === 'quick' && !hasSynced && !isSyncing) {
+                setIsSyncing(true)
+                const syncToast = toast.loading('Syncing your data to search index...')
+
+                try {
+                    const { data, error } = await syncUserDataToElasticsearch(getToken)
+
+                    if (error) {
+                        console.error('Sync error:', error)
+                        toast.error('Failed to sync data. Search may not be up to date.', { id: syncToast })
+                    } else if (data) {
+                        toast.success('Search index updated successfully', { id: syncToast })
+                        setHasSynced(true)
+                    }
+                } catch (error) {
+                    console.error('Sync exception:', error)
+                    toast.error('Failed to sync data. Search may not be up to date.', { id: syncToast })
+                } finally {
+                    setIsSyncing(false)
+                }
+            }
+        }
+
+        syncData()
+    }, [activeTab, hasSynced, isSyncing, getToken])
 
     // Fake streaming: cycle through phases
     const startFakeStreaming = () => {
@@ -380,7 +414,7 @@ export default function SearchItemDialog({ onClose }: SearchItemDialogProps) {
                                     value={quickSearchQuery}
                                     onChange={(e) => setQuickSearchQuery(e.target.value)}
                                     onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !isQuerying) {
+                                        if (e.key === 'Enter' && !isQuerying && !isSyncing) {
                                             handleMinSearch()
                                         }
                                     }}
@@ -404,7 +438,7 @@ export default function SearchItemDialog({ onClose }: SearchItemDialogProps) {
                                         onClick={handleMinSearchDevFill}
                                         className="px-2 py-1 text-xs font-medium bg-purple-500 hover:bg-purple-600 text-white rounded transition-colors"
                                         title="Dev: Autofill search"
-                                        disabled={isQuerying}
+                                        disabled={isQuerying || isSyncing}
                                     >
                                         Dev Fill
                                     </button>
@@ -426,10 +460,10 @@ export default function SearchItemDialog({ onClose }: SearchItemDialogProps) {
 
                         <button
                             onClick={handleQuickSearch}
-                            disabled={isQuerying}
+                            disabled={isQuerying || isSyncing}
                             className="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {isQuerying ? 'Searching...' : 'Search'}
+                            {isSyncing ? 'Syncing Data...' : isQuerying ? 'Searching...' : 'Search'}
                         </button>
 
                         {/* Fake Streaming Phase Display */}

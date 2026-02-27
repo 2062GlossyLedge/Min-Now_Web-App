@@ -151,7 +151,8 @@ def execute_enrichment_policy(policy_name: str) -> Dict[str, Any]:
         logger.info(f"Executing enrichment policy: {policy_name}...")
         response = settings.ES_CLIENT.enrich.execute_policy(name=policy_name)
         result["success"] = True
-        result["response"] = response
+        # Convert ObjectApiResponse to dict for JSON serialization
+        result["response"] = dict(response) if response else None
         logger.info(f"✓ Enrichment policy {policy_name} executed successfully")
     except Exception as e:
         result["error"] = str(e)

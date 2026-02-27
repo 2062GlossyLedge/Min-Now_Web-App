@@ -1169,3 +1169,38 @@ export const deleteLocation = async (
         };
     }
 };
+
+/**
+ * Sync user data to Elasticsearch
+ * Syncs only the authenticated user's items and locations to Elasticsearch
+ */
+export const syncUserDataToElasticsearch = async (
+    getToken: () => Promise<string | null>
+): Promise<ApiResponse<{ success: boolean; message: string }>> => {
+    try {
+        const token = await getJWT(getToken);
+        const csrfToken = await getCSRFToken(getToken);
+
+        const response = await fetchWithJWTAndCSRF(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/sync-my-data`,
+            token,
+            csrfToken || undefined,
+            {
+                method: 'POST',
+            }
+        );
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return { data };
+    } catch (error) {
+        console.error('Error syncing user data to Elasticsearch:', error);
+        return {
+            error: error instanceof Error ? error.message : 'Failed to sync user data to Elasticsearch'
+        };
+    }
+};

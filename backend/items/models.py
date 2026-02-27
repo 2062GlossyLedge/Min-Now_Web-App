@@ -46,6 +46,7 @@ def is_user_admin(user) -> bool:
 
 
 class ItemType(models.TextChoices):
+    CLEANING_SUPPLIES = "Cleaning_Supplies", "Cleaning Supplies"
     CLOTHING_ACCESSORIES = "Clothing_Accessories", "Clothing & Accessories"
     PERSONAL_CARE_ITEMS = "Personal_Care_Items", "Personal Care Items"
     FURNITURE_APPLIANCES = "Furniture_Appliances", "Furniture & Appliances"

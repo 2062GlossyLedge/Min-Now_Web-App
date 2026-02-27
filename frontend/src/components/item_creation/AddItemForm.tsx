@@ -119,6 +119,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
 
     const itemTypes = [
         'Clothing & Accessories',
+        'Cleaning Supplies',
         'Technology',
         'Furniture & Appliances',
         'Books & Media',
@@ -139,6 +140,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const itemTypeToDbValue = (displayName: string): string => {
         const mapping: Record<string, string> = {
             'Clothing & Accessories': 'Clothing_Accessories',
+            'Cleaning Supplies': 'Cleaning_Supplies',
             'Technology': 'Technology',
             'Furniture & Appliances': 'Furniture_Appliances',
             'Books & Media': 'Books_Media',

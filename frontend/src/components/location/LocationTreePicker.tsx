@@ -426,10 +426,10 @@ export default function LocationTreePicker({
             <div key={node.id} className="select-none">
                 <div
                     className={`flex items-center justify-between py-2 px-3 rounded-md transition-colors group ${isSelected
-                            ? 'bg-teal-100 dark:bg-teal-900 text-teal-900 dark:text-teal-100'
-                            : isHighlighted
-                                ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-900 dark:text-amber-100'
-                                : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ? 'bg-teal-100 dark:bg-teal-900 text-teal-900 dark:text-teal-100'
+                        : isHighlighted
+                            ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-900 dark:text-amber-100'
+                            : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                         } ${isPending ? 'opacity-70 italic' : ''}`}
                     style={{ paddingLeft: `${level * 12 + 12}px` }}
                 >
@@ -502,7 +502,7 @@ export default function LocationTreePicker({
                         )}
 
                         {/* Item count badge */}
-                        {!isEditing && (
+                        {/* {!isEditing && (
                             <span className="flex-shrink-0 text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded">
                                 {node.children?.reduce((sum, child) => {
                                     const countChildren = (n: LocationTreeNode): number => {
@@ -511,7 +511,7 @@ export default function LocationTreePicker({
                                     return sum + countChildren(child)
                                 }, 0) || 0} items
                             </span>
-                        )}
+                        )} */}
                     </div>
 
                     {/* Action icons (show on hover) */}

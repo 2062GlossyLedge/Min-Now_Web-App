@@ -30,6 +30,7 @@ export default function FilterBar({ selectedType, onTypeChange }: FilterBarProps
     // Map database values to display names
     const itemTypeDisplayNames: Record<string, string> = {
         'Clothing_Accessories': 'Clothing & Accessories',
+        'Cleaning_Supplies': 'Cleaning Supplies',
         'Technology': 'Technology',
         'Furniture_Appliances': 'Furniture & Appliances',
         'Kitchenware': 'Kitchenware',

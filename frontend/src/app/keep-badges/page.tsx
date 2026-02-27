@@ -9,6 +9,7 @@ import { SignedIn, SignedOut, useUser, useAuth } from '@clerk/nextjs'
 // Map database values to display names
 const itemTypeDisplayNames: Record<string, string> = {
     'Clothing_Accessories': 'Clothing & Accessories',
+    'Cleaning_Supplies': 'Cleaning Supplies',
     'Technology': 'Technology',
     'Furniture_Appliances': 'Furniture & Appliances',
     'Kitchenware': 'Kitchenware',

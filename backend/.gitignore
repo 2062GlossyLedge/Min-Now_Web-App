@@ -173,3 +173,6 @@ backend/staticfiles/*
 graph_output.png
 
 experiments/*
+
+specs/es/*
+specs/ndjson/*

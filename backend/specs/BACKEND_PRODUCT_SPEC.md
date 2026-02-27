@@ -1,12 +1,13 @@
 # MinNow Backend Product Specification
 
-**Last Updated:** January 2026  
+**Last Updated:** February 2026  
 **Platform:** Django 5.2 + Django Ninja API  
 **Database:** PostgreSQL (Production on Railway)  
 **Task Queue:** Celery (optional) + Django Management Commands  
 **Rate Limiting:** Upstash Redis  
 **Email Service:** MailerSend  
 **Authentication:** Clerk (JWT-based)
+**API Documentation:** Interactive Swagger/OpenAPI at `/api/docs` (development mode)
 
 ---
 
@@ -15,12 +16,14 @@
 1. [System Architecture](#system-architecture)
 2. [Core Data Models](#core-data-models)
 3. [API Endpoints](#api-endpoints)
-4. [Authentication & Security](#authentication--security)
-5. [Background Jobs & Scheduled Tasks](#background-jobs--scheduled-tasks)
-6. [Services & Business Logic](#services--business-logic)
-7. [Database Schema](#database-schema)
-8. [Deployment & Configuration](#deployment--configuration)
-9. [Development Notes](#development-notes)
+4. [API Schemas](#api-schemas)
+5. [Swagger Development Setup](#swagger-development-setup)
+6. [Authentication & Security](#authentication--security)
+7. [Background Jobs & Scheduled Tasks](#background-jobs--scheduled-tasks)
+8. [Services & Business Logic](#services--business-logic)
+9. [Database Schema](#database-schema)
+10. [Deployment & Configuration](#deployment--configuration)
+11. [Development Notes](#development-notes)
 
 ---
 
@@ -448,7 +451,7 @@ Updates `last_checkup_date` to now, marking checkup as completed.
 #### **Update Checkup Interval**
 
 ```http
-PUT /api/checkups/{checkup_id}
+PUT /api/checkups/{checkup_id}/interval
 Content-Type: application/json
 ```
 
@@ -463,32 +466,12 @@ Content-Type: application/json
 
 ---
 
-### User Statistics & Badges
-
-#### **Get User Item Statistics**
-
-```http
-GET /api/user/item-stats
-```
-
-**Response:** `200 OK`
-```json
-{
-  "current_count": 7,
-  "max_items": 10,
-  "remaining_slots": 3,
-  "can_add_items": true
-}
-```
-
-**Note:** Admin users always see `"remaining_slots": 999` and `"can_add_items": true`
-
----
+### Badges Endpoints
 
 #### **Get Donated Badges**
 
 ```http
-GET /api/user/donated-badges
+GET /api/badges/donated
 ```
 
 Returns achievement badges for donated/given items grouped by item type.
@@ -526,6 +509,28 @@ Returns achievement badges for donated/given items grouped by item type.
   ]
 }
 ```
+
+---
+
+### User Statistics
+
+#### **Get User Item Statistics**
+
+```http
+GET /api/items/stats
+```
+
+**Response:** `200 OK`
+```json
+{
+  "current_count": 7,
+  "max_items": 10,
+  "remaining_slots": 3,
+  "can_add_items": true
+}
+```
+
+**Note:** Admin users always see `"remaining_slots": 999` and `"can_add_items": true`
 
 ---
 
@@ -604,7 +609,7 @@ Process multiple prompts in a single request.
 #### **Send Test Checkup Email**
 
 ```http
-POST /api/send-test-checkup-email
+POST /api/send-test-email
 Content-Type: application/json
 ```
 
@@ -627,24 +632,271 @@ Content-Type: application/json
 
 ---
 
-### User Preferences
+### User Preferences Endpoints
 
 #### **Sync User Preferences**
 
 ```http
-POST /api/user/sync-preferences
+POST /api/sync-preferences
 Content-Type: application/json
 ```
 
-Synchronizes user preferences from Clerk (email notifications, admin status, etc.).
+Synchronizes user checkup intervals and email notification preferences.
+
+**Request Body:**
+```json
+{
+  "checkupInterval": 2,
+  "emailNotifications": true
+}
+```
 
 **Response:** `200 OK`
 ```json
 {
-  "status": "success",
-  "preferences_updated": true
+  "message": "User preferences synced successfully",
+  "email_notifications": true,
+  "checkup_interval": 2,
+  "updated_checkups": [
+    {
+      "id": 1,
+      "last_checkup_date": "2025-01-08T16:00:00Z",
+      "checkup_interval_months": 2,
+      "is_checkup_due": false
+    }
+  ]
 }
 ```
+
+---
+
+### Authentication Endpoints
+
+#### **Verify JWT Authentication**
+
+```http
+GET /api/clerk-jwt
+```
+
+Test endpoint to verify JWT authentication is working. Returns authenticated user info and CSRF token for subsequent requests.
+
+**Response:** `200 OK`
+```json
+{
+  "userId": "user_2xK8z...",
+  "username": "john_doe",
+  "email": "john@example.com",
+  "csrf_token": "rWEuSekGk41wHyWEbVRFzxVKQYhA0DIS7qLy7dz6NwtvqKwHNdF5bH1Rsxlusv4c"
+}
+```
+
+---
+
+### Location Endpoints
+
+#### **List All Locations**
+
+```http
+GET /api/locations
+```
+
+Get all locations for the authenticated user in a flat list.
+
+**Response:** `200 OK`
+```json
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440003",
+    "slug": "home",
+    "display_name": "Home",
+    "full_path": "home",
+    "parent_id": null,
+    "level": 0,
+    "item_count": 5,
+    "created_at": "2025-01-01T10:00:00Z",
+    "updated_at": "2025-01-08T14:30:00Z"
+  },
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440004",
+    "slug": "bedroom",
+    "display_name": "Bedroom",
+    "full_path": "home/bedroom",
+    "parent_id": "550e8400-e29b-41d4-a716-446655440003",
+    "level": 1,
+    "item_count": 3,
+    "created_at": "2025-01-02T10:00:00Z",
+    "updated_at": "2025-01-08T14:30:00Z"
+  }
+]
+```
+
+---
+
+#### **Get Location Tree Structure**
+
+```http
+GET /api/locations/tree
+```
+
+Get hierarchical tree structure of all user locations.
+
+**Response:** `200 OK`
+```json
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440003",
+    "slug": "home",
+    "display_name": "Home",
+    "full_path": "home",
+    "level": 0,
+    "parent_id": null,
+    "children": [
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440004",
+        "slug": "bedroom",
+        "display_name": "Bedroom",
+        "full_path": "home/bedroom",
+        "level": 1,
+        "parent_id": "550e8400-e29b-41d4-a716-446655440003",
+        "children": []
+      }
+    ]
+  }
+]
+```
+
+---
+
+#### **Search Locations**
+
+```http
+GET /api/locations/search?q=bed
+```
+
+Search locations by path/name using full_path contains search.
+
+**Query Parameters:**
+- `q` (required): Search query string
+
+**Response:** `200 OK`
+```json
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440004",
+    "slug": "bedroom",
+    "display_name": "Bedroom",
+    "full_path": "home/bedroom",
+    "level": 1,
+    "item_count": 3,
+    "item_names": ["Pillow", "Blanket", "Mattress"]
+  }
+]
+```
+
+---
+
+#### **Create Location**
+
+```http
+POST /api/locations
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "display_name": "Garage",
+  "parent_id": null
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440006",
+  "slug": "garage",
+  "display_name": "Garage",
+  "full_path": "garage",
+  "parent_id": null,
+  "level": 0,
+  "item_count": 0,
+  "created_at": "2025-01-08T16:00:00Z",
+  "updated_at": "2025-01-08T16:00:00Z"
+}
+```
+
+---
+
+#### **Get Specific Location**
+
+```http
+GET /api/locations/{location_id}
+```
+
+**Response:** `200 OK` (location object)  
+**Response:** `404 Not Found`
+
+---
+
+#### **Update Location**
+
+```http
+PUT /api/locations/{location_id}
+Content-Type: application/json
+```
+
+Update location display_name (slug regenerates automatically).
+
+**Request Body:**
+```json
+{
+  "display_name": "Master Bedroom"
+}
+```
+
+**Response:** `200 OK` (updated location object)
+
+---
+
+#### **Move Location to New Parent**
+
+```http
+PUT /api/locations/{location_id}/move
+Content-Type: application/json
+```
+
+Move location to a new parent or to root if parent_id is null.
+
+**Request Body:**
+```json
+{
+  "parent_id": "550e8400-e29b-41d4-a716-446655440003"
+}
+```
+
+**Response:** `200 OK` (updated location object with new full_path)
+
+---
+
+#### **Delete Location**
+
+```http
+DELETE /api/locations/{location_id}
+```
+
+Deletes location if it has no items and no children.
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Location deleted successfully"
+}
+```
+
+**Errors:**
+- `400 Bad Request` - Location has items or children
+- `404 Not Found`
 
 ---
 
@@ -678,10 +930,355 @@ Content-Type: application/json
 
 ---
 
+#### **Get Authenticated User's Items (Dev Only)**
+
+```http
+GET /api/dev/auth/items?status={Keep|Give|Donate}&item_type={ItemType}
+```
+
+Test endpoint to verify JWT authentication and fetch items for authenticated user.
+
+**Query Parameters:**
+- `status` (optional): Filter by item status
+- `item_type` (optional): Filter by item type
+
+**Response:** `200 OK` - Array of items
+
+---
+
 #### **API Documentation**
 
-- **Swagger UI:** `/api/docs` (dev only)
-- **OpenAPI Schema:** `/api/openapi.json` (dev only)
+- **Swagger UI:** `http://localhost:8000/api/docs` (dev only)
+- **OpenAPI Schema:** `http://localhost:8000/api/openapi.json` (dev only)
+
+---
+
+## API Schemas
+
+All request/response payloads are validated with Pydantic schemas (defined in `backend/items/api.py`). Below are the key schemas.
+
+### Core Response Schemas
+
+#### **TimeSpanSchema**
+Time duration with readable format (e.g., "1y 11m")
+```json
+{"years": 1, "months": 11, "days": 5, "description": "1y 11m"}
+```
+
+#### **BadgeProgressSchema**
+Achievement progress toward badge (bronze/silver/gold)
+```json
+{
+  "tier": "bronze",
+  "name": "Bronze Clothing Keeper",
+  "description": "Owned an item for 1 year",
+  "min": 12,
+  "unit": "months",
+  "progress": 0.99,
+  "achieved": true
+}
+```
+
+#### **CheckupSchema**
+Checkup reminder state
+```json
+{
+  "id": 1,
+  "last_checkup_date": "2024-12-08T10:00:00Z",
+  "checkup_interval_months": 1,
+  "is_checkup_due": true
+}
+```
+
+### Item Schemas
+
+#### **OwnedItemSchema** (Response)
+Complete item with computed properties (badges, durations, location path)
+
+**Key fields:**
+- `id`, `name`, `picture_url`, `item_type`, `status`
+- `item_received_date`, `last_used`
+- `ownership_duration`, `last_used_duration` (TimeSpanSchema)
+- `keep_badge_progress` (List[BadgeProgressSchema])
+- `ownership_duration_goal_months`, `ownership_duration_goal_progress`
+- `current_location_id`, `location_path`, `location_updated_at`
+
+#### **OwnedItemCreateSchema** (Request)
+```json
+{
+  "name": "Gaming Laptop",
+  "picture_url": "💻",
+  "item_type": "Technology",
+  "status": "Keep",
+  "item_received_date": "2024-06-01T00:00:00Z",
+  "last_used": "2025-01-08T14:20:00Z",
+  "ownership_duration_goal_months": 24,
+  "current_location_id": null
+}
+```
+
+#### **OwnedItemUpdateSchema** (Request)
+All fields optional. Only provided fields are updated.
+
+### Checkup Schemas
+
+#### **CheckupCreateSchema** (Request)
+```json
+{"interval_months": 1, "checkup_type": "keep"}
+```
+
+#### **CheckupUpdateSchema** (Request)
+```json
+{"interval_months": 3}
+```
+
+### Badge Schemas
+
+#### **DonatedBadgesResponseSchema** (Response)
+Dictionary mapping ItemType to list of BadgeProgressSchema objects
+```json
+{
+  "Clothing_Accessories": [{...badge objects...}],
+  "Technology": [{...badge objects...}]
+}
+```
+
+### Email/Preference Schemas
+
+#### **EmailResponseSchema** (Response)
+```json
+{
+  "checkup_type": "keep",
+  "status": "sent",
+  "recipient_email": "user@example.com",
+  "recipient_username": "john_doe"
+}
+```
+
+#### **SyncPreferencesRequest** (Request)
+```json
+{
+  "checkupInterval": 2,
+  "emailNotifications": true
+}
+```
+
+#### **SyncPreferencesResponse** (Response)
+```json
+{
+  "message": "User preferences synced successfully",
+  "email_notifications": true,
+  "checkup_interval": 2,
+  "updated_checkups": [...]
+}
+```
+
+### Authentication Schemas
+
+#### **ClerkJwtTestResponse** (Response)
+```json
+{
+  "userId": "user_2xK8z...",
+  "username": "john_doe",
+  "email": "john@example.com",
+  "csrf_token": "rWEuSekGk41wHyWEbVRFz..."
+}
+```
+
+#### **ClerkLoginRequest** (Request - Dev Only)
+```json
+{"email": "user@example.com"}
+```
+
+#### **ClerkLoginResponse** (Response - Dev Only)
+```json
+{
+  "jwt_token": "eyJhbGciOiJIUzI1NiIs...",
+  "user_id": "user_2xK8z...",
+  "email": "user@example.com",
+  "message": "Use this JWT token in Swagger Authorize button"
+}
+```
+
+### AI Agent Schemas
+
+#### **AgentAddItemRequest** (Request)
+```json
+{"prompt": "I bought a new white t-shirt yesterday that I plan to keep for at least 2 years"}
+```
+
+#### **AgentBatchPromptsSchema** (Request)
+```json
+{
+  "prompts": {
+    "item1": "Red running shoes for marathon training",
+    "item2": "Old desk chair to donate"
+  }
+}
+```
+
+### Location Schemas
+
+#### **LocationSchema** (Response)
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440003",
+  "slug": "home",
+  "display_name": "Home",
+  "full_path": "home",
+  "parent_id": null,
+  "level": 0,
+  "item_count": 5,
+  "created_at": "2025-01-01T10:00:00Z",
+  "updated_at": "2025-01-08T14:30:00Z"
+}
+```
+
+#### **LocationCreateSchema** (Request)
+```json
+{"display_name": "Garage", "parent_id": null}
+```
+
+#### **LocationUpdateSchema** (Request)
+```json
+{"display_name": "Master Bedroom"}
+```
+
+#### **LocationMoveSchema** (Request)
+```json
+{"parent_id": "550e8400-e29b-41d4-a716-446655440003"}
+```
+
+#### **LocationTreeNode** (Response - Recursive)
+Location with hierarchical children array. Auto-generated from root locations via `GET /api/locations/tree`.
+
+#### **LocationSearchResultSchema** (Response)
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440004",
+  "slug": "bedroom",
+  "display_name": "Bedroom",
+  "full_path": "home/bedroom",
+  "level": 1,
+  "item_count": 3,
+  "item_names": ["Pillow", "Blanket", "Mattress"]
+}
+```
+
+### Schema Conventions
+
+**Date/Time:** ISO 8601 format with UTC (e.g., `2025-01-08T14:30:00Z`)  
+**UUIDs:** Hyphenated lowercase (e.g., `550e8400-e29b-41d4-a716-446655440000`)  
+**Enums:** Sent as strings (ItemType: `Clothing_Accessories`, `Technology`, etc. | ItemStatus: `Keep`, `Give`, `Donate`)  
+**Null values:** Optional fields can be `null` (e.g., `parent_id: null` for root location)  
+**Error format:** `{"detail": "Human-readable error message"}`
+
+---
+
+## Swagger Development Setup
+
+### Overview
+
+The MinNow API includes interactive Swagger/OpenAPI documentation for development. This allows you to test all endpoints directly from your browser without needing external tools like Postman or cURL.
+
+### Accessing Swagger UI
+
+1. Start the development server:
+   ```bash
+   python manage.py runserver
+   ```
+
+2. Open your browser and navigate to:
+   ```
+   http://localhost:8000/api/docs/
+   ```
+
+### Authentication Setup for Swagger
+
+#### Import DevClerkAuth in api.py
+
+**Critical:** To use Swagger with Clerk authentication in development, you must import `DevClerkAuth` instead of the production `ClerkAuth`. This allows Swagger to validate development tokens properly.
+
+In `backend/items/api.py` (lines 90-100), the current setup is:
+
+```python
+# Use when testing swagger docs in dev. Allows authenticating in swagger
+# Uses HS256 dev token
+from minNow.auth import DevClerkAuth as ClerkAuth
+
+# Use this for production with real Clerk JWTs
+# Uses RS256 Clerk tokens
+# if prod:
+#     from backend.minNow.auth import ClerkAuth
+# else:
+#     from minNow.auth import ClerkAuth
+```
+
+**This import is already configured correctly for development.** The `DevClerkAuth` class uses HS256 token validation (with Django's SECRET_KEY), making it compatible with Swagger's token generation.
+
+#### Why DevClerkAuth for Development?
+
+| Aspect | DevClerkAuth | Production ClerkAuth |
+|--------|--------------|---------------------|
+| **Algorithm** | HS256 (symmetric) | RS256 (asymmetric) |
+| **Key Source** | Django's SECRET_KEY | Clerk's public JWKS |
+| **Swagger Compatible** | ✅ Yes | ❌ No (requires real Clerk auth) |
+| **Use Case** | Local development/testing | Production with real Clerk tokens |
+
+### Getting a JWT Token for Swagger
+
+#### Method 1: Use the Clerk Login Endpoint (Recommended)
+
+1. Open Swagger UI at `http://localhost:8000/api/docs/`
+
+2. Locate the **POST /api/dev/auth/clerk-login** endpoint (under "Development" section)
+
+3. Click "Try it out"
+
+4. Enter a test user email in the request body:
+   ```json
+   {
+     "email": "wikiward0@gmail.com"
+   }
+   ```
+
+5. Click "Execute"
+
+6. Copy the `jwt_token` from the response
+
+
+### Authorizing Requests in Swagger
+
+1. After obtaining a JWT token, click the green **"Authorize"** button at the top of Swagger UI
+
+2. Enter the token in the Value field
+  
+3. Click "Authorize"
+
+4. All subsequent requests will include the `Authorization` header with your token
+
+### Testing an Endpoint
+
+1. With authorization configured, find an endpoint (e.g., **GET /api/items**)
+
+2. Click "Try it out"
+
+3. Modify query parameters if needed
+
+4. Click "Execute"
+
+5. View the response status, headers, and body in the "Response" section
+
+### CSRF Token Handling
+
+For state-changing operations (POST, PUT, DELETE), Swagger automatically includes the CSRF token from the server. No manual action required.
+
+To verify your CSRF token, call:
+```http
+GET /api/clerk-jwt
+```
+
+This returns your current CSRF token for manual requests if needed.
 
 ---
 
@@ -957,7 +1554,7 @@ Recommended (check Django migrations):
 ```bash
 PROD=True
 DEBUG=False
-ALLOWED_HOSTS=min-now.store,www.min-now.store,magnificent-optimism-production.up.railway.app
+ALLOWED_HOSTS=min-now...
 DATABASE_URL=postgresql://...@railway.internal:5432/...
 CLERK_SECRET_KEY=sk_live_...
 MAILERSEND_API_KEY=...
@@ -997,127 +1594,3 @@ python manage.py runserver
 
 ---
 
-## Development Notes
-
-### Key Dependencies
-
-**Core:**
-- `django==5.2.1` - Web framework
-- `django-ninja==1.4.1` - REST API (lightweight Starlette-like framework)
-- `djangorestframework` - Alternative REST framework (not used currently)
-- `psycopg2` - PostgreSQL adapter
-- `gunicorn==23.0.0` - WSGI server
-
-**Authentication & External Services:**
-- `clerk-backend-api==2.2.0` - Clerk SDK
-- `upstash-ratelimit` - Rate limiting
-- `upstash-redis` - Redis client for rate limiting
-- `mailersend==0.6.0` - Email service
-
-**AI & Background Tasks:**
-- `langchain==0.3.25` - AI framework
-- `langchain-openai==0.3.23` - OpenAI integration
-- `langgraph==0.4.8` - Graph-based workflows
-- `celery==5.5.3` - Task queue (optional)
-- `kombu==5.5.4` - Message broker
-- `amqp==5.3.1` - AMQP library
-
-**Utilities:**
-- `python-dotenv` - Environment variable loading
-- `httpx` - Async HTTP client
-- `pydantic` - Data validation (via django-ninja)
-- `django-cors-headers==4.7.0` - CORS support
-- `django-anymail==13.0` - Email backend abstraction
-- `django-permissions-policy==4.26.0` - Permissions policy headers
-
----
-
-### Code Organization Best Practices
-
-1. **Separation of Concerns:** Business logic in Services, APIs handle routing/validation
-2. **DRY:** Reusable utilities in `utils/`, shared models in `models/`
-3. **Error Handling:** Consistent exception handling with proper HTTP status codes
-4. **Logging:** Structured logging via Python logging module
-5. **Testing:** Unit tests in `tests/` directory per app
-
----
-
-### Common Development Tasks
-
-**Run tests:**
-```bash
-pytest backend/tests/ -v
-```
-
-**Create new migration:**
-```bash
-python manage.py makemigrations
-python manage.py migrate
-```
-
-**Add new API endpoint:**
-1. Define schema in `items/api.py` (Pydantic Schema)
-2. Implement endpoint function decorated with `@router.get/post/put/delete`
-3. Add authentication via `@jwt_required` decorator
-4. Test with Swagger UI at `/api/docs/`
-
-**Test scheduled task:**
-```bash
-python manage.py run_email_notifications --verbose
-```
-
----
-
-### Known Limitations & Future Improvements
-
-**Current Limitations:**
-- Item limit (10 per user) is hard-coded; could be configurable per user tier
-- Email templates hardcoded; consider using template engine (Jinja2)
-- AI agent limited to English prompts
-- No pagination on list endpoints (fine for small datasets, problematic at scale)
-
-**Future Enhancements:**
-- [ ] Implement pagination for item/checkup lists
-- [ ] Add item history/audit trail for data analysis
-- [ ] Multi-language support for emails and item types
-- [ ] Advanced search/filtering (date ranges, text search, etc.)
-- [ ] Real-time notifications via WebSocket
-- [ ] Mobile app API versioning strategy
-- [ ] Backup/export user data functionality
-
----
-
-## Appendix: API Error Codes
-
-| Status | Meaning | Example |
-|--------|---------|---------|
-| 200 | Success | GET request returned data |
-| 201 | Created | Item successfully created |
-| 204 | No Content | Deletion successful |
-| 400 | Bad Request | Missing/invalid field |
-| 401 | Unauthorized | Invalid/expired JWT token |
-| 404 | Not Found | Item ID doesn't exist |
-| 429 | Too Many Requests | Rate limit exceeded |
-| 500 | Server Error | Unexpected exception |
-
----
-
-## Appendix: Environment Checklist
-
-**Before deploying to production, ensure:**
-- [ ] `PROD=True` and `DEBUG=False`
-- [ ] All Clerk secrets configured
-- [ ] PostgreSQL database credentials correct
-- [ ] MailerSend API key set
-- [ ] Upstash Redis credentials configured
-- [ ] ALLOWED_HOSTS includes production domain(s)
-- [ ] SSL certificates valid
-- [ ] Database migrations applied
-- [ ] Static files collected
-- [ ] Task Scheduler jobs configured on hosting platform
-- [ ] Email templates tested
-- [ ] Rate limiting verified
-
----
-
-**End of Backend Product Specification**

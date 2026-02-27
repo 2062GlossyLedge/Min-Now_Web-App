@@ -50,12 +50,13 @@ from ninja.errors import HttpError
 from typing import List, Optional, Dict
 from pydantic import RootModel
 from .models import ItemType, ItemStatus, TimeSpan, OwnedItem
-from .services import ItemService, CheckupService
+from .services import ItemService, CheckupService, ElasticsearchAgentService
 from datetime import datetime
 from uuid import UUID
 from dotenv import load_dotenv
 import os
 import logging
+import json
 from .addItemAgent import run_agent
 from django.core.exceptions import ValidationError
 import jwt
@@ -63,6 +64,8 @@ from django.conf import settings
 from datetime import datetime
 from upstash_ratelimit import Ratelimit, FixedWindow
 from upstash_redis import Redis
+from django.http import StreamingHttpResponse
+from typing import AsyncGenerator
 
 
 log = logging.getLogger(__name__)
@@ -86,16 +89,32 @@ except Exception as e:
     )
     rate_limiter = None
 
+# Initialize ES Agent Stream Rate Limiter (5 requests per day)
+es_agent_stream_rate_limiter = None
+try:
+    if redis:  # Reuse the Redis instance
+        es_agent_stream_rate_limiter = Ratelimit(
+            redis=redis,
+            limiter=FixedWindow(max_requests=5, window=86400),  # 5 per day (24 hours)
+            prefix="es_agent_stream_limit",
+        )
+        log.info("ES Agent stream rate limiter initialized successfully")
+except Exception as e:
+    log.warning(
+        f"Failed to initialize ES Agent stream rate limiter: {e}. Rate limiting will be disabled for streaming."
+    )
+    es_agent_stream_rate_limiter = None
+
 # Use when testing swagger docs in dev. Allows authenticating in swagger
 # Uses HS256 dev token
-# from minNow.auth import DevClerkAuth as ClerkAuth
+from minNow.auth import DevClerkAuth as ClerkAuth
 
 # Use this for production with real Clerk JWTs
 # Uses RS256 Clerk tokens
-if prod:
-    from backend.minNow.auth import ClerkAuth
-else:
-    from minNow.auth import ClerkAuth
+# if prod:
+#     from backend.minNow.auth import ClerkAuth
+# else:
+#     from minNow.auth import ClerkAuth
 
 
 # ============================================================================
@@ -113,7 +132,7 @@ dev_router = Router()
 def check_rate_limit(request):
     """
     Helper function to check rate limit for a request.
-    Rate limiting: 20 requests per 50 seconds per user/IP.
+    Rate limiting: per user/IP.
     Returns tuple: (is_allowed: bool, error_response: dict or None)
     """
     if rate_limiter is None:
@@ -146,6 +165,79 @@ def check_rate_limit(request):
     except Exception as e:
         log.warning(f"Rate limiting check failed: {e}. Allowing request to proceed.")
         return True, None
+
+
+def check_es_agent_rate_limit(request):
+    """
+    Helper function to check ES agent stream rate limit for a request.
+    Rate limiting: 5 requests per 24 hours per user (admins exempt).
+    Returns tuple: (is_allowed: bool, error_response: dict or None)
+    """
+    from .models import is_user_admin
+    
+    # Admin users bypass rate limit
+    if hasattr(request, "user") and request.user and is_user_admin(request.user):
+        return True, None
+    
+    if es_agent_stream_rate_limiter is None:
+        return True, None
+
+    # Get user ID from request
+    user_id = None
+    if hasattr(request, "user") and request.user:
+        if hasattr(request.user, "clerk_id"):
+            user_id = str(request.user.clerk_id)
+        elif hasattr(request.user, "id"):
+            user_id = str(request.user.id)
+
+    # Fallback to IP address if no user ID available
+    if not user_id:
+        user_id = request.META.get(
+            "HTTP_X_FORWARDED_FOR", request.META.get("REMOTE_ADDR", "unknown")
+        )
+        if "," in user_id:
+            user_id = user_id.split(",")[0].strip()
+
+    try:
+        response = es_agent_stream_rate_limiter.limit(user_id)
+        if not response.allowed:
+            reset_time = response.reset
+            hours_until_reset = (reset_time - datetime.now().timestamp()) / 3600
+            return False, {
+                "detail": f"ES Agent rate limit exceeded. You can make 5 requests per day. Try again in {hours_until_reset:.1f} hours.",
+                "retry_after": int(reset_time - datetime.now().timestamp())
+            }
+        return True, None
+    except Exception as e:
+        log.warning(f"ES Agent rate limiting check failed: {e}. Allowing request to proceed.")
+        return True, None
+
+
+async def async_generator_to_sse(generator: AsyncGenerator[Dict, None]) -> AsyncGenerator[str, None]:
+    """
+    Convert async generator of dicts to SSE format.
+    
+    Args:
+        generator: Async generator yielding event dicts
+        
+    Yields:
+        SSE-formatted strings: 'data: {json}\n\n'
+    """
+    try:
+        async for event in generator:
+            yield f"data: {json.dumps(event)}\n\n"
+    except Exception as e:
+        log.error(f"Error in SSE generator: {e}", exc_info=True)
+        error_event = {
+            "type": "error",
+            "message": f"Streaming error: {str(e)}",
+            "emoji": "❌"
+        }
+        yield f"data: {json.dumps(error_event)}\n\n"
+    finally:
+        # Always send done event
+        done_event = {"type": "done"}
+        yield f"data: {json.dumps(done_event)}\n\n"
 
 
 # convert django models to pydantic schemas
@@ -197,6 +289,9 @@ class OwnedItemSchema(Schema):
     keep_badge_progress: List[BadgeProgressSchema]
     ownership_duration_goal_months: int
     ownership_duration_goal_progress: float
+    current_location_id: Optional[UUID] = None
+    location_path: Optional[str] = None
+    location_updated_at: Optional[datetime] = None
 
     @staticmethod
     def from_orm(obj) -> "OwnedItemSchema":
@@ -213,6 +308,9 @@ class OwnedItemSchema(Schema):
             keep_badge_progress=obj.keep_badge_progress,
             ownership_duration_goal_months=obj.ownership_duration_goal_months,
             ownership_duration_goal_progress=obj.ownership_duration_goal_progress,
+            current_location_id=obj.current_location_id,
+            location_path=obj.current_location.full_path if obj.current_location else None,
+            location_updated_at=obj.location_updated_at,
         )
 
 
@@ -224,6 +322,7 @@ class OwnedItemCreateSchema(Schema):
     item_received_date: datetime
     last_used: datetime
     ownership_duration_goal_months: int = 12
+    current_location_id: Optional[UUID] = None
 
 
 class OwnedItemUpdateSchema(Schema):
@@ -234,6 +333,7 @@ class OwnedItemUpdateSchema(Schema):
     last_used: Optional[datetime] = None
     status: Optional[ItemStatus] = None
     ownership_duration_goal_months: Optional[int] = None
+    current_location_id: Optional[UUID] = None
 
 
 class CheckupCreateSchema(Schema):
@@ -264,6 +364,167 @@ class EmailResponseSchema(Schema):
 # Add this new schema
 class CheckupTypeSchema(Schema):
     type: str
+
+
+# Elasticsearch Agent Schemas
+class ESAgentQueryRequest(Schema):
+    query: str
+
+
+# Location Schemas
+class LocationSchema(Schema):
+    id: UUID
+    slug: str
+    display_name: str
+    full_path: str
+    parent_id: Optional[UUID] = None
+    level: int
+    item_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+    @staticmethod
+    def from_orm(obj) -> "LocationSchema":
+        from .models import Location
+        return LocationSchema(
+            id=obj.id,
+            slug=obj.slug,
+            display_name=obj.display_name,
+            full_path=obj.full_path,
+            parent_id=obj.parent_id,
+            level=obj.level,
+            item_count=obj.items.count() if hasattr(obj, 'items') else 0,
+            created_at=obj.created_at,
+            updated_at=obj.updated_at,
+        )
+
+
+class LocationCreateSchema(Schema):
+    display_name: str
+    parent_id: Optional[UUID] = None
+
+
+class LocationUpdateSchema(Schema):
+    display_name: str
+
+
+class LocationMoveSchema(Schema):
+    parent_id: Optional[UUID] = None
+
+
+class LocationTreeNode(Schema):
+    id: str
+    slug: str
+    display_name: str
+    full_path: str
+    level: int
+    parent_id: Optional[str] = None
+    children: List['LocationTreeNode'] = []
+
+
+class LocationSearchResultSchema(Schema):
+    id: UUID
+    slug: str
+    display_name: str
+    full_path: str
+    level: int
+    item_count: int = 0
+    items: List[str] = []
+
+    @staticmethod
+    def from_orm(obj) -> "LocationSearchResultSchema":
+        return LocationSearchResultSchema(
+            id=obj.id,
+            slug=obj.slug,
+            display_name=obj.display_name,
+            full_path=obj.full_path,
+            level=obj.level,
+            item_count=obj.items.count() if hasattr(obj, 'items') else 0,
+            items=[item.name for item in obj.items.all()[:10]] if hasattr(obj, 'items') else [],
+        )
+
+
+# Location schemas
+class LocationSchema(Schema):
+    """Response schema for location with item count"""
+    id: UUID
+    slug: str
+    display_name: str
+    full_path: str
+    parent_id: Optional[UUID] = None
+    level: int
+    item_count: int
+    created_at: datetime
+    updated_at: datetime
+
+    @staticmethod
+    def from_orm(obj) -> "LocationSchema":
+        return LocationSchema(
+            id=obj.id,
+            slug=obj.slug,
+            display_name=obj.display_name,
+            full_path=obj.full_path,
+            parent_id=obj.parent_id,
+            level=obj.level,
+            item_count=obj.items.count(),
+            created_at=obj.created_at,
+            updated_at=obj.updated_at,
+        )
+
+
+class LocationCreateSchema(Schema):
+    """Schema for creating a new location"""
+    display_name: str
+    parent_id: Optional[UUID] = None
+
+
+class LocationUpdateSchema(Schema):
+    """Schema for updating location (only display_name can be updated)"""
+    display_name: str
+
+
+class LocationMoveSchema(Schema):
+    """Schema for moving location to new parent"""
+    parent_id: Optional[UUID] = None
+
+
+class LocationTreeNode(Schema):
+    """Recursive schema for location tree structure"""
+    id: str
+    slug: str
+    display_name: str
+    full_path: str
+    level: int
+    parent_id: Optional[str] = None
+    children: List['LocationTreeNode'] = []
+
+
+# Enable forward reference for recursive schema
+LocationTreeNode.model_rebuild()
+
+
+class LocationSearchResultSchema(Schema):
+    """Schema for location search results with item names"""
+    id: UUID
+    slug: str
+    display_name: str
+    full_path: str
+    level: int
+    item_count: int
+    item_names: List[str]
+
+    @staticmethod
+    def from_orm(obj) -> "LocationSearchResultSchema":
+        items = obj.items.all()
+        return LocationSearchResultSchema(
+            id=obj.id,
+            slug=obj.slug,
+            display_name=obj.display_name,
+            full_path=obj.full_path,
+            level=obj.level,
+            item_count=items.count(),
+            item_names=[item.name for item in items[:10]],  # Limit to first 10
+        )
 
 
 # Development-only route to get Clerk JWT token for testing
@@ -349,6 +610,7 @@ if not prod:
             with sdk as clerk:
                 # Get all users and find by email
                 users = clerk.users.list()
+                print(f" Users in Clerk: {[user.email_addresses[0].email_address for user in users if user.email_addresses]}")
                 target_user = None
 
                 for user in users:
@@ -955,6 +1217,134 @@ def agent_add_item_batch(request, data: AgentBatchPromptsSchema):
     return result
 
 
+@router.post("/query-agent/stream", tags=["AI Agent"])
+async def stream_elasticsearch_agent(request, data: ESAgentQueryRequest):
+    """
+    Stream query to Elasticsearch Agent with real-time progress and responses.
+    
+    Returns Server-Sent Events (SSE) stream with:
+    - Progress events: {"type": "progress", "emoji": str, "text": str, "event": str}
+    - Text chunks: {"type": "chunk", "text": str, "message_id": str}
+    - Completion: {"type": "complete", "message_id": str}
+    - Done: {"type": "done"}
+    - Errors: {"type": "error", "message": str, "emoji": str}
+    
+    Rate limit: 5 requests per 24 hours (admins unlimited)
+    """
+    from asgiref.sync import sync_to_async
+    from django.contrib.auth import get_user_model
+    
+    # Manual authentication for async context
+    auth_header = request.META.get("HTTP_AUTHORIZATION")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HttpError(401, "Unauthorized")
+    
+    token = auth_header.split(" ")[1]
+    
+    # Decode and validate token in sync context
+    try:
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=["HS256"],
+            options={
+                "verify_signature": True,
+                "verify_exp": False,
+                "verify_iat": False,
+                "verify_nbf": False,
+                "verify_aud": False,
+            },
+        )
+        
+        clerk_user_id = payload.get("sub")
+        if not clerk_user_id:
+            raise HttpError(401, "Invalid token")
+        
+        # Get user from database using sync_to_async
+        User = get_user_model()
+        
+        @sync_to_async
+        def get_or_create_user():
+            try:
+                return User.objects.get(clerk_id=clerk_user_id)
+            except User.DoesNotExist:
+                return User.objects.create_user(
+                    username=clerk_user_id,
+                    clerk_id=clerk_user_id,
+                    email=f"{clerk_user_id}@dev.local",
+                )
+        
+        user = await get_or_create_user()
+        request.user = user
+        
+    except jwt.InvalidTokenError:
+        raise HttpError(401, "Invalid token")
+    except Exception as e:
+        log.error(f"Authentication error: {e}")
+        raise HttpError(401, "Unauthorized")
+    
+    # Check ES agent rate limit (admins bypass)
+    @sync_to_async
+    def check_rate_limit_async():
+        return check_es_agent_rate_limit(request)
+    
+    is_allowed, error_response = await check_rate_limit_async()
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    # Get user's clerk_id for the query
+    user_id = user.clerk_id if hasattr(user, 'clerk_id') else str(user.id)
+    
+    # Create streaming generator
+    event_generator = ElasticsearchAgentService.stream_query(user_id, data.query)
+    sse_generator = async_generator_to_sse(event_generator)
+    
+    # Create streaming response with SSE headers
+    response = StreamingHttpResponse(
+        sse_generator,
+        content_type='text/event-stream'
+    )
+    response['Cache-Control'] = 'no-cache'
+    response['X-Accel-Buffering'] = 'no'
+    response['Connection'] = 'keep-alive'
+    
+    return response
+
+
+@router.post("/query-agent", auth=ClerkAuth(), tags=["AI Agent"])
+def query_elasticsearch_agent(request, data: ESAgentQueryRequest):
+    """
+    Query Elasticsearch Agent (non-streaming).
+    
+    Returns JSON response with:
+    - success: bool
+    - response: str (agent's response text)
+    - conversation_id: str (for multi-turn conversations)
+    - elapsed_time_ms: float
+    - error: str (if success=False)
+    
+    Rate limit: 5 requests per 24 hours (admins unlimited)
+    """
+    from asgiref.sync import async_to_sync
+    
+    # Check ES agent rate limit (admins bypass)
+    is_allowed, error_response = check_es_agent_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    # Get user's clerk_id for the query
+    user = request.user
+    user_id = user.clerk_id if hasattr(user, 'clerk_id') else str(user.id)
+    
+    # Query the agent (convert async to sync)
+    result = async_to_sync(ElasticsearchAgentService.query)(user_id, data.query)
+    
+    if not result.get("success"):
+        raise HttpError(500, result.get("error", "Unknown error occurred"))
+    
+    return result
+
+
 # User Preferences Endpoints
 class SyncPreferencesRequest(Schema):
     checkupInterval: int
@@ -1071,3 +1461,283 @@ def clerk_jwt_test(request):
         email=request.user.email,
         csrf_token=csrf_token,
     )
+
+
+# ============================================================================
+# Location Endpoints
+# ============================================================================
+
+@router.get(
+    "/locations",
+    response=List[LocationSchema],
+    auth=ClerkAuth(),
+    tags=["Locations"],
+)
+def list_locations(request):
+    """
+    Get all locations for the authenticated user (flat list).
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    from .models import Location
+    locations = Location.objects.filter(user=request.user).order_by('full_path')
+    return [LocationSchema.from_orm(loc) for loc in locations]
+
+
+@router.get(
+    "/locations/tree",
+    response=List[LocationTreeNode],
+    auth=ClerkAuth(),
+    tags=["Locations"],
+)
+def get_location_tree(request):
+    """
+    Get hierarchical tree structure of all user locations.
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    from .services import LocationService
+    tree = LocationService.get_location_tree(request.user)
+    return tree
+
+
+@router.get(
+    "/locations/search",
+    response=List[LocationSearchResultSchema],
+    auth=ClerkAuth(),
+    tags=["Locations"],
+)
+def search_locations(request, q: str):
+    """
+    Search locations by path/name using full_path__icontains.
+    Query parameter: q - search query string
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    from .services import LocationService
+    locations = LocationService.search_locations(request.user, q)
+    return [LocationSearchResultSchema.from_orm(loc) for loc in locations]
+
+
+@router.post(
+    "/locations",
+    response=LocationSchema,
+    auth=ClerkAuth(),
+    tags=["Locations"],
+)
+def create_location(request, data: LocationCreateSchema):
+    """
+    Create a new location. Validates parent ownership.
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    from .services import LocationService
+    try:
+        location = LocationService.create_location(
+            user=request.user,
+            display_name=data.display_name,
+            parent_id=data.parent_id
+        )
+        return LocationSchema.from_orm(location)
+    except ValidationError as e:
+        raise HttpError(400, str(e))
+
+
+@router.get(
+    "/locations/{location_id}",
+    response=LocationSchema,
+    auth=ClerkAuth(),
+    tags=["Locations"],
+)
+def get_location(request, location_id: UUID):
+    """
+    Get a specific location by ID with item count.
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    from .models import Location
+    try:
+        location = Location.objects.get(id=location_id, user=request.user)
+        return LocationSchema.from_orm(location)
+    except Location.DoesNotExist:
+        raise HttpError(404, "Location not found")
+
+
+@router.put(
+    "/locations/{location_id}",
+    response=LocationSchema,
+    auth=ClerkAuth(),
+    tags=["Locations"],
+)
+def update_location(request, location_id: UUID, data: LocationUpdateSchema):
+    """
+    Update location display_name (triggers slug regeneration and cascade).
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    from .models import Location
+    from .services import LocationService
+    try:
+        location = Location.objects.get(id=location_id, user=request.user)
+        location.display_name = data.display_name
+        location.slug = LocationService.generate_slug(data.display_name)
+        location.full_clean()
+        location.save()
+        return LocationSchema.from_orm(location)
+    except Location.DoesNotExist:
+        raise HttpError(404, "Location not found")
+    except ValidationError as e:
+        raise HttpError(400, str(e))
+
+
+@router.put(
+    "/locations/{location_id}/move",
+    response=LocationSchema,
+    auth=ClerkAuth(),
+    tags=["Locations"],
+)
+def move_location(request, location_id: UUID, data: LocationMoveSchema):
+    """
+    Move location to a new parent (or to root if parent_id is null).
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    from .models import Location
+    from .services import LocationService
+    try:
+        location = Location.objects.get(id=location_id, user=request.user)
+        
+        new_parent = None
+        if data.parent_id:
+            try:
+                new_parent = Location.objects.get(id=data.parent_id, user=request.user)
+            except Location.DoesNotExist:
+                raise HttpError(404, "Parent location not found")
+        
+        location = LocationService.move_location(location, new_parent, request.user)
+        return LocationSchema.from_orm(location)
+    except Location.DoesNotExist:
+        raise HttpError(404, "Location not found")
+    except ValidationError as e:
+        raise HttpError(400, str(e))
+
+
+@router.delete(
+    "/locations/{location_id}",
+    auth=ClerkAuth(),
+    tags=["Locations"],
+)
+def delete_location(request, location_id: UUID):
+    """
+    Delete a location (fails if it has items or children).
+    Rate limit: 100 requests per 60 seconds
+    """
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    from .models import Location
+    from .services import LocationService
+    try:
+        location = Location.objects.get(id=location_id, user=request.user)
+        LocationService.delete_location_safe(location)
+        return {"success": True, "message": "Location deleted successfully"}
+    except Location.DoesNotExist:
+        raise HttpError(404, "Location not found")
+    except ValidationError as e:
+        raise HttpError(400, str(e))
+
+
+# ============================================================================
+# Elasticsearch Sync
+# ============================================================================
+
+@router.post(
+    "/sync-to-elasticsearch",
+    auth=ClerkAuth(),
+    tags=["Admin"],
+)
+def sync_to_elasticsearch(request):
+    """
+    Manually sync all PostgreSQL data to Elasticsearch.
+    Admin only. Returns sync results with success/failure status.
+    Rate limit: 100 requests per 60 seconds
+    """
+    from .models import is_user_admin
+    from .elasticsearch_sync import sync_all_to_elasticsearch
+    
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    # Check if user is admin
+    if not is_user_admin(request.user):
+        raise HttpError(403, "Admin access required")
+    
+    # Perform sync
+    result = sync_all_to_elasticsearch()
+    
+    if not result["success"]:
+        # Return error response but with 200 status for frontend handling
+        return result
+    
+    return result
+
+
+@router.post(
+    "/sync-my-data",
+    auth=ClerkAuth(),
+    tags=["Elasticsearch"],
+)
+def sync_user_data(request):
+    """
+    Sync the authenticated user's OwnedItem and Location data to Elasticsearch.
+    Returns sync results with success/failure status.
+    Rate limit: 100 requests per 60 seconds
+    """
+    from .elasticsearch_sync import sync_user_to_elasticsearch
+    
+    # Check rate limit
+    is_allowed, error_response = check_rate_limit(request)
+    if not is_allowed:
+        raise HttpError(429, error_response["detail"])
+    
+    # Perform user-specific sync
+    result = sync_user_to_elasticsearch(request.user)
+    
+    if not result["success"]:
+        # Return error response but with 200 status for frontend handling
+        return result
+    
+    return result
+

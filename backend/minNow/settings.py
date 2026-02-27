@@ -66,7 +66,7 @@ log.info(f"Environment: {'Production' if prod else 'Development'}")
 
 
 DEBUG = os.getenv("DEBUG") == "True"
-ROOT_URLCONF = os.getenv("ROOT_URLCONF")
+ROOT_URLCONF = "minNow.urls"
 
 if prod:
     # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -204,8 +204,8 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "corsheaders",
-    "items",
-    "users",
+    "items.apps.ItemsConfig",
+    "users.apps.UsersConfig",
     "anymail",
 ]
 
@@ -315,3 +315,27 @@ MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
 
 
 AUTH_USER_MODEL = "users.User"
+
+# Elasticsearch configuration
+ES_HOST = os.getenv("ES_HOST", "http://localhost:9200")
+ES_API_KEY = os.getenv("ELASTICSEARCH_API_KEY")
+
+# Initialize Elasticsearch client
+ES_CLIENT = None
+try:
+    from elasticsearch import Elasticsearch
+    
+    if ES_API_KEY:
+        ES_CLIENT = Elasticsearch([ES_HOST], api_key=ES_API_KEY)
+    else:
+        ES_CLIENT = Elasticsearch([ES_HOST])
+    
+    # Test connection (optional - don't fail if ES is down)
+    if ES_CLIENT and ES_CLIENT.ping():
+        log.info(f"✓ Connected to Elasticsearch at {ES_HOST}")
+    else:
+        log.warning(f"⚠ Elasticsearch not available at {ES_HOST}")
+        ES_CLIENT = None
+except Exception as e:
+    log.warning(f"⚠ Failed to initialize Elasticsearch client: {e}")
+    ES_CLIENT = None

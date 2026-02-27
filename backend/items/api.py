@@ -1379,38 +1379,9 @@ def query_elasticsearch_agent(request, data: ESAgentQueryRequest):
     user_id = str(user.id)
     user_clerk_id = getattr(user, 'clerk_id', None)
     
-    # Debug logging (enabled when DEBUG=True in settings)
-    if settings.DEBUG:
-        log.info("\n" + "=" * 70)
-        log.info("ELASTICSEARCH AGENT QUERY (Non-Streaming)")
-        log.info("=" * 70 + "\n")
-        log.info(f"User ID: {user_id}")
-        if user_clerk_id:
-            log.info(f"Clerk ID: {user_clerk_id}")
-        log.info(f"Username: {user.username}")
-        log.info(f'Query: "{data.query}"')
-        log.info("")
-    
+   
     # Query the agent (convert async to sync)
     result = async_to_sync(ElasticsearchAgentService.query)(user_id, data.query)
-    
-    # Debug logging of results
-    if settings.DEBUG:
-        log.info("\n" + "=" * 70)
-        log.info("ELASTICSEARCH AGENT RESPONSE")
-        log.info("=" * 70 + "\n")
-        
-        if result.get("success"):
-            log.info("✅ Response received successfully")
-            log.info("\n📬 Full JSON Response:")
-            log.info("-" * 70)
-            log.info(json.dumps(result, indent=2))
-            log.info("-" * 70)
-        else:
-            log.error("❌ Failed to get response")
-            log.error(f"Error: {result.get('error', 'Unknown error')}")
-        
-        log.info("")
     
     if not result.get("success"):
         raise HttpError(500, result.get("error", "Unknown error occurred"))

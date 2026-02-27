@@ -370,12 +370,10 @@ class ElasticsearchAgentService:
         # Build request payload
         # attach user id to query
         payload = {
-            "input": query,
+            "input": f"User ID: {user_id}\nQuery: {query}",
             "agent_id": agent_id,
-             "configuration_overrides": {
-              "instructions": f"User ID: {user_id}"
-        }
-               
+        
+
             
          }   
         

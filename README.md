@@ -2,13 +2,6 @@
 
 <img width="1262" height="712" alt="image" src="https://github.com/user-attachments/assets/93cc57e1-9899-4936-826d-87a632852430" />
 
-# Min-Now Web App - Agentic Workflow & Tech Stack
-
-![original](https://github.com/user-attachments/assets/e12619e3-365f-4dcf-a21b-30400a42a349)
-
-<img width="976" height="680" alt="Screenshot 2026-02-27 030626" src="https://github.com/user-attachments/assets/64390566-6c7f-46ef-a1d6-7fa9948f33ad" />
-
-
 
 # Min-Now Web App - Local Development Setup Guide
 
@@ -263,4 +256,8 @@ npm run test:e2e:ui
 ```
 
 ---
+# Min-Now Web App - Agentic Workflow & Tech Stack
 
+![original](https://github.com/user-attachments/assets/e12619e3-365f-4dcf-a21b-30400a42a349)
+
+<img width="976" height="680" alt="Screenshot 2026-02-27 030626" src="https://github.com/user-attachments/assets/64390566-6c7f-46ef-a1d6-7fa9948f33ad" />

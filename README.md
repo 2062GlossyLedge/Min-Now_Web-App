@@ -2,6 +2,9 @@
 
 <img width="1262" height="712" alt="image" src="https://github.com/user-attachments/assets/93cc57e1-9899-4936-826d-87a632852430" />
 
+# Min-Now Agentic Workflow 
+
+![original](https://github.com/user-attachments/assets/185bbbc5-b1ae-44cb-b113-d4794f304ed8)
 
 
 # Min-Now Web App - Local Development Setup Guide

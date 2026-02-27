@@ -645,36 +645,55 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
     const posthog = usePostHog()
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 w-full max-w-sm max-h-[90vh] overflow-y-auto">
-                <div className="flex mb-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+                {/* Header */}
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Add New Item</h2>
                     <button
-                        className={`px-4 py-2 rounded-tl-lg border-b-2 font-semibold focus:outline-none ${activeTab === 'manual' ? 'border-teal-500 text-teal-600 dark:text-teal-300' : 'border-transparent text-gray-500 dark:text-gray-400'}`}
+                        onClick={onClose}
+                        className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                {/* Tabs */}
+                <div className="flex border-b border-gray-200 dark:border-gray-700 mb-6">
+                    <button
                         onClick={() => {
                             setActiveTab('manual')
                             setManualAddError(null)
                             setQuickBatchError(null)
                         }}
+                        className={`px-4 py-2 font-medium transition-colors ${activeTab === 'manual'
+                            ? 'text-teal-600 dark:text-teal-400 border-b-2 border-teal-600 dark:border-teal-400'
+                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                            }`}
                         type="button"
                     >
                         Manual Add
                     </button>
                     <button
-                        className={`px-4 py-2 rounded-tr-lg border-b-2 font-semibold focus:outline-none ${activeTab === 'quick' ? 'border-purple-500 text-purple-600 dark:text-purple-300' : 'border-transparent text-gray-500 dark:text-gray-400'}`}
                         onClick={() => {
                             setActiveTab('quick')
                             setManualAddError(null)
                             setQuickBatchError(null)
                         }}
+                        className={`px-4 py-2 font-medium transition-colors ${activeTab === 'quick'
+                            ? 'text-purple-600 dark:text-purple-400 border-b-2 border-purple-600 dark:border-purple-400'
+                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                            }`}
                         type="button"
                     >
-                        Minimal Add
+                        Min Add
                     </button>
                 </div>
 
+                {/* Tab Content */}
                 {activeTab === 'manual' && (
                     <>
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Add New Item</h2>
-
                         {/* Item Limit Status */}
                         {(!itemStatsLoading && itemStats) || isUserAdmin() ? (
                             <div className={`mb-4 p-3 rounded-lg border ${isUserAdmin() ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'}`}>
@@ -895,7 +914,7 @@ export default function AddItemForm({ onClose, onItemAdded }: AddItemFormProps) 
                                 >
                                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
                                         <MapPin className="h-4 w-4" />
-                                        Set Location (Optional)
+                                        Set Proper Location (Optional)
                                     </span>
                                     {showLocationPicker ? (
                                         <ChevronUpIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />

@@ -320,7 +320,7 @@ export default function KeepView() {
                             <button
                                 onClick={handleSearchClick}
                                 className="p-2 text-gray-900 dark:text-white hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
-                                title="Search for Items"
+                                title="Search for an Item's Proper Location"
                             >
                                 {/* Search Icon */}
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

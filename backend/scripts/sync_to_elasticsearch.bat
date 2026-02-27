@@ -27,7 +27,7 @@ echo.
 
 REM Step 2: Import NDJSON data to Elasticsearch
 echo Step 2: Importing NDJSON data to Elasticsearch...
-python experiments\es\import_to_elasticsearch.py --data-dir specs\ndjson
+python experiments\es\elastic_storage\import_to_elasticsearch.py --data-dir specs\ndjson
 
 if errorlevel 1 (
     echo.

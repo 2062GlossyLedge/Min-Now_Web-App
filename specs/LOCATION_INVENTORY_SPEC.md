@@ -807,7 +807,7 @@ QR code workflow requires both generation and scanning infrastructure:
 
 3. **Deep Links Instead of Raw Data:**
    ```
-   QR Code → https://min-now.store/container/abc-123
+   QR Code → https://min-now.xyz/container/abc-123
    ```
    - Opens web app directly to container view
    - No custom QR scanning logic needed

@@ -397,7 +397,7 @@ Three-state model: Keep (active use), Give (transferred to person), Donate (tran
 - `PROD=True`, `DEBUG=False`
 - PostgreSQL with SSL connection
 - All external service credentials
-- Allowed hosts: min-now.store, www.min-now.store
+- Allowed hosts: min-now.xyz, www.min-now.xyz
 
 **Development:**
 - `PROD=False`, `DEBUG=True`

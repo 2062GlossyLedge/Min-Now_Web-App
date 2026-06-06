@@ -83,8 +83,8 @@ if prod:
     # )
     ALLOWED_HOSTS = [
         "min-nowweb-app-production.up.railway.app",
-        "min-now.store",
-        "www.min-now.store",
+        "min-now.xyz",
+        "www.min-now.xyz",
     ]
 
     DATABASES = {
@@ -296,8 +296,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "https://min-now.store",
-    "https://www.min-now.store",
+    "https://min-now.xyz",
+    "https://www.min-now.xyz",
     "https://min-now-web-app.vercel.app",
 ]
 
@@ -306,8 +306,8 @@ CORS_ALLOW_CREDENTIALS = True
 # Update CSRF settings
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
-    "https://min-now.store",
-    "https://www.min-now.store",
+    "https://min-now.xyz",
+    "https://www.min-now.xyz",
     "https://min-now-web-app.vercel.app",
 ]
 # Add this line to ensure WhiteNoise works in production

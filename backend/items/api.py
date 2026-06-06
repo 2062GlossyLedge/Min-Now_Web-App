@@ -453,8 +453,8 @@ if not prod:
                             AuthenticateRequestOptions(
                                 authorized_parties=[
                                     "http://localhost:3000",
-                                    "https://min-now.store",
-                                    "https://www.min-now.store",
+                                    "https://min-now.xyz",
+                                    "https://www.min-now.xyz",
                                     "https://min-now-web-app.vercel.app",
                                 ]
                             ),

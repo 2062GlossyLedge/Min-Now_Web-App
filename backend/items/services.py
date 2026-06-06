@@ -181,10 +181,10 @@ class CheckupService:
         subject = f"Your {checkup_type.capitalize()} Checkup Reminder"
         if due:
             text_content = f"Hi, your {checkup_type} checkup is due!"
-            html_content = f"<p>{text_content}</p><br><br><p><a href='https://min-now.store' style='color: #007bff; text-decoration: underline;'>Log in to complete your checkup</a></p>"
+            html_content = f"<p>{text_content}</p><br><br><p><a href='https://min-now.xyz' style='color: #007bff; text-decoration: underline;'>Log in to complete your checkup</a></p>"
         else:
             text_content = f"Hi, your {checkup_type} checkup is not due yet. Time left: {time_left} months."
-            html_content = f"<p>{text_content}</p><br><br><p><a href='https://min-now.store' style='color: #007bff; text-decoration: underline;'>Visit Min-Now</a></p>"
+            html_content = f"<p>{text_content}</p><br><br><p><a href='https://min-now.xyz' style='color: #007bff; text-decoration: underline;'>Visit Min-Now</a></p>"
 
         try:
             mailer.set_mail_from(mail_from, mail_body)

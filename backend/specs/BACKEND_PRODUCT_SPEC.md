@@ -229,7 +229,7 @@ Badges are **item-type specific** (e.g., "Gold Clothing Keeper", "Silver Furnitu
 
 ### Base URL
 - **Development:** `http://localhost:8000/api/`
-- **Production:** `https://min-now.store/api/` or Railway deployment URL
+- **Production:** `https://min-now.xyz/api/` or Railway deployment URL
 
 ### Authentication
 

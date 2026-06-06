@@ -40,31 +40,31 @@ export default clerkMiddleware(
                     'self',
 
                     //production domain for clerk auth handling
-                    'https://accounts.min-now.store/*',
+                    'https://accounts.min-now.xyz/*',
                     'https://sea1.ingest.uploadthing.com',
                     'https://utfs.io',
                     'https://*.ufs.sh',
                     'https://uploadthing.com',
                     'https://*.uploadthing.com',
-                    'https://accounts.min-now.store', 'https://us.i.posthog.com',
+                    'https://accounts.min-now.xyz', 'https://us.i.posthog.com',
                     'https://us-assets.i.posthog.com',
                     'https://app.posthog.com',
                     //clerk sign in page in dev
                     'https://teaching-sturgeon-25.accounts.dev/*',
                     //clerk sign in page in prod
-                    'https://accounts.min-now.store/*'
+                    'https://accounts.min-now.xyz/*'
 
 
                 ],
                 'img-src': [
                     //unsure why self or sites domain doesn't prevent public/ imgs to have to be ignored in the middleware
                     'self',
-                    'https://www.min-now.store/*',
+                    'https://www.min-now.xyz/*',
                     'https://sea1.ingest.uploadthing.com',
                     'https://utfs.io',
                     'https://*.ufs.sh',
                     'https://teaching-sturgeon-25.accounts.dev',
-                    'https://accounts.min-now.store/*',
+                    'https://accounts.min-now.xyz/*',
                 ]
             },
         },

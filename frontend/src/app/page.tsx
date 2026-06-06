@@ -322,7 +322,7 @@ export default function HomePage() {
 
             {/* Footer */}
             <footer className="w-9/10 relative text-center text-white/70 mb-4 mt-8 mx-auto">
-                <p className="text-xs sm:text-sm">&copy; 2025 Min-Now. Organize your life, one item at a time.</p>
+                <p className="text-xs sm:text-sm">&copy; 2026 Min-Now. Organize your life, one item at a time.</p>
             </footer>
         </div>
     )
